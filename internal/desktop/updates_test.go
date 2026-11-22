@@ -227,13 +227,12 @@ func TestUpdates(t *testing.T) {
 
 		updates, upgrader, _ := newUpdates(t)
 		upgrader.On("Release", testify.Anything, "0.2.0").Return(newer, nil).Once()
-		upgrader.On("Install", testify.Anything, newer, testify.Anything).Return(upgrade.Installation{}, fmt.Errorf("replacing /usr/local/bin/tarhche: %w", upgrade.ErrPermission)).Once()
-		upgrader.On("Target").Return("/usr/local/bin/tarhche", nil).Once()
+		upgrader.On("Install", testify.Anything, newer, testify.Anything).Return(upgrade.Installation{}, fmt.Errorf("cannot replace /usr/local/bin/tarhche: %w", upgrade.ErrPermission)).Once()
 
 		_, err := updates.Upgrade(context.Background(), "0.2.0")
 
 		require.ErrorIs(t, err, upgrade.ErrPermission)
-		assert.Contains(t, err.Error(), "only an administrator may replace /usr/local/bin/tarhche, so upgrade it with ")
+		assert.Contains(t, err.Error(), "cannot replace /usr/local/bin/tarhche: permission denied: only an administrator may, so run ")
 	})
 
 	t.Run("a second upgrade is refused while one is under way", func(t *testing.T) {

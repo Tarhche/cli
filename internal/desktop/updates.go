@@ -253,23 +253,19 @@ func (u *Updates) progressOf(version string) upgrade.Progress {
 	}
 }
 
-// explained is err, saying how to upgrade where the user may not write
-// when that is why it failed: as an administrator, from a terminal.
+// explained is err, which names what could not be replaced, saying how to
+// upgrade where the user may not write when that is why it failed: as an
+// administrator, from a terminal.
 func (u *Updates) explained(err error) error {
 	if !errors.Is(err, upgrade.ErrPermission) {
 		return err
 	}
 
-	where := "tarhche"
-	if target, targetErr := u.upgrader.Target(); targetErr == nil {
-		where = target
-	}
-
 	if u.goos == "windows" {
-		return fmt.Errorf("%w: only an administrator may replace %s, so upgrade it with tarhche upgrade in a terminal opened as administrator", err, where)
+		return fmt.Errorf("%w: only an administrator may, so run tarhche upgrade in a terminal opened as administrator", err)
 	}
 
-	return fmt.Errorf("%w: only an administrator may replace %s, so upgrade it with sudo tarhche upgrade in a terminal", err, where)
+	return fmt.Errorf("%w: only an administrator may, so run sudo tarhche upgrade in a terminal", err)
 }
 
 // releaseOf is release as the frontend shows it.

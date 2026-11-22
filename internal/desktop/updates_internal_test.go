@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -113,35 +114,27 @@ func TestUpdatesRestart(t *testing.T) {
 func TestUpdatesExplained(t *testing.T) {
 	t.Parallel()
 
-	denied := upgrade.ErrPermission
-
 	cases := []struct {
 		name   string
 		goos   string
-		target string
 		failed error
 		want   string
 	}{
-		{name: "anywhere but Windows, with sudo", goos: "linux", target: "/usr/local/bin/tarhche", want: "permission denied: only an administrator may replace /usr/local/bin/tarhche, so upgrade it with sudo tarhche upgrade in a terminal"},
-		{name: "on Windows, in an administrator's terminal", goos: "windows", target: `C:\Program Files\Tarhche\tarhche.exe`, want: `permission denied: only an administrator may replace C:\Program Files\Tarhche\tarhche.exe, so upgrade it with tarhche upgrade in a terminal opened as administrator`},
-		{name: "tarhche, when where it is is not known", goos: "darwin", failed: errors.New("no executable"), want: "permission denied: only an administrator may replace tarhche, so upgrade it with sudo tarhche upgrade in a terminal"},
+		{name: "anywhere but Windows, with sudo", goos: "linux", failed: fmt.Errorf("cannot replace /usr/local/bin/tarhche: %w", upgrade.ErrPermission), want: "cannot replace /usr/local/bin/tarhche: permission denied: only an administrator may, so run sudo tarhche upgrade in a terminal"},
+		{name: "on Windows, in an administrator's terminal", goos: "windows", failed: fmt.Errorf(`cannot replace C:\Program Files\Tarhche\tarhche.exe: %w`, upgrade.ErrPermission), want: `cannot replace C:\Program Files\Tarhche\tarhche.exe: permission denied: only an administrator may, so run tarhche upgrade in a terminal opened as administrator`},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 
-			upgrader := &upgrademock.Upgrader{}
-			upgrader.On("Target").Return(c.target, c.failed).Once()
-
-			updates := NewUpdates(upgrader, nil, func() {})
+			updates := NewUpdates(&upgrademock.Upgrader{}, nil, func() {})
 			updates.goos = c.goos
 
-			err := updates.explained(denied)
+			err := updates.explained(c.failed)
 
 			require.ErrorIs(t, err, upgrade.ErrPermission)
 			assert.EqualError(t, err, c.want)
-			upgrader.AssertExpectations(t)
 		})
 	}
 
