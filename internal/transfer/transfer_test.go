@@ -405,3 +405,36 @@ func TestArchiveName(t *testing.T) {
 	assert.Equal(t, ".", archiveName("/etc/."))
 	assert.Equal(t, ".", archiveName("/"))
 }
+
+// stalling is a remote that archives a file, then holds the archive open
+// until its copy is cancelled, and fails saying nothing, as a tar killed
+// for writing to a closed pipe does.
+type stalling struct{ archive []byte }
+
+func (s stalling) Stat(context.Context, string) (Info, error) { return Info{}, nil }
+
+func (s stalling) Archive(ctx context.Context, _ string, _ bool, w io.Writer) error {
+	if _, err := w.Write(s.archive); err != nil {
+		return err
+	}
+
+	<-ctx.Done()
+
+	return errors.New("")
+}
+
+func (s stalling) Extract(context.Context, string, io.Reader, bool) error { return nil }
+
+func TestDownloadCause(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a local side that fails first is why, whatever the remote side then fails with", func(t *testing.T) {
+		t.Parallel()
+
+		remote := stalling{archive: archiveOf(t, fileEntry("file.txt", "hello"))[:1024]}
+
+		_, err := Download(context.Background(), remote, "/vm/file.txt", filepath.Join(t.TempDir(), "missing")+"/", nil, Options{})
+
+		assert.ErrorIs(t, err, ErrNoSuchDirectory)
+	})
+}

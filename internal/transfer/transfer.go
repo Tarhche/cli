@@ -122,8 +122,8 @@ func Download(ctx context.Context, remote Remote, src, dst string, stdout io.Wri
 
 	go func() {
 		err := remote.Archive(ctx, src, options.FollowLink, writer)
-		_ = writer.CloseWithError(err)
 		archived <- err
+		_ = writer.CloseWithError(err)
 	}()
 
 	counted := &countingReader{r: reader}
@@ -133,12 +133,21 @@ func Download(ctx context.Context, remote Remote, src, dst string, stdout io.Wri
 		_, err = io.Copy(io.Discard, counted)
 	}
 
-	if err != nil {
-		_ = reader.CloseWithError(err)
-		cancel()
+	if err == nil {
+		return counted.n.Load(), <-archived
 	}
 
-	return counted.n.Load(), cause(err, <-archived)
+	select {
+	case remoteErr := <-archived:
+		return counted.n.Load(), cause(err, remoteErr)
+	default:
+	}
+
+	_ = reader.CloseWithError(err)
+	cancel()
+	<-archived
+
+	return counted.n.Load(), err
 }
 
 // Upload copies src on this machine to dst in remote, as docker cp copies
@@ -193,8 +202,10 @@ func Upload(ctx context.Context, remote Remote, src, dst string, stdin io.Reader
 	return counted.n.Load(), err
 }
 
-// cause is the error a copy failed with: the remote side's when it failed
-// on its own, else the local side's.
+// cause is the error a copy failed with once the remote side ended before
+// the local one failed: the remote side's when it failed on its own, else
+// the local side's. A local side that fails first is the cause on its own:
+// the remote side then fails only of the stream it wrote to being closed.
 func cause(local, remote error) error {
 	switch {
 	case remote == nil:
