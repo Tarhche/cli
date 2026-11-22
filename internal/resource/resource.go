@@ -8,6 +8,7 @@ package resource
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"text/template"
@@ -354,9 +355,7 @@ func (d Definition) Rows(items []any) []any {
 			}
 
 			row := make(map[string]any, len(object)+len(fields))
-			for field, value := range fields {
-				row[field] = value
-			}
+			maps.Copy(row, fields)
 
 			for field, value := range object {
 				if field != d.Versions {

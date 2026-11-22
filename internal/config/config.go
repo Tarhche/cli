@@ -31,8 +31,10 @@ const (
 	// created: Tarhche itself.
 	DefaultContextName = "default"
 
-	// DefaultAPI and DefaultIngress are where the default context is.
-	DefaultAPI     = "https://backend.tarhche.com"
+	// DefaultAPI is where the default context's API is.
+	DefaultAPI = "https://backend.tarhche.com"
+
+	// DefaultIngress is where the default context's workload ingress is.
 	DefaultIngress = "https://workload.tarhche.com"
 )
 

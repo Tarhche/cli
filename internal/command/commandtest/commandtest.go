@@ -87,10 +87,12 @@ type Tokens string
 
 var _ api.TokenSource = Tokens("")
 
+// Token is the token.
 func (t Tokens) Token(context.Context) (string, error) {
 	return string(t), nil
 }
 
+// Renew is the token again, which is never refused.
 func (t Tokens) Renew(context.Context, string) (string, error) {
 	return string(t), nil
 }

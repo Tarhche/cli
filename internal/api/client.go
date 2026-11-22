@@ -59,6 +59,10 @@ func WithUserAgent(userAgent string) Option {
 	return func(c *Client) { c.userAgent = userAgent }
 }
 
+// LanguageHeader is the header the API reads the language to answer in
+// from.
+const LanguageHeader = "X-Language-Code"
+
 // WithLanguage asks the API to answer in language, which is what the
 // messages of its validation errors are written in.
 func WithLanguage(language string) Option {
@@ -203,7 +207,7 @@ func (c *Client) Send(request *http.Request) (*http.Response, error) {
 	}
 
 	if len(c.language) > 0 {
-		request.Header.Set("Accept-Language", c.language)
+		request.Header.Set(LanguageHeader, c.language)
 	}
 
 	token, err := c.token(request.Context())

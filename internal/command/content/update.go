@@ -3,6 +3,7 @@ package content
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/danceable/console"
@@ -105,9 +106,7 @@ func (c *updateCommand) key(path string, body map[string]any) ([]string, error) 
 			return nil, usageError(c.flags, "%s", err)
 		}
 
-		for field, value := range c.resource.BodyKey(path, key) {
-			body[field] = value
-		}
+		maps.Copy(body, c.resource.BodyKey(path, key))
 
 		return key, nil
 	}

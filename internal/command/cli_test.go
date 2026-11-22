@@ -231,7 +231,7 @@ func TestCliClient(t *testing.T) {
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "Bearer t", r.Header.Get("Authorization"))
-			assert.Equal(t, "fa", r.Header.Get("Accept-Language"))
+			assert.Equal(t, "fa", r.Header.Get(api.LanguageHeader))
 			assert.Contains(t, r.Header.Get("User-Agent"), "tarhche-cli/")
 		}))
 		t.Cleanup(server.Close)

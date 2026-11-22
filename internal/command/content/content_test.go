@@ -2,7 +2,6 @@ package content
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -24,7 +23,7 @@ func listedUnder(help, heading string) []string {
 
 	var names []string
 
-	for _, line := range strings.Split(after, "\n") {
+	for line := range strings.SplitSeq(after, "\n") {
 		if len(strings.TrimSpace(line)) == 0 {
 			break
 		}
@@ -269,7 +268,7 @@ func TestUsageError(t *testing.T) {
 	err := usageError(console.NewFlagSet("tarhche thing", nil), "%d things", 2)
 
 	var usage command.UsageError
-	require.True(t, errors.As(err, &usage))
+	require.ErrorAs(t, err, &usage)
 	assert.Equal(t, command.UsageError{Command: "tarhche thing", Message: "2 things"}, usage)
 }
 
@@ -302,7 +301,7 @@ func TestParseKeys(t *testing.T) {
 		_, err := parseKeys(parsed(t, "c1/en", "c2"), article)
 
 		var usage command.UsageError
-		require.True(t, errors.As(err, &usage))
+		require.ErrorAs(t, err, &usage)
 		assert.Contains(t, usage.Message, `invalid key "c2"`)
 	})
 }

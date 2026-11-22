@@ -178,7 +178,7 @@ func headerOf(column string, headers map[string]string) string {
 }
 
 func lastField(column string) string {
-	trees, err := parse.Parse("column", column, "{{", "}}", Funcs())
+	trees, err := parse.Parse("column", column, "{{", "}}", Funcs(), builtins)
 	if err != nil {
 		return ""
 	}
@@ -203,6 +203,12 @@ func lastField(column string) string {
 				walk(command)
 			}
 		case *parse.CommandNode:
+			if key, indexed := indexKey(n); indexed {
+				found = key
+
+				return
+			}
+
 			for _, argument := range n.Args {
 				walk(argument)
 			}
@@ -228,6 +234,32 @@ func lastField(column string) string {
 	}
 
 	return found
+}
+
+// builtins are the functions every template has, which parsing a column on
+// its own has to be told of.
+var builtins = map[string]any{
+	"and": true, "call": true, "html": true, "index": true, "slice": true, "js": true, "len": true, "not": true,
+	"or": true, "print": true, "printf": true, "println": true, "urlquery": true,
+	"eq": true, "ge": true, "gt": true, "le": true, "lt": true, "ne": true,
+}
+
+// indexKey is the key a column reads with index, as "x" of {{index . "x"}}.
+func indexKey(command *parse.CommandNode) (string, bool) {
+	if len(command.Args) < 3 {
+		return "", false
+	}
+
+	if identifier, isIdentifier := command.Args[0].(*parse.IdentifierNode); !isIdentifier || identifier.Ident != "index" {
+		return "", false
+	}
+
+	key, isString := command.Args[len(command.Args)-1].(*parse.StringNode)
+	if !isString {
+		return "", false
+	}
+
+	return key.Text, true
 }
 
 func expandTabs(format string) string {

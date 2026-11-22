@@ -145,6 +145,12 @@ func TestHeader(t *testing.T) {
 		{name: "a field inside a with", format: "{{with .owner}}{{.name}}{{end}}", header: "OWNER"},
 		{name: "a field of a parenthesised pipeline", format: "{{(.status).state}}", header: "STATE"},
 		{name: "a column that does not parse", format: "{{.name", header: "{{.NAME"},
+		{name: "a field through a builtin", format: "{{len .ports}}", header: "PORTS"},
+		{name: "a field compared", format: `{{if eq .state "running"}}up{{end}}`, header: "STATE"},
+		{name: "a field negated", format: "{{if not .docker}}machine{{end}}", header: "DOCKER"},
+		{name: "a key read with index", format: `{{index . "created-at"}}`, header: "CREATED AT"},
+		{name: "a key read with index of a field", format: `{{index .labels "workload.stack"}}`, header: "WORKLOAD.STACK"},
+		{name: "index of something that is not a string", format: "{{index .ports 0}}", header: "PORTS"},
 		{name: "text alone", format: "fixed", header: "FIXED"},
 		{name: "an override", format: "{{.uuid}}", header: "ID"},
 	}

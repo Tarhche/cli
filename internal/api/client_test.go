@@ -117,7 +117,7 @@ func TestClientDo(t *testing.T) {
 			assert.Equal(t, "application/json", r.Header.Get("Accept"))
 			assert.Equal(t, "Bearer token", r.Header.Get("Authorization"))
 			assert.Equal(t, "agent", r.Header.Get("User-Agent"))
-			assert.Equal(t, "fa", r.Header.Get("Accept-Language"))
+			assert.Equal(t, "fa", r.Header.Get(LanguageHeader))
 
 			var body map[string]string
 			assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
@@ -380,7 +380,10 @@ func TestClientSend(t *testing.T) {
 		request, err := c.NewRequest(context.Background(), http.MethodPost, "/", nil, io.NopCloser(strings.NewReader("x")), "text/plain")
 		require.NoError(t, err)
 
-		_, err = c.Send(request)
+		response, err := c.Send(request)
+		if err == nil {
+			_ = response.Body.Close()
+		}
 
 		assert.True(t, IsUnauthorized(err))
 		assert.Empty(t, source.rejected)

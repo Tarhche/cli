@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"maps"
 	"net/url"
 	"strconv"
 )
@@ -25,9 +26,7 @@ type Pagination struct {
 // List reads one page of the listing at path; the first is page 1.
 func List[T any](ctx context.Context, c *Client, path string, query url.Values, page uint) (Page[T], error) {
 	asked := url.Values{}
-	for key, values := range query {
-		asked[key] = values
-	}
+	maps.Copy(asked, query)
 
 	if page > 0 {
 		asked.Set("page", strconv.FormatUint(uint64(page), 10))

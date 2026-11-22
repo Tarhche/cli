@@ -21,13 +21,17 @@ import (
 // Name is what the CLI is called, in its help and its messages.
 const Name = "tarhche"
 
+// DefaultLanguage is the language the API is asked to answer in unless told
+// otherwise: the CLI's own.
+const DefaultLanguage = "en"
+
 // Globals are the flags given before a command's name.
 type Globals struct {
 	ConfigDir string `usage:"the directory the configuration is kept in (default ~/.tarhche)." long:"config" env:"TARHCHE_CONFIG"`
 	Context   string `usage:"the context to talk to, instead of the current one (see \"tarhche context use\")." long:"context" short:"c" env:"TARHCHE_CONTEXT"`
 	Host      string `usage:"the API to talk to, instead of the context's." long:"host" short:"H" env:"TARHCHE_HOST"`
 	Ingress   string `usage:"the workload ingress to talk to, instead of the context's." long:"ingress" env:"TARHCHE_INGRESS"`
-	Language  string `usage:"the language the API answers in (en or fa)." long:"language" env:"TARHCHE_LANGUAGE"`
+	Language  string `usage:"the language the API answers in: en or fa." long:"language" env:"TARHCHE_LANGUAGE"`
 	Debug     bool   `usage:"says more of what goes wrong." long:"debug" short:"D" env:"TARHCHE_DEBUG"`
 	Desktop   bool   `usage:"opens the desktop app instead of running a command." long:"desktop"`
 	Version   bool   `usage:"prints the version and exits." long:"version" short:"v"`
@@ -74,7 +78,7 @@ func WithClient(client *api.Client) Option {
 
 // NewCli is a Cli reading in and writing out and err.
 func NewCli(in io.Reader, out, err io.Writer, options ...Option) *Cli {
-	c := &Cli{In: in, Out: out, Err: err}
+	c := &Cli{In: in, Out: out, Err: err, Globals: Globals{Language: DefaultLanguage}}
 	for _, option := range options {
 		option(c)
 	}

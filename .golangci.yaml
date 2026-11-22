@@ -26,6 +26,10 @@ linters:
     - usestdlibvars
     - usetesting
   settings:
+    misspell:
+      ignore-rules:
+        # the api's own field, which an article's language versions are listed in
+        - corrolated
     gosec:
       excludes:
         # integer conversions, nearly always of sizes and counts already bounded
