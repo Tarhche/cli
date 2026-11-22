@@ -1,20 +1,25 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.27
-ARG NODE_VERSION=26.13
-ARG GOLANGCI_LINT_VERSION=v2.15
+# Every image is named in its FROM line, never through an ARG: Dependabot
+# reads FROM lines alone. CI reads the linter's and GoReleaser's versions
+# from here too, so that make lint and make snapshot run what CI runs.
 
-FROM golang:${GO_VERSION}-trixie AS golang
+FROM golang:1.27-trixie AS golang
 
-FROM golangci/golangci-lint:${GOLANGCI_LINT_VERSION} AS golangci-lint
+FROM golangci/golangci-lint:v2.15 AS golangci-lint
 
-# develop is the toolbox every make target runs in: Go, Node, wails3 and the
-# linter, so that nothing but Docker has to be installed on the host. It is
-# Debian rather than Alpine because the race detector needs glibc.
-FROM node:${NODE_VERSION}-trixie AS develop
+FROM goreleaser/goreleaser:v2.20.3 AS goreleaser
+
+# develop is the toolbox every make target runs in: Go, Node, wails3, the
+# linter and GoReleaser, so that nothing but Docker has to be installed on
+# the host. It is Debian rather than Alpine because the race detector needs
+# glibc. The checkout mounted on /app is owned by whoever owns it on the
+# host, which git refuses to read as root unless it is told it is safe.
+FROM node:26.13-trixie AS develop
 
 COPY --from=golang /usr/local/go /usr/local/go
 COPY --from=golangci-lint /usr/bin/golangci-lint /usr/local/bin/golangci-lint
+COPY --from=goreleaser /usr/bin/goreleaser /usr/local/bin/goreleaser
 
 ENV GOPATH=/go \
     PATH=/go/bin:/usr/local/go/bin:${PATH} \
@@ -22,11 +27,12 @@ ENV GOPATH=/go \
 
 ARG WAILS_VERSION=v3.1.0
 RUN CGO_ENABLED=0 go install -tags purego github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION} \
-    && rm -rf /root/.cache/go-build /go/pkg/mod
+    && rm -rf /root/.cache/go-build /go/pkg/mod \
+    && git config --system --add safe.directory /app
 
 WORKDIR /app
 
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS frontend
+FROM --platform=$BUILDPLATFORM node:26.13-alpine AS frontend
 
 WORKDIR /app/frontend
 
@@ -39,7 +45,7 @@ RUN npm run build
 # build cross-compiles on the machine building the image: the desktop UI is
 # loaded at run time (Wails' purego backend), so no C toolchain is involved
 # for any target.
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -57,14 +63,20 @@ COPY --from=frontend /app/frontend/dist ./frontend/dist
 RUN GOARM="${TARGETVARIANT#v}" CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
     go build -trimpath -tags purego \
         -ldflags "-s -w -X github.com/Tarhche/cli/internal/version.Version=${VERSION}" \
-        -o /out/tarhche ./cmd/tarhche \
-    && mkdir -p /out/home/.tarhche
+        -o /out/tarhche ./cmd/tarhche
 
-FROM scratch AS production
+# rootfs is what the image holds beside the binary: the certificates the API
+# is verified with, and a home for the configuration and the sessions.
+FROM --platform=$BUILDPLATFORM alpine:3.24 AS rootfs
 
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=build --chown=65532:65532 /out/home /home/tarhche
-COPY --from=build /out/tarhche /usr/local/bin/tarhche
+RUN mkdir -p /home/tarhche/.tarhche
+
+# runtime is the image without its binary, which production builds from the
+# source and release copies from what GoReleaser built.
+FROM scratch AS runtime
+
+COPY --from=rootfs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=rootfs --chown=65532:65532 /home/tarhche /home/tarhche
 
 ENV HOME=/home/tarhche
 
@@ -73,3 +85,18 @@ USER 65532:65532
 WORKDIR /home/tarhche
 
 ENTRYPOINT ["/usr/local/bin/tarhche"]
+
+# release is the image a release publishes (.goreleaser.yaml): GoReleaser
+# puts the binary it built for each platform in the build context, under the
+# platform's name (linux/arm/v7/tarhche).
+FROM runtime AS release
+
+ARG TARGETPLATFORM
+
+COPY ${TARGETPLATFORM}/tarhche /usr/local/bin/tarhche
+
+# production, the last stage and so what a plain docker build builds, is the
+# same image with the binary built from the source.
+FROM runtime AS production
+
+COPY --from=build /out/tarhche /usr/local/bin/tarhche

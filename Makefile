@@ -4,7 +4,7 @@ RUN ?= $(COMPOSE) run --rm develop
 TAGS := purego
 PACKAGES := $$(go list -tags $(TAGS) ./... | grep -v /node_modules/)
 PACKAGE_DIRS := $$(go list -tags $(TAGS) -f "{{.Dir}}" ./... | grep -v /node_modules/)
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+VERSION ?= $(or $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//'),dev)
 LDFLAGS := -s -w -X github.com/Tarhche/cli/internal/version.Version=$(VERSION)
 
 HOST_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
@@ -12,7 +12,7 @@ HOST_ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 
 PLATFORMS := darwin/amd64 darwin/arm64 linux/386 linux/amd64 linux/arm linux/arm64 windows/386 windows/amd64 windows/arm64
 
-.PHONY: image sh deps test cover lint generate frontend frontend-test build build-all desktop docker clean
+.PHONY: image sh deps test cover lint generate frontend frontend-test build build-all desktop docker release-check snapshot clean
 
 image: ## builds the development image every target runs in
 	$(COMPOSE) build develop
@@ -56,6 +56,12 @@ desktop: build ## builds bin/tarhche and opens the desktop UI on this machine
 
 docker: ## builds the production image
 	docker build --target production --build-arg VERSION=$(VERSION) -t tarhche/cli:$(VERSION) .
+
+release-check: ## checks the release configuration, .goreleaser.yaml
+	$(RUN) goreleaser check
+
+snapshot: ## builds what a release publishes into dist/, but for its images, and publishes nothing
+	$(RUN) goreleaser release --snapshot --clean --skip=docker
 
 clean: ## removes what the builds wrote
 	rm -rf bin dist coverage.out
