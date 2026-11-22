@@ -95,6 +95,21 @@ The CLI needs no libraries. Only `--desktop` does: it loads GTK 4 and WebKitGTK 
 
 On macOS the desktop app uses the system's WebKit. On Windows it uses WebView2, which ships with Windows 10 and 11.
 
+## Upgrading
+
+`tarhche upgrade` looks for a newer release, tells what it says, and replaces the running binary with it once you agree:
+
+```sh
+tarhche upgrade            # the latest release, asking first
+tarhche upgrade --check    # only say whether a newer release is out, and what it says
+tarhche upgrade --yes      # upgrade without asking, as a script would
+tarhche upgrade 1.2.3      # the release of 1.2.3 instead: a downgrade, or a reinstall of the version running
+```
+
+It downloads the archive of the release for your platform from GitHub, checks it against the release's checksums file, and replaces the binary only once all of that succeeded. A binary run from the macOS app bundle (`Tarhche.app/Contents/MacOS/tarhche`) has the whole bundle replaced. On Windows the running `tarhche.exe` is renamed to `tarhche.exe.old` first, since Windows does not let a running program be replaced; the next upgrade removes it.
+
+A binary only root may replace, such as one installed into `/usr/local/bin` with `sudo install`, is upgraded with `sudo tarhche upgrade`; on Windows, a binary under `Program Files` is upgraded from a terminal run as administrator. The Docker image cannot upgrade itself: pull a newer image instead (`docker pull ghcr.io/tarhche/cli`).
+
 ## Quick start
 
 Sign in to the estate of the current context:
