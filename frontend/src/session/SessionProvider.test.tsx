@@ -8,7 +8,7 @@ import {FOCUS_PAUSE, SESSION_POLL, useSession} from "./session";
 import {SessionProvider} from "./SessionProvider";
 
 vi.mock("../api/services", () => ({
-  Session: {Status: vi.fn(), Contexts: vi.fn(), Use: vi.fn()},
+  Session: {Status: vi.fn(), Contexts: vi.fn(), Use: vi.fn(), Permissions: vi.fn()},
 }));
 
 /** A session as reading it answers. */
@@ -27,6 +27,7 @@ function Consumer() {
       <p>{session.status ? (session.status.logged_in ? "signed in" : "signed out") : "reading"}</p>
       <p>{ended ? `${ended.context}: ${ended.blocked ? "blocked" : "expired"}${ended.reason ? `, ${ended.reason}` : ""}` : "nothing ended"}</p>
       <p>{session.failure?.message ?? "no failure"}</p>
+      <p>{(session.status?.permissions ?? []).join(", ") || "no permissions"}</p>
       <button type="button" onClick={() => signedOut({message: "refused", logged_out: true, blocked: true, reason: "The user is banned."})}>
         refused
       </button>
@@ -44,6 +45,7 @@ describe("SessionProvider", () => {
   beforeEach(() => {
     vi.mocked(Session.Status).mockReset().mockResolvedValue(status({logged_in: true}) as never);
     vi.mocked(Session.Contexts).mockReset().mockResolvedValue([testContext] as never);
+    vi.mocked(Session.Permissions).mockReset().mockResolvedValue([] as never);
   });
 
   afterEach(() => {
@@ -61,8 +63,9 @@ describe("SessionProvider", () => {
     expect(Session.Contexts).toHaveBeenCalled();
   });
 
-  it("reads the session again every so often while there is one, for what its renewed token says", async () => {
+  it("reads what the session may do again every so often while there is one, asking nothing more of the estate", async () => {
     vi.useFakeTimers();
+    vi.mocked(Session.Permissions).mockResolvedValue(["articles.index", "self.workload.vms.index"] as never);
     render(
       <SessionProvider>
         <Consumer />
@@ -71,16 +74,18 @@ describe("SessionProvider", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(Session.Status).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("no permissions")).toBeInTheDocument();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(SESSION_POLL);
     });
 
-    expect(Session.Status).toHaveBeenCalledTimes(2);
+    expect(Session.Permissions).toHaveBeenCalledTimes(1);
+    expect(Session.Status).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("articles.index, self.workload.vms.index")).toBeInTheDocument();
   });
 
-  it("does not read it again while there is none", async () => {
+  it("does not read it again while there is no session", async () => {
     vi.useFakeTimers();
     vi.mocked(Session.Status).mockResolvedValue(status() as never);
     render(
@@ -93,10 +98,11 @@ describe("SessionProvider", () => {
       await vi.advanceTimersByTimeAsync(SESSION_POLL * 2);
     });
 
+    expect(Session.Permissions).not.toHaveBeenCalled();
     expect(Session.Status).toHaveBeenCalledTimes(1);
   });
 
-  it("reads it again as the window comes back to the front, but not right after it read it", async () => {
+  it("reads what the session may do again as the window comes back to the front, but not right after it read", async () => {
     vi.useFakeTimers();
     render(
       <SessionProvider>
@@ -111,14 +117,74 @@ describe("SessionProvider", () => {
       window.dispatchEvent(new Event("focus"));
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(Session.Status).toHaveBeenCalledTimes(1);
+    expect(Session.Permissions).not.toHaveBeenCalled();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(FOCUS_PAUSE);
       window.dispatchEvent(new Event("focus"));
       await vi.advanceTimersByTimeAsync(0);
     });
+    expect(Session.Permissions).toHaveBeenCalledTimes(1);
+    expect(Session.Status).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the session again as the window comes back to the front while there is none, which may have been signed in to elsewhere", async () => {
+    vi.useFakeTimers();
+    vi.mocked(Session.Status).mockResolvedValue(status() as never);
+    render(
+      <SessionProvider>
+        <Consumer />
+      </SessionProvider>,
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(FOCUS_PAUSE);
+    });
+
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
     expect(Session.Status).toHaveBeenCalledTimes(2);
+    expect(Session.Permissions).not.toHaveBeenCalled();
+  });
+
+  it("signs out saying why once reading what the session may do finds it gone", async () => {
+    vi.useFakeTimers();
+    vi.mocked(Session.Permissions).mockRejectedValue(new Error("x", {cause: {message: "the session has expired or ended", logged_out: true, ended: true}}));
+    render(
+      <SessionProvider>
+        <Consumer />
+      </SessionProvider>,
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    vi.mocked(Session.Status).mockResolvedValue(status() as never);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SESSION_POLL);
+    });
+
+    expect(screen.getByText("signed out")).toBeInTheDocument();
+    expect(screen.getByText("local: expired")).toBeInTheDocument();
+  });
+
+  it("keeps what it read when reading what the session may do fails otherwise", async () => {
+    vi.useFakeTimers();
+    vi.mocked(Session.Permissions).mockRejectedValue(new Error("x", {cause: {message: "the keychain is locked"}}));
+    render(
+      <SessionProvider>
+        <Consumer />
+      </SessionProvider>,
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SESSION_POLL);
+    });
+
+    expect(screen.getByText("signed in")).toBeInTheDocument();
+    expect(screen.getByText("no failure")).toBeInTheDocument();
+    expect(Session.Status).toHaveBeenCalledTimes(1);
   });
 
   it("keeps why the session ended, as reading it said, until somebody signs in", async () => {

@@ -3,12 +3,12 @@ import type {Failure} from "../api/failure";
 import type {ContextInfo, Status} from "../api/services";
 
 /**
- * How often the session is read again while there is one: its access token,
- * and what it says the session may do, is renewed every few minutes.
+ * How often what a session may do is read again while there is one: its
+ * access token, and what it says, is renewed every few minutes.
  */
 export const SESSION_POLL = 60_000;
 
-/** How long after a read the window coming back to the front reads it again. */
+/** How long after a read the window coming back to the front reads again. */
 export const FOCUS_PAUSE = 10_000;
 
 /** Why the session the app had in a context ended, as it was told. */

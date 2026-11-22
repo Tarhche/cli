@@ -8,11 +8,11 @@ import {useSession} from "../session/session";
 import {type Access, AccessContext, sameAccess} from "./access";
 
 /**
- * Reads what the session may see and do, and reads it again every time the
- * session is read, which is how a role granted or withdrawn since, seen at
- * the token's next renewal, reaches the navigation and the pages. What it
- * read stays while it reads again, and is let go of only once it says
- * otherwise.
+ * Reads what the session may see and do, and reads it again whenever the
+ * permissions its token says it has change, which is how a role granted or
+ * withdrawn since, seen at the token's next renewal, reaches the navigation
+ * and the pages. What it read stays while it reads again, and is let go of
+ * only once it says otherwise.
  */
 export function AccessProvider({children}: {children: ReactNode}) {
   const session = useSession();
@@ -20,7 +20,7 @@ export function AccessProvider({children}: {children: ReactNode}) {
   const [access, setAccess] = useState<Access | undefined>(undefined);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [round, setRound] = useState(0);
-  const status = session.status;
+  const permissions = JSON.stringify(session.status?.permissions ?? []);
 
   useEffect(() => {
     let current = true;
@@ -50,7 +50,7 @@ export function AccessProvider({children}: {children: ReactNode}) {
     return () => {
       current = false;
     };
-  }, [status, round, signedOut]);
+  }, [permissions, round, signedOut]);
 
   const retry = useCallback(() => setRound((r) => r + 1), []);
 

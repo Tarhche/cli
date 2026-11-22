@@ -240,6 +240,22 @@ func (s *Session) Status(ctx context.Context) (Status, error) {
 	return status, nil
 }
 
+// Permissions are every action the session of the context the app talks to
+// may take somewhere, as the access token its requests are signed with
+// says: renewed first when it is about to run out, so that a role granted
+// or withdrawn since shows once it is. Nothing but that renewal asks the
+// estate anything, so the frontend reads it as often as it likes, where
+// reading the status would read the profile, which the estate audits; a
+// session gone fails it as it fails a request.
+func (s *Session) Permissions(ctx context.Context) ([]string, error) {
+	granted, err := s.workspace.Granted(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return append([]string{}, granted...), nil
+}
+
 // signOutBlocked signs out of the context the app talks to, whose account
 // the estate refuses every request of, and says it is blocked: the session
 // could do nothing any more.

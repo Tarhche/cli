@@ -65,6 +65,21 @@ export function Logout(): $CancellablePromise<void> {
 }
 
 /**
+ * Permissions are every action the session of the context the app talks to
+ * may take somewhere, as the access token its requests are signed with
+ * says: renewed first when it is about to run out, so that a role granted
+ * or withdrawn since shows once it is. Nothing but that renewal asks the
+ * estate anything, so the frontend reads it as often as it likes, where
+ * reading the status would read the profile, which the estate audits; a
+ * session gone fails it as it fails a request.
+ */
+export function Permissions(): $CancellablePromise<string[]> {
+    return $Call.ByID(1999021285).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * Remove signs out of the context of that name and forgets it. The app
  * talks to the context the configuration says is current once it was
  * talking to that one.
@@ -82,7 +97,7 @@ export function Remove(name: string): $CancellablePromise<void> {
  */
 export function Status(): $CancellablePromise<$models.Status> {
     return $Call.ByID(1912084869).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -97,4 +112,5 @@ export function Use(name: string): $CancellablePromise<void> {
 // Private type creation functions
 const $$createType0 = $models.ContextInfo.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.Status.createFrom;
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = $models.Status.createFrom;

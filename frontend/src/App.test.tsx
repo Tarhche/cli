@@ -97,7 +97,25 @@ describe("Gate", () => {
     expect(screen.queryByText("Workloads")).not.toBeInTheDocument();
   });
 
-  it("follows what the session may do as it is read again, without starting over", async () => {
+  it("reads what the session may do again only once its permissions change", async () => {
+    const state = session({status: signedIn()});
+    const {rerender} = render(
+      <WithSession state={state}>
+        <Gate />
+      </WithSession>,
+    );
+    expect(await screen.findByRole("heading", {name: "Containers"})).toBeInTheDocument();
+
+    rerender(
+      <WithSession state={{...state, status: signedIn()}}>
+        <Gate />
+      </WithSession>,
+    );
+
+    expect(Workloads.Abilities).toHaveBeenCalledTimes(1);
+  });
+
+  it("follows what the session may do as its permissions change, without starting over", async () => {
     vi.mocked(Workloads.Abilities).mockResolvedValue(abilities({containers: {list: true}, vms: {list: true}}) as never);
     const state = session({status: signedIn()});
 
@@ -111,7 +129,7 @@ describe("Gate", () => {
 
     vi.mocked(Workloads.Abilities).mockResolvedValue(abilities({vms: {list: true}}) as never);
     rerender(
-      <WithSession state={{...state, status: signedIn()}}>
+      <WithSession state={{...state, status: {...signedIn(), permissions: ["self.workload.vms.index"]} as Status}}>
         <Gate />
       </WithSession>,
     );

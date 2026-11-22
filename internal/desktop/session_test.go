@@ -384,6 +384,37 @@ func TestSession(t *testing.T) {
 		assert.Nil(t, status.User)
 	})
 
+	t.Run("its permissions are what the token its requests are signed with says", func(t *testing.T) {
+		t.Parallel()
+
+		api := newRecorder(http.StatusOK, `{}`)
+		session := desktop.NewSession(newWorkspaceGranting(t, api, "articles.index", "self.workload.vms.exec"), &mock.Authenticator{})
+
+		permissions, err := session.Permissions(context.Background())
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"articles.index", "self.workload.vms.exec"}, permissions)
+		assert.Zero(t, api.count(), "the estate is asked nothing")
+	})
+
+	t.Run("a session whose token says no permission has none, as a list", func(t *testing.T) {
+		t.Parallel()
+
+		permissions, err := desktop.NewSession(newWorkspaceGranting(t, nil), &mock.Authenticator{}).Permissions(context.Background())
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{}, permissions)
+		assert.Equal(t, "[]", jsonOf(t, permissions))
+	})
+
+	t.Run("a session that cannot be had has no permissions, saying why", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := desktop.NewSession(workspaceFailing(t, nil, auth.ErrSessionEnded), &mock.Authenticator{}).Permissions(context.Background())
+
+		assert.ErrorIs(t, err, auth.ErrSessionEnded)
+	})
+
 	t.Run("signing in or out talks to the context afresh", func(t *testing.T) {
 		t.Parallel()
 
