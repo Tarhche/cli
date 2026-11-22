@@ -8,6 +8,7 @@ import (
 
 	"github.com/Tarhche/cli/internal/desktop"
 	"github.com/Tarhche/cli/internal/desktop/mock"
+	upgrademock "github.com/Tarhche/cli/internal/upgrade/mock"
 )
 
 func TestServices(t *testing.T) {
@@ -19,7 +20,7 @@ func TestServices(t *testing.T) {
 		w, _ := newWorkspace(t, nil)
 		reach := desktop.Reach{Terminals: desktop.Unavailable{}, Forwards: desktop.Unavailable{}, Files: desktop.Unavailable{}}
 
-		services := desktop.Services(context.Background(), w, &mock.Authenticator{}, reach, mock.NewEmitter(), &mock.Chooser{})
+		services := desktop.Services(context.Background(), w, &mock.Authenticator{}, reach, mock.NewEmitter(), &mock.Chooser{}, &upgrademock.Upgrader{}, func() {})
 
 		instances := make([]any, len(services))
 		for i, service := range services {
@@ -32,6 +33,7 @@ func TestServices(t *testing.T) {
 		assert.IsType(t, &desktop.Terminals{}, instances[3])
 		assert.IsType(t, &desktop.Forwards{}, instances[4])
 		assert.IsType(t, &desktop.Files{}, instances[5])
-		assert.Len(t, instances, 6)
+		assert.IsType(t, &desktop.Updates{}, instances[6])
+		assert.Len(t, instances, 7)
 	})
 }

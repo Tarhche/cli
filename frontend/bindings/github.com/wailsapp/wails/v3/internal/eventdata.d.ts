@@ -15,6 +15,8 @@ declare module "@wailsio/runtime" {
             "forward:stopped": desktop$0.ForwardStopped;
             "terminal:exit": desktop$0.TerminalExit;
             "terminal:output": desktop$0.TerminalOutput;
+            "updates:check": void;
+            "updates:progress": desktop$0.UpdateProgress;
         }
     }
 }

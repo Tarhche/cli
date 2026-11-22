@@ -6,6 +6,7 @@ import * as Forwards from "./forwards.js";
 import * as Resources from "./resources.js";
 import * as Session from "./session.js";
 import * as Terminals from "./terminals.js";
+import * as Updates from "./updates.js";
 import * as Workloads from "./workloads.js";
 export {
     Files,
@@ -13,6 +14,7 @@ export {
     Resources,
     Session,
     Terminals,
+    Updates,
     Workloads
 };
 
@@ -32,6 +34,7 @@ export {
     NewContext,
     NewDockerVM,
     PortBinding,
+    Release,
     ResourceAction,
     ResourceDefinition,
     ResourceFilter,
@@ -44,6 +47,9 @@ export {
     TerminalOutput,
     TerminalRequest,
     TerminalSize,
+    Update,
+    UpdateProgress,
+    Upgraded,
     UsageQuery,
     User,
     VMNetwork,

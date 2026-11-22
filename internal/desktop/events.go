@@ -14,6 +14,14 @@ const (
 	// EventForwardStopped says a port forward stopped by itself: a
 	// ForwardStopped.
 	EventForwardStopped = "forward:stopped"
+
+	// EventCheckForUpdates asks the frontend to look for a newer release of
+	// tarhche, as the app's menus do: it carries nothing.
+	EventCheckForUpdates = "updates:check"
+
+	// EventUpdateProgress says how much of an upgrade's download arrived: an
+	// UpdateProgress.
+	EventUpdateProgress = "updates:progress"
 )
 
 // TerminalOutput is what a terminal said, in the order it said it.
@@ -44,6 +52,18 @@ type ForwardStopped struct {
 	Error string `json:"error,omitempty"`
 }
 
+// UpdateProgress is how much of the download of a release an upgrade
+// installs has arrived.
+type UpdateProgress struct {
+	// Version is the release's.
+	Version string `json:"version"`
+
+	// Done is how many bytes of it arrived, of Total, which is 0 while how
+	// many there are is not known.
+	Done  int64 `json:"done"`
+	Total int64 `json:"total"`
+}
+
 // Emitter tells the frontend that something happened: the app's event
 // manager.
 type Emitter interface {
@@ -55,4 +75,6 @@ func init() {
 	application.RegisterEvent[TerminalOutput](EventTerminalOutput)
 	application.RegisterEvent[TerminalExit](EventTerminalExit)
 	application.RegisterEvent[ForwardStopped](EventForwardStopped)
+	application.RegisterEvent[application.Void](EventCheckForUpdates)
+	application.RegisterEvent[UpdateProgress](EventUpdateProgress)
 }
