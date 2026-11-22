@@ -78,7 +78,7 @@ func WithClient(client *api.Client) Option {
 
 // NewCli is a Cli reading in and writing out and err.
 func NewCli(in io.Reader, out, err io.Writer, options ...Option) *Cli {
-	c := &Cli{In: in, Out: out, Err: err, Globals: Globals{Language: DefaultLanguage}}
+	c := &Cli{In: in, Out: out, Err: err}
 	for _, option := range options {
 		option(c)
 	}
@@ -174,7 +174,7 @@ func (c *Cli) Auth() (*auth.Manager, error) {
 		return nil, err
 	}
 
-	c.auth = auth.New(cfg, store, auth.WithPrompt(c.Err), auth.WithInteractive(c.Interactive()), auth.WithLanguage(c.Globals.Language))
+	c.auth = auth.New(cfg, store, auth.WithPrompt(c.Err), auth.WithInteractive(c.Interactive()), auth.WithLanguage(c.Language()))
 
 	return c.auth, nil
 }
@@ -216,9 +216,7 @@ func (c *Cli) Client(ctx context.Context) (*api.Client, error) {
 	}
 
 	options := []api.Option{api.WithTokens(tokens), api.WithUserAgent(version.UserAgent())}
-	if len(c.Globals.Language) > 0 {
-		options = append(options, api.WithLanguage(c.Globals.Language))
-	}
+	options = append(options, api.WithLanguage(c.Language()))
 
 	client, err := api.New(current.API, options...)
 	if err != nil {
@@ -233,6 +231,16 @@ func (c *Cli) Client(ctx context.Context) (*api.Client, error) {
 	}
 
 	return c.client, nil
+}
+
+// Language is the language the API is asked to answer in: the one the
+// global flags name, else DefaultLanguage.
+func (c *Cli) Language() string {
+	if len(c.Globals.Language) > 0 {
+		return c.Globals.Language
+	}
+
+	return DefaultLanguage
 }
 
 // ParseGlobals reads the global flags given before a command's name into

@@ -559,7 +559,7 @@ func TestInspectContextsCommand(t *testing.T) {
 
 		var inspected []inspectedContext
 		require.NoError(t, json.Unmarshal(h.Out.Bytes(), &inspected))
-		assert.Equal(t, []inspectedContext{{contextView: contextView{Name: "test", API: h.Server.URL, Ingress: h.Server.URL, Current: true}}}, inspected)
+		assert.Equal(t, []inspectedContext{{Name: "test", API: h.Server.URL, Ingress: h.Server.URL, Current: true}}, inspected)
 		assert.True(t, strings.HasPrefix(h.Out.String(), "[\n    {\n"), "indented as docker indents it")
 	})
 
@@ -574,10 +574,10 @@ func TestInspectContextsCommand(t *testing.T) {
 		require.NoError(t, json.Unmarshal(h.Out.Bytes(), &inspected))
 		assert.Equal(t, []inspectedContext{
 			{
-				contextView: contextView{Name: "other", Description: "Another", API: h.Server.URL, Ingress: "https://workload.other.example"},
+				Name: "other", Description: "Another", API: h.Server.URL, Ingress: "https://workload.other.example",
 				OAuthClient: &oauthClientView{ID: "client-7", RedirectURI: "http://127.0.0.1:4321/callback"},
 			},
-			{contextView: contextView{Name: config.DefaultContextName, Description: "Tarhche", API: config.DefaultAPI, Ingress: config.DefaultIngress}},
+			{Name: config.DefaultContextName, Description: "Tarhche", API: config.DefaultAPI, Ingress: config.DefaultIngress},
 		}, inspected)
 	})
 

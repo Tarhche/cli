@@ -119,7 +119,7 @@ func (m *Manager) authorize(ctx context.Context, current config.Context) (creden
 		return credentials.Credentials{}, err
 	}
 
-	listener, app, err := listen(current.OAuthClient)
+	listener, app, err := listen(ctx, current.OAuthClient)
 	if err != nil {
 		return credentials.Credentials{}, err
 	}
@@ -363,14 +363,16 @@ func (m *Manager) keepClient(current config.Context, app config.OAuthClient) err
 // free, so that it is registered once, and at a new one, which is to be
 // registered, otherwise: an authorization server sends a browser back to an
 // address an application registered, port and all.
-func listen(saved *config.OAuthClient) (net.Listener, *config.OAuthClient, error) {
+func listen(ctx context.Context, saved *config.OAuthClient) (net.Listener, *config.OAuthClient, error) {
+	var listening net.ListenConfig
+
 	if address, isLoopback := loopbackAddress(saved); isLoopback {
-		if listener, err := net.Listen("tcp", address); err == nil {
+		if listener, err := listening.Listen(ctx, "tcp", address); err == nil {
 			return listener, saved, nil
 		}
 	}
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := listening.Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, nil, fmt.Errorf("listening on the loopback interface for the browser: %w", err)
 	}

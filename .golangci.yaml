@@ -59,6 +59,10 @@ linters:
         linters:
           - gosec
           - noctx
+      - path: internal/credentials/
+        text: G117
+        linters:
+          - gosec
     paths:
       - frontend/node_modules
 

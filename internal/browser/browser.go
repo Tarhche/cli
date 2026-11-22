@@ -3,6 +3,7 @@
 package browser
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os/exec"
@@ -59,7 +60,7 @@ func Command(goos, address string) (string, []string, error) {
 // so that it does not linger once it ends: xdg-open may stay for as long as
 // the browser it started does.
 func Start(name string, args ...string) error {
-	command := exec.Command(name, args...)
+	command := exec.CommandContext(context.Background(), name, args...)
 	if err := command.Start(); err != nil {
 		return err
 	}

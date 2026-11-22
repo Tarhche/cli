@@ -424,3 +424,22 @@ func TestAlias(t *testing.T) {
 	assert.Equal(t, "lists them.", aliased.Description())
 	assert.Equal(t, 7, aliased.Run(context.Background()))
 }
+
+func TestCliLanguage(t *testing.T) {
+	t.Parallel()
+
+	t.Run("english unless told otherwise", func(t *testing.T) {
+		t.Parallel()
+
+		assert.Equal(t, DefaultLanguage, NewCli(nil, nil, nil).Language())
+	})
+
+	t.Run("the one the globals name", func(t *testing.T) {
+		t.Parallel()
+
+		cli := NewCli(nil, nil, nil)
+		cli.Globals.Language = "fa"
+
+		assert.Equal(t, "fa", cli.Language())
+	})
+}

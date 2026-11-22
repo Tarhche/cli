@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -57,7 +56,10 @@ func TestReadOAuthError(t *testing.T) {
 	t.Run("what oauth says is read", func(t *testing.T) {
 		t.Parallel()
 
-		got := readOAuthError(answer(http.StatusBadRequest, io.NopCloser(strings.NewReader(`{"error":"invalid_grant","error_description":"no"}`))))
+		response := answer(http.StatusBadRequest, io.NopCloser(strings.NewReader(`{"error":"invalid_grant","error_description":"no"}`)))
+		defer response.Body.Close()
+
+		got := readOAuthError(response)
 
 		assert.Equal(t, &oauthError{StatusCode: http.StatusBadRequest, Code: "invalid_grant", Description: "no"}, got)
 	})
@@ -65,7 +67,10 @@ func TestReadOAuthError(t *testing.T) {
 	t.Run("anything else is kept as it is", func(t *testing.T) {
 		t.Parallel()
 
-		got := readOAuthError(answer(http.StatusNotFound, io.NopCloser(strings.NewReader(" 404 page not found\n"))))
+		response := answer(http.StatusNotFound, io.NopCloser(strings.NewReader(" 404 page not found\n")))
+		defer response.Body.Close()
+
+		got := readOAuthError(response)
 
 		assert.Equal(t, &oauthError{StatusCode: http.StatusNotFound, Body: "404 page not found"}, got)
 	})
@@ -73,7 +78,10 @@ func TestReadOAuthError(t *testing.T) {
 	t.Run("json that is not oauth's is kept as it is", func(t *testing.T) {
 		t.Parallel()
 
-		got := readOAuthError(answer(http.StatusBadRequest, io.NopCloser(strings.NewReader(`{"description":"no"}`))))
+		response := answer(http.StatusBadRequest, io.NopCloser(strings.NewReader(`{"description":"no"}`)))
+		defer response.Body.Close()
+
+		got := readOAuthError(response)
 
 		assert.Equal(t, &oauthError{StatusCode: http.StatusBadRequest, Body: `{"description":"no"}`}, got)
 	})
@@ -81,7 +89,10 @@ func TestReadOAuthError(t *testing.T) {
 	t.Run("an answer that cannot be read says its status", func(t *testing.T) {
 		t.Parallel()
 
-		assert.EqualError(t, readOAuthError(answer(http.StatusTeapot, failingBody{})), "i'm a teapot")
+		response := answer(http.StatusTeapot, failingBody{})
+		defer response.Body.Close()
+
+		assert.EqualError(t, readOAuthError(response), "i'm a teapot")
 	})
 }
 
@@ -95,7 +106,7 @@ func TestManagerSend(t *testing.T) {
 			assert.Equal(t, "application/json", r.Header.Get("Accept"))
 			assert.Contains(t, r.Header.Get("User-Agent"), "tarhche-cli/")
 			assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
-			require.NoError(t, r.ParseForm())
+			assert.NoError(t, r.ParseForm())
 			assert.Equal(t, "b", r.PostForm.Get("a"))
 
 			_, _ = io.WriteString(rw, `{"access_token":"t"}`)
@@ -130,7 +141,7 @@ func TestVerifier(t *testing.T) {
 
 	verifier := newVerifier()
 
-	assert.Regexp(t, regexp.MustCompile(`^[A-Za-z0-9._~-]{43,128}$`), verifier, "what RFC 7636 allows")
+	assert.Regexp(t, `^[A-Za-z0-9._~-]{43,128}$`, verifier, "what RFC 7636 allows")
 	assert.NotEqual(t, verifier, newVerifier())
 
 	sum := sha256.Sum256([]byte(verifier))
