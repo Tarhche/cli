@@ -1,0 +1,70 @@
+# A release is proposed a week after it is out, so that one that is pulled
+# for being broken or compromised in the meantime never is. Security updates
+# are proposed at once.
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: Chore
+    groups:
+      go:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: Chore
+    groups:
+      npm:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: Chore
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # The Dockerfile's images, the linter and GoReleaser among them, whose
+  # versions CI reads from it. A new Go or Node release line is moved by hand,
+  # with go.mod and the workflows' setup-go and setup-node.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: Chore
+    groups:
+      docker:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: golang
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major
