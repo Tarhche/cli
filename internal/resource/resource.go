@@ -288,7 +288,7 @@ func (d Definition) ParseKey(given string) ([]string, error) {
 	if len(fields) != len(d.Key) || slices.ContainsFunc(fields, func(field string) bool {
 		return len(field) == 0 || field == "." || field == ".."
 	}) {
-		return nil, fmt.Errorf("%w %q: a %s is given as %s", ErrInvalidKey, given, d.Name, d.KeyUsage())
+		return nil, fmt.Errorf("%w %q: expected %s", ErrInvalidKey, given, d.KeyUsage())
 	}
 
 	return fields, nil
@@ -318,7 +318,7 @@ func (d Definition) KeyOf(row any) ([]string, error) {
 
 	var id strings.Builder
 	if err := tmpl.Execute(&id, row); err != nil {
-		return nil, fmt.Errorf("identifying a %s: %w", d.Name, err)
+		return nil, fmt.Errorf("identifying the %s: %w", d.Name, err)
 	}
 
 	if strings.Contains(id.String(), noValue) {

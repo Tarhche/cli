@@ -418,7 +418,7 @@ func TestDefinitionKeyOf(t *testing.T) {
 
 		_, err := d.KeyOf(map[string]any{"correlation_uuid": "c1"})
 
-		assert.ErrorContains(t, err, "identifying a article")
+		assert.ErrorContains(t, err, "identifying the article")
 	})
 
 	t.Run("an id that is no template", func(t *testing.T) {
