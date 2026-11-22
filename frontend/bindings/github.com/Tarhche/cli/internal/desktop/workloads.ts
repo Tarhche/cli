@@ -22,6 +22,16 @@ import * as json$0 from "../../../../../encoding/json/models.js";
 import * as $models from "./models.js";
 
 /**
+ * Abilities are which of the workload's pages and actions the session's
+ * permissions allow.
+ */
+export function Abilities(): $CancellablePromise<$models.Abilities> {
+    return $Call.ByID(4143203881).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * Container is one of one's containers, in its Docker VM, by its uuid, its
  * Docker id or its name.
  */
@@ -341,3 +351,6 @@ export function VolumeDependents(vm: string, name: string): $CancellablePromise<
 export function Volumes(vm: string): $CancellablePromise<json$0.RawMessage> {
     return $Call.ByID(3574976600, vm);
 }
+
+// Private type creation functions
+const $$createType0 = $models.Abilities.createFrom;

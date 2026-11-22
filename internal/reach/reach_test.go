@@ -169,6 +169,45 @@ func TestVMPort(t *testing.T) {
 		assert.Equal(t, []string{"nc", "127.0.0.1", "8080"}, command)
 	})
 
+	t.Run("a docker vm whose forward the session may not open is relayed to", func(t *testing.T) {
+		t.Parallel()
+
+		var command []string
+		ingress := &streamtest.Ingress{
+			Exec: relaying(echoServer(t), &command),
+			Refuse: func(request streamtest.Request) (int, string) {
+				if request.Action == "forward" {
+					return http.StatusForbidden, ""
+				}
+
+				return 0, ""
+			},
+		}
+
+		dial, err := VMPort(dialerOf(t, ingress), dock, "dock", 8080)
+		require.NoError(t, err)
+
+		conn, err := dial(context.Background())
+		require.NoError(t, err)
+
+		assert.Equal(t, "ping", roundTrip(t, conn))
+		assert.Equal(t, []string{"forward", "exec"}, actions(ingress))
+	})
+
+	t.Run("a machine whose forward the session may not open is that refusal", func(t *testing.T) {
+		t.Parallel()
+
+		ingress := &streamtest.Ingress{Refuse: func(streamtest.Request) (int, string) { return http.StatusForbidden, "" }}
+
+		dial, err := VMPort(dialerOf(t, ingress), machine, "machine", 8080)
+		require.NoError(t, err)
+
+		_, err = dial(context.Background())
+
+		assert.True(t, stream.IsForbidden(err))
+		assert.NotContains(t, err.Error(), "does not publish")
+	})
+
 	t.Run("a machine whose forward is refused does not publish the port, or denies ingress", func(t *testing.T) {
 		t.Parallel()
 

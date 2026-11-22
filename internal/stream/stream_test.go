@@ -422,6 +422,14 @@ func TestError(t *testing.T) {
 		assert.True(t, IsUnavailable(&Error{StatusCode: http.StatusServiceUnavailable}))
 		assert.False(t, IsTooManyRequests(&Error{StatusCode: http.StatusServiceUnavailable}))
 	})
+
+	t.Run("only a refusal for the session's permissions is forbidden", func(t *testing.T) {
+		t.Parallel()
+
+		assert.True(t, IsForbidden(fmt.Errorf("forwarding: %w", &Error{StatusCode: http.StatusForbidden})))
+		assert.False(t, IsForbidden(&Error{StatusCode: http.StatusNotFound}))
+		assert.False(t, IsForbidden(errors.New("other")))
+	})
 }
 
 type failingReader struct{}

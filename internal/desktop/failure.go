@@ -7,13 +7,14 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/api"
 	"github.com/Tarhche/cli/internal/auth"
 )
 
 // Failure is an error as the frontend is told it: what went wrong, what the
-// API answered and refused by field, and whether the context has to be
-// signed in to again.
+// API answered and refused by field, whether the context has to be signed
+// in to again and why, and the permission a refusal needed.
 type Failure struct {
 	Message string `json:"message"`
 
@@ -26,8 +27,23 @@ type Failure struct {
 	Fields map[string]string `json:"fields,omitempty"`
 
 	// LoggedOut says the context has no session, or one the API no longer
-	// takes: the frontend answers it with its login.
+	// takes, its account's among them: the frontend answers it with its
+	// login.
 	LoggedOut bool `json:"logged_out,omitempty"`
+
+	// Ended says the session was over: it expired, or was signed out of,
+	// and its estate would not renew it.
+	Ended bool `json:"ended,omitempty"`
+
+	// Blocked says the estate refuses the account itself, blocked or gone,
+	// and Reason is why, when it said why.
+	Blocked bool   `json:"blocked,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+
+	// Denied says the session's roles do not allow what was asked, and
+	// Permission is what it needs, when that is known.
+	Denied     bool   `json:"denied,omitempty"`
+	Permission string `json:"permission,omitempty"`
 
 	// Unavailable says it is something the desktop cannot do yet.
 	Unavailable bool `json:"unavailable,omitempty"`
@@ -51,9 +67,14 @@ func (e InvalidError) Error() string {
 
 // FailureOf is err as the frontend is told it.
 func FailureOf(err error) Failure {
+	blocked := isBlocked(err)
+
 	failure := Failure{
 		Message:     err.Error(),
-		LoggedOut:   errors.Is(err, auth.ErrNotLoggedIn) || api.IsUnauthorized(err),
+		LoggedOut:   loggedOut(err) || blocked,
+		Ended:       errors.Is(err, auth.ErrSessionEnded),
+		Blocked:     blocked,
+		Reason:      refusalReason(err),
 		Unavailable: errors.Is(err, ErrUnavailable),
 	}
 
@@ -67,6 +88,11 @@ func FailureOf(err error) Failure {
 		failure.Fields = invalid.Fields
 	}
 
+	if permission, denied := deniedPermission(err); denied {
+		failure.Denied = true
+		failure.Permission = permission
+	}
+
 	return failure
 }
 
@@ -77,4 +103,24 @@ func MarshalError(err error) []byte {
 	content, _ := json.Marshal(FailureOf(err))
 
 	return content
+}
+
+// isBlocked reports whether err says the estate refuses the account itself:
+// every request of it, or its session's renewal.
+func isBlocked(err error) bool {
+	return errors.Is(err, access.ErrBlocked) || errors.Is(err, auth.ErrAccountRefused)
+}
+
+// deniedPermission is the permission a request or a stream was refused for,
+// when err is such a refusal: the API's, or a node's.
+func deniedPermission(err error) (string, bool) {
+	if denied, isDenied := errors.AsType[*access.DeniedError](err); isDenied {
+		return denied.Permission, true
+	}
+
+	if denied, isDenied := errors.AsType[*StreamDeniedError](err); isDenied {
+		return denied.Permission, true
+	}
+
+	return "", false
 }

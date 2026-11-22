@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/api"
 	"github.com/Tarhche/cli/internal/auth"
 	"github.com/Tarhche/cli/internal/config"
@@ -56,7 +57,8 @@ type NewContext struct {
 	Ingress     string `json:"ingress"`
 }
 
-// Status is the session the app has in the context it talks to.
+// Status is the session the app has in the context it talks to, and, when
+// reading it found it over, why.
 type Status struct {
 	Context  ContextInfo `json:"context"`
 	LoggedIn bool        `json:"logged_in"`
@@ -70,9 +72,24 @@ type Status struct {
 	// ExpiresAt is when its access token runs out; it is renewed before.
 	ExpiresAt time.Time `json:"expires_at"`
 
+	// Permissions are every action its roles allow somewhere, as its access
+	// token says: a hint of what to offer, which follows the token as it is
+	// renewed.
+	Permissions []string `json:"permissions"`
+
 	// User is whoever it is theirs, as their profile says, when it could be
 	// read.
 	User *User `json:"user,omitempty"`
+
+	// Ended says the session reading found was over: it ran out, or was
+	// signed out of, and its estate would not renew it.
+	Ended bool `json:"ended,omitempty"`
+
+	// Blocked says the estate refuses the account the session was of,
+	// blocked or gone, which is signed out of; Reason is why, when it said
+	// why.
+	Blocked bool   `json:"blocked,omitempty"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 // User is whoever a session is theirs.
@@ -172,7 +189,10 @@ func (s *Session) Remove(ctx context.Context, name string) error {
 }
 
 // Status is the session the app has in the context it talks to. A session
-// the API no longer takes is none.
+// the API no longer takes is none: one that ran out says it ended, and one
+// whose account the estate refuses says it is blocked, and is signed out
+// of. Its profile is read first, which renews it when it is about to run
+// out, so that what its token says is what is answered.
 func (s *Session) Status(ctx context.Context) (Status, error) {
 	current, err := s.workspace.Context()
 	if err != nil {
@@ -180,6 +200,24 @@ func (s *Session) Status(ctx context.Context) (Status, error) {
 	}
 
 	status := Status{Context: contextInfo(current, current.Name)}
+
+	user, err := s.profile(ctx)
+
+	switch {
+	case errors.Is(err, access.ErrBlocked):
+		return s.signOutBlocked(ctx, status)
+	case errors.Is(err, auth.ErrAccountRefused):
+		status.Blocked = true
+		status.Reason = refusalReason(err)
+
+		return status, nil
+	case errors.Is(err, auth.ErrSessionEnded):
+		status.Ended = true
+
+		return status, nil
+	case loggedOut(err):
+		return status, nil
+	}
 
 	session, err := s.auth.Status(ctx, current.Name)
 
@@ -192,16 +230,25 @@ func (s *Session) Status(ctx context.Context) (Status, error) {
 		return status, nil
 	}
 
-	user, err := s.profile(ctx)
-	if loggedOut(err) {
-		return status, nil
-	}
-
 	status.LoggedIn = true
 	status.Method = session.Method
 	status.Subject = session.Subject
 	status.ExpiresAt = session.ExpiresAt
+	status.Permissions = session.Permissions
 	status.User = user
+
+	return status, nil
+}
+
+// signOutBlocked signs out of the context the app talks to, whose account
+// the estate refuses every request of, and says it is blocked: the session
+// could do nothing any more.
+func (s *Session) signOutBlocked(ctx context.Context, status Status) (Status, error) {
+	if err := s.Logout(ctx); err != nil {
+		return Status{}, err
+	}
+
+	status.Blocked = true
 
 	return status, nil
 }
@@ -262,6 +309,16 @@ func (s *Session) profile(ctx context.Context) (*User, error) {
 // takes.
 func loggedOut(err error) bool {
 	return errors.Is(err, auth.ErrNotLoggedIn) || api.IsUnauthorized(err)
+}
+
+// refusalReason is why the estate refused the account a session was of, as
+// it said it, when err says.
+func refusalReason(err error) string {
+	if refused, isRefused := errors.AsType[*auth.AccountRefusedError](err); isRefused {
+		return refused.Reason
+	}
+
+	return ""
 }
 
 func contextInfo(c config.Context, current string) ContextInfo {

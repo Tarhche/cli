@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Tarhche/cli/internal/api"
+	"github.com/Tarhche/cli/internal/auth"
 	"github.com/Tarhche/cli/internal/desktop"
 	"github.com/Tarhche/cli/internal/resource"
 )
@@ -78,11 +79,18 @@ func TestResources(t *testing.T) {
 
 	page := `{"items":[{"correlation_uuid":"c-1","language_code":"en","title":"Hello","views":31536000},{"correlation_uuid":"c-2","language_code":"fa"}],"pagination":{"total_pages":3,"current_page":2}}`
 
-	t.Run("the definitions are every resource, as its pages are built", func(t *testing.T) {
+	t.Run("the definitions are every resource the session may list, as its pages are built", func(t *testing.T) {
 		t.Parallel()
 
-		resources := newResources(t, nil, articles, messages, bookmarks)
+		w := newWorkspaceGranting(t, nil,
+			"articles.index", "articles.show", "articles.create", "articles.update", "articles.delete", "self.articles.index", "self.articles.show",
+			"contactus.index", "contactus.markAsRead",
+			"self.bookmarks.index", "self.bookmarks.delete",
+		)
 
+		definitions, err := desktop.NewResources(w, func() []resource.Definition { return []resource.Definition{articles, messages, bookmarks} }).Definitions(context.Background())
+
+		require.NoError(t, err)
 		assert.Equal(t, []desktop.ResourceDefinition{
 			{
 				Name:        "article",
@@ -108,10 +116,10 @@ func TestResources(t *testing.T) {
 				Mine:      desktop.Routes{List: true, Update: true},
 				Everyone:  desktop.Routes{List: true, Update: true},
 				Actions: []desktop.ResourceAction{
-					{Name: "read", Description: "Marks it read", Keyed: true},
-					{Name: "archive", Mine: true, Keyed: true},
+					{Name: "read", Description: "Marks it read", Keyed: true, Allowed: true},
+					{Name: "archive", Mine: true, Keyed: true, Allowed: true},
 					{Name: "activity"},
-					{Name: "activity", Mine: true},
+					{Name: "activity", Mine: true, Allowed: true},
 				},
 				Filters: []desktop.ResourceFilter{},
 				Columns: []string{"UUID"},
@@ -128,13 +136,51 @@ func TestResources(t *testing.T) {
 				Filters:   []desktop.ResourceFilter{},
 				Columns:   []string{"OBJECT UUID", "LANGUAGE CODE"},
 			},
-		}, resources.Definitions())
+		}, definitions)
+	})
+
+	t.Run("what the session's permissions do not allow is not offered", func(t *testing.T) {
+		t.Parallel()
+
+		w := newWorkspaceGranting(t, nil, "self.articles.index", "articles.show")
+
+		definitions, err := desktop.NewResources(w, func() []resource.Definition { return []resource.Definition{articles, messages, bookmarks} }).Definitions(context.Background())
+
+		require.NoError(t, err)
+		require.Len(t, definitions, 1, "a resource none of whose listings is allowed is not offered")
+		assert.Equal(t, "article", definitions[0].Name)
+		assert.Equal(t, []string{"mine"}, definitions[0].Audiences)
+		assert.Equal(t, desktop.Routes{List: true}, definitions[0].Mine)
+		assert.Equal(t, desktop.Routes{Get: true}, definitions[0].Everyone)
 	})
 
 	t.Run("no definitions are none", func(t *testing.T) {
 		t.Parallel()
 
-		assert.Equal(t, []desktop.ResourceDefinition{}, newResources(t, nil).Definitions())
+		definitions, err := newResources(t, nil).Definitions(context.Background())
+
+		require.NoError(t, err)
+		assert.Equal(t, []desktop.ResourceDefinition{}, definitions)
+	})
+
+	t.Run("a session that cannot be had offers nothing", func(t *testing.T) {
+		t.Parallel()
+
+		resources := desktop.NewResources(workspaceFailing(t, nil, auth.ErrSessionEnded), func() []resource.Definition { return []resource.Definition{articles} })
+
+		_, err := resources.Definitions(context.Background())
+
+		assert.ErrorIs(t, err, auth.ErrSessionEnded)
+	})
+
+	t.Run("a context whose configuration cannot be read offers nothing", func(t *testing.T) {
+		t.Parallel()
+
+		resources := desktop.NewResources(brokenWorkspace(t), func() []resource.Definition { return []resource.Definition{articles} })
+
+		_, err := resources.Definitions(context.Background())
+
+		assert.Error(t, err)
 	})
 
 	t.Run("a listing is laid out as its table, its numbers as they were written", func(t *testing.T) {

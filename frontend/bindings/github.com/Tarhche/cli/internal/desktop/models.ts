@@ -10,6 +10,85 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as json$0 from "../../../../../encoding/json/models.js";
 
 /**
+ * Abilities say which of the workload's pages and actions the session's
+ * permissions allow, each kind's read off the routes the service asks it
+ * of, and its streams off the permissions a node opens them under: a hint of
+ * what to offer, as the API and the nodes decide every request.
+ */
+export class Abilities {
+    "vms": KindAbilities;
+    "containers": KindAbilities;
+    "images": KindAbilities;
+    "networks": KindAbilities;
+    "volumes": KindAbilities;
+    "stacks": KindAbilities;
+    "snapshots": KindAbilities;
+
+    /** Creates a new Abilities instance. */
+    constructor($$source: Partial<Abilities> = {}) {
+        if (!("vms" in $$source)) {
+            this["vms"] = (new KindAbilities());
+        }
+        if (!("containers" in $$source)) {
+            this["containers"] = (new KindAbilities());
+        }
+        if (!("images" in $$source)) {
+            this["images"] = (new KindAbilities());
+        }
+        if (!("networks" in $$source)) {
+            this["networks"] = (new KindAbilities());
+        }
+        if (!("volumes" in $$source)) {
+            this["volumes"] = (new KindAbilities());
+        }
+        if (!("stacks" in $$source)) {
+            this["stacks"] = (new KindAbilities());
+        }
+        if (!("snapshots" in $$source)) {
+            this["snapshots"] = (new KindAbilities());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Abilities instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Abilities {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("vms" in $$parsedSource) {
+            $$parsedSource["vms"] = $$createField0_0($$parsedSource["vms"]);
+        }
+        if ("containers" in $$parsedSource) {
+            $$parsedSource["containers"] = $$createField1_0($$parsedSource["containers"]);
+        }
+        if ("images" in $$parsedSource) {
+            $$parsedSource["images"] = $$createField2_0($$parsedSource["images"]);
+        }
+        if ("networks" in $$parsedSource) {
+            $$parsedSource["networks"] = $$createField3_0($$parsedSource["networks"]);
+        }
+        if ("volumes" in $$parsedSource) {
+            $$parsedSource["volumes"] = $$createField4_0($$parsedSource["volumes"]);
+        }
+        if ("stacks" in $$parsedSource) {
+            $$parsedSource["stacks"] = $$createField5_0($$parsedSource["stacks"]);
+        }
+        if ("snapshots" in $$parsedSource) {
+            $$parsedSource["snapshots"] = $$createField6_0($$parsedSource["snapshots"]);
+        }
+        return new Abilities($$parsedSource as Partial<Abilities>);
+    }
+}
+
+/**
  * ContainerRequest is a container to run: in the Docker VM VMUUID names, in
  * a new one VM describes, or, with neither, in a new one with the defaults.
  */
@@ -58,13 +137,13 @@ export class ContainerRequest {
      * Creates a new ContainerRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ContainerRequest {
-        const $$createField1_0 = $$createType1;
-        const $$createField4_0 = $$createType2;
-        const $$createField5_0 = $$createType2;
-        const $$createField6_0 = $$createType2;
-        const $$createField8_0 = $$createType4;
-        const $$createField9_0 = $$createType6;
-        const $$createField10_0 = $$createType2;
+        const $$createField1_0 = $$createType2;
+        const $$createField4_0 = $$createType3;
+        const $$createField5_0 = $$createType3;
+        const $$createField6_0 = $$createType3;
+        const $$createField8_0 = $$createType5;
+        const $$createField9_0 = $$createType7;
+        const $$createField10_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("vm" in $$parsedSource) {
             $$parsedSource["vm"] = $$createField1_0($$parsedSource["vm"]);
@@ -182,7 +261,7 @@ export class Forward {
      * Creates a new Forward instance from a string or object.
      */
     static createFrom($$source: any = {}): Forward {
-        const $$createField2_0 = $$createType7;
+        const $$createField2_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target" in $$parsedSource) {
             $$parsedSource["target"] = $$createField2_0($$parsedSource["target"]);
@@ -227,7 +306,7 @@ export class ForwardRequest {
      * Creates a new ForwardRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): ForwardRequest {
-        const $$createField0_0 = $$createType7;
+        const $$createField0_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target" in $$parsedSource) {
             $$parsedSource["target"] = $$createField0_0($$parsedSource["target"]);
@@ -258,6 +337,121 @@ export class ForwardStopped {
     static createFrom($$source: any = {}): ForwardStopped {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ForwardStopped($$parsedSource as Partial<ForwardStopped>);
+    }
+}
+
+/**
+ * KindAbilities say what may be done with one kind of the workload's; what
+ * it does not have is never allowed.
+ */
+export class KindAbilities {
+    /**
+     * List is its page: listing them, and what the page needs beside, as an
+     * image's, a network's and a volume's needs one's VMs listed to choose
+     * the Docker VM they are in.
+     */
+    "list": boolean;
+
+    /**
+     * Show is reading one, which its own page is.
+     */
+    "show": boolean;
+
+    /**
+     * Create is making one: a VM created, a container run, a stack
+     * deployed, a snapshot taken of a VM, an image pulled, a network or a
+     * volume created.
+     */
+    "create": boolean;
+    "start": boolean;
+    "stop": boolean;
+    "restart": boolean;
+
+    /**
+     * Update is changing one: a snapshot renamed.
+     */
+    "update": boolean;
+
+    /**
+     * Restore is replacing a VM's disk with a snapshot's, chosen among its
+     * snapshots.
+     */
+    "restore": boolean;
+
+    /**
+     * Delete is deleting one, what needs it read first where something can.
+     */
+    "delete": boolean;
+
+    /**
+     * Logs is reading what it wrote, and Usage what it used and uses.
+     */
+    "logs": boolean;
+    "usage": boolean;
+
+    /**
+     * Attach, Exec and Forward are the streams into it: a VM's own shell, a
+     * command run in it, and a connection to a port it publishes. A
+     * container is reached through its Docker VM's Exec alone.
+     */
+    "attach": boolean;
+    "exec": boolean;
+    "forward": boolean;
+
+    /** Creates a new KindAbilities instance. */
+    constructor($$source: Partial<KindAbilities> = {}) {
+        if (!("list" in $$source)) {
+            this["list"] = false;
+        }
+        if (!("show" in $$source)) {
+            this["show"] = false;
+        }
+        if (!("create" in $$source)) {
+            this["create"] = false;
+        }
+        if (!("start" in $$source)) {
+            this["start"] = false;
+        }
+        if (!("stop" in $$source)) {
+            this["stop"] = false;
+        }
+        if (!("restart" in $$source)) {
+            this["restart"] = false;
+        }
+        if (!("update" in $$source)) {
+            this["update"] = false;
+        }
+        if (!("restore" in $$source)) {
+            this["restore"] = false;
+        }
+        if (!("delete" in $$source)) {
+            this["delete"] = false;
+        }
+        if (!("logs" in $$source)) {
+            this["logs"] = false;
+        }
+        if (!("usage" in $$source)) {
+            this["usage"] = false;
+        }
+        if (!("attach" in $$source)) {
+            this["attach"] = false;
+        }
+        if (!("exec" in $$source)) {
+            this["exec"] = false;
+        }
+        if (!("forward" in $$source)) {
+            this["forward"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new KindAbilities instance from a string or object.
+     */
+    static createFrom($$source: any = {}): KindAbilities {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new KindAbilities($$parsedSource as Partial<KindAbilities>);
     }
 }
 
@@ -301,7 +495,7 @@ export class ListQuery {
      * Creates a new ListQuery instance from a string or object.
      */
     static createFrom($$source: any = {}): ListQuery {
-        const $$createField2_0 = $$createType8;
+        const $$createField2_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("filters" in $$parsedSource) {
             $$parsedSource["filters"] = $$createField2_0($$parsedSource["filters"]);
@@ -350,8 +544,8 @@ export class Listing {
      * Creates a new Listing instance from a string or object.
      */
     static createFrom($$source: any = {}): Listing {
-        const $$createField0_0 = $$createType2;
-        const $$createField1_0 = $$createType10;
+        const $$createField0_0 = $$createType3;
+        const $$createField1_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField0_0($$parsedSource["columns"]);
@@ -440,7 +634,7 @@ export class NetworkRequest {
      * Creates a new NetworkRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): NetworkRequest {
-        const $$createField3_0 = $$createType8;
+        const $$createField3_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("labels" in $$parsedSource) {
             $$parsedSource["labels"] = $$createField3_0($$parsedSource["labels"]);
@@ -505,9 +699,9 @@ export class NewDockerVM {
      * Creates a new NewDockerVM instance from a string or object.
      */
     static createFrom($$source: any = {}): NewDockerVM {
-        const $$createField1_0 = $$createType12;
-        const $$createField2_0 = $$createType13;
-        const $$createField3_0 = $$createType15;
+        const $$createField1_0 = $$createType13;
+        const $$createField2_0 = $$createType14;
+        const $$createField3_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("resources" in $$parsedSource) {
             $$parsedSource["resources"] = $$createField1_0($$parsedSource["resources"]);
@@ -575,6 +769,11 @@ export class ResourceAction {
      */
     "keyed": boolean;
 
+    /**
+     * Allowed says the session's permissions allow it.
+     */
+    "allowed": boolean;
+
     /** Creates a new ResourceAction instance. */
     constructor($$source: Partial<ResourceAction> = {}) {
         if (!("name" in $$source)) {
@@ -588,6 +787,9 @@ export class ResourceAction {
         }
         if (!("keyed" in $$source)) {
             this["keyed"] = false;
+        }
+        if (!("allowed" in $$source)) {
+            this["allowed"] = false;
         }
 
         Object.assign(this, $$source);
@@ -619,14 +821,14 @@ export class ResourceDefinition {
     "key": string[];
 
     /**
-     * Audiences are whose things it is listed of, one's own (mine) first,
-     * then everybody's (everyone).
+     * Audiences are whose things the session may list of it, one's own
+     * (mine) first, then everybody's (everyone).
      */
     "audiences": string[];
 
     /**
-     * Mine are what one's own can be asked, and Everyone what everybody's
-     * can.
+     * Mine are what the session may ask of one's own, and Everyone what it
+     * may ask of everybody's.
      */
     "mine": Routes;
     "everyone": Routes;
@@ -697,13 +899,13 @@ export class ResourceDefinition {
      * Creates a new ResourceDefinition instance from a string or object.
      */
     static createFrom($$source: any = {}): ResourceDefinition {
-        const $$createField5_0 = $$createType2;
-        const $$createField6_0 = $$createType2;
-        const $$createField7_0 = $$createType16;
-        const $$createField8_0 = $$createType16;
-        const $$createField9_0 = $$createType18;
-        const $$createField10_0 = $$createType20;
-        const $$createField12_0 = $$createType2;
+        const $$createField5_0 = $$createType3;
+        const $$createField6_0 = $$createType3;
+        const $$createField7_0 = $$createType17;
+        const $$createField8_0 = $$createType17;
+        const $$createField9_0 = $$createType19;
+        const $$createField10_0 = $$createType21;
+        const $$createField12_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("key" in $$parsedSource) {
             $$parsedSource["key"] = $$createField5_0($$parsedSource["key"]);
@@ -778,8 +980,8 @@ export class ResourceFilter {
      * Creates a new ResourceFilter instance from a string or object.
      */
     static createFrom($$source: any = {}): ResourceFilter {
-        const $$createField2_0 = $$createType2;
-        const $$createField4_0 = $$createType2;
+        const $$createField2_0 = $$createType3;
+        const $$createField4_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("values" in $$parsedSource) {
             $$parsedSource["values"] = $$createField2_0($$parsedSource["values"]);
@@ -792,7 +994,8 @@ export class ResourceFilter {
 }
 
 /**
- * Routes say what an audience of a resource can be asked.
+ * Routes say what the session may ask an audience of a resource: what is
+ * served there that its permissions allow.
  */
 export class Routes {
     "list": boolean;
@@ -870,8 +1073,8 @@ export class Row {
      * Creates a new Row instance from a string or object.
      */
     static createFrom($$source: any = {}): Row {
-        const $$createField0_0 = $$createType2;
-        const $$createField1_0 = $$createType2;
+        const $$createField0_0 = $$createType3;
+        const $$createField1_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("key" in $$parsedSource) {
             $$parsedSource["key"] = $$createField0_0($$parsedSource["key"]);
@@ -909,7 +1112,7 @@ export class StackRequest {
      * Creates a new StackRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): StackRequest {
-        const $$createField3_0 = $$createType1;
+        const $$createField3_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("vm" in $$parsedSource) {
             $$parsedSource["vm"] = $$createField3_0($$parsedSource["vm"]);
@@ -919,7 +1122,8 @@ export class StackRequest {
 }
 
 /**
- * Status is the session the app has in the context it talks to.
+ * Status is the session the app has in the context it talks to, and, when
+ * reading it found it over, why.
  */
 export class Status {
     "context": ContextInfo;
@@ -941,10 +1145,31 @@ export class Status {
     "expires_at": string;
 
     /**
+     * Permissions are every action its roles allow somewhere, as its access
+     * token says: a hint of what to offer, which follows the token as it is
+     * renewed.
+     */
+    "permissions": string[];
+
+    /**
      * User is whoever it is theirs, as their profile says, when it could be
      * read.
      */
     "user"?: User | null;
+
+    /**
+     * Ended says the session reading found was over: it ran out, or was
+     * signed out of, and its estate would not renew it.
+     */
+    "ended"?: boolean;
+
+    /**
+     * Blocked says the estate refuses the account the session was of,
+     * blocked or gone, which is signed out of; Reason is why, when it said
+     * why.
+     */
+    "blocked"?: boolean;
+    "reason"?: string;
 
     /** Creates a new Status instance. */
     constructor($$source: Partial<Status> = {}) {
@@ -957,6 +1182,9 @@ export class Status {
         if (!("expires_at" in $$source)) {
             this["expires_at"] = "0001-01-01T00:00:00.000Z";
         }
+        if (!("permissions" in $$source)) {
+            this["permissions"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -965,14 +1193,18 @@ export class Status {
      * Creates a new Status instance from a string or object.
      */
     static createFrom($$source: any = {}): Status {
-        const $$createField0_0 = $$createType21;
-        const $$createField5_0 = $$createType23;
+        const $$createField0_0 = $$createType22;
+        const $$createField5_0 = $$createType3;
+        const $$createField6_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("context" in $$parsedSource) {
             $$parsedSource["context"] = $$createField0_0($$parsedSource["context"]);
         }
+        if ("permissions" in $$parsedSource) {
+            $$parsedSource["permissions"] = $$createField5_0($$parsedSource["permissions"]);
+        }
         if ("user" in $$parsedSource) {
-            $$parsedSource["user"] = $$createField5_0($$parsedSource["user"]);
+            $$parsedSource["user"] = $$createField6_0($$parsedSource["user"]);
         }
         return new Status($$parsedSource as Partial<Status>);
     }
@@ -1119,9 +1351,9 @@ export class TerminalRequest {
      * Creates a new TerminalRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): TerminalRequest {
-        const $$createField0_0 = $$createType7;
-        const $$createField1_0 = $$createType2;
-        const $$createField2_0 = $$createType24;
+        const $$createField0_0 = $$createType8;
+        const $$createField1_0 = $$createType3;
+        const $$createField2_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target" in $$parsedSource) {
             $$parsedSource["target"] = $$createField0_0($$parsedSource["target"]);
@@ -1316,9 +1548,9 @@ export class VMRequest {
      * Creates a new VMRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): VMRequest {
-        const $$createField3_0 = $$createType11;
-        const $$createField4_0 = $$createType13;
-        const $$createField5_0 = $$createType14;
+        const $$createField3_0 = $$createType12;
+        const $$createField4_0 = $$createType14;
+        const $$createField5_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("resources" in $$parsedSource) {
             $$parsedSource["resources"] = $$createField3_0($$parsedSource["resources"]);
@@ -1386,7 +1618,7 @@ export class VolumeRequest {
      * Creates a new VolumeRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): VolumeRequest {
-        const $$createField2_0 = $$createType8;
+        const $$createField2_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("labels" in $$parsedSource) {
             $$parsedSource["labels"] = $$createField2_0($$parsedSource["labels"]);
@@ -1396,28 +1628,29 @@ export class VolumeRequest {
 }
 
 // Private type creation functions
-const $$createType0 = NewDockerVM.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = PortBinding.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = Mount.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = Target.createFrom;
-const $$createType8 = $Create.Map($Create.Any, $Create.Any);
-const $$createType9 = Row.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = VMResources.createFrom;
-const $$createType12 = $Create.Nullable($$createType11);
-const $$createType13 = $Create.Array($Create.Any);
-const $$createType14 = VMNetwork.createFrom;
-const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = Routes.createFrom;
-const $$createType17 = ResourceAction.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = ResourceFilter.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = ContextInfo.createFrom;
-const $$createType22 = User.createFrom;
-const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = TerminalSize.createFrom;
+const $$createType0 = KindAbilities.createFrom;
+const $$createType1 = NewDockerVM.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);
+const $$createType3 = $Create.Array($Create.Any);
+const $$createType4 = PortBinding.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = Mount.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = Target.createFrom;
+const $$createType9 = $Create.Map($Create.Any, $Create.Any);
+const $$createType10 = Row.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = VMResources.createFrom;
+const $$createType13 = $Create.Nullable($$createType12);
+const $$createType14 = $Create.Array($Create.Any);
+const $$createType15 = VMNetwork.createFrom;
+const $$createType16 = $Create.Nullable($$createType15);
+const $$createType17 = Routes.createFrom;
+const $$createType18 = ResourceAction.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = ResourceFilter.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = ContextInfo.createFrom;
+const $$createType23 = User.createFrom;
+const $$createType24 = $Create.Nullable($$createType23);
+const $$createType25 = TerminalSize.createFrom;

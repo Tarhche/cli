@@ -4,9 +4,10 @@
 /**
  * Resources is how the frontend reaches what the dashboard manages beside
  * the workload, each kind as package resource describes it: its generic
- * pages are built from whatever definitions there are. Whose things are
- * asked for is the frontend's to say: one's own, unless everybody's are
- * asked for or one's own are not served, as the commands do.
+ * pages are built from whatever definitions the session's permissions
+ * allow. Whose things are asked for is the frontend's to say: one's own,
+ * unless everybody's are asked for or one's own are not served, as the
+ * commands do.
  * @module
  */
 
@@ -38,8 +39,9 @@ export function Create(name: string, everyone: boolean, body: string): $Cancella
 }
 
 /**
- * Definitions are every kind of resource there is, in the order they are
- * shown.
+ * Definitions are the kinds of resource the session may list, in the order
+ * they are shown, each with what its permissions allow of it: a hint of
+ * what to offer, as the API decides every request.
  */
 export function Definitions(): $CancellablePromise<$models.ResourceDefinition[]> {
     return $Call.ByID(1146677650).then(($result: any) => {

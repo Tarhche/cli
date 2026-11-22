@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"net/http"
 	"net/url"
 	"strings"
 	"text/template"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/api"
 	"github.com/Tarhche/cli/internal/formatter"
 	"github.com/Tarhche/cli/internal/resource"
@@ -22,9 +22,10 @@ const noValue = "<no value>"
 
 // Resources is how the frontend reaches what the dashboard manages beside
 // the workload, each kind as package resource describes it: its generic
-// pages are built from whatever definitions there are. Whose things are
-// asked for is the frontend's to say: one's own, unless everybody's are
-// asked for or one's own are not served, as the commands do.
+// pages are built from whatever definitions the session's permissions
+// allow. Whose things are asked for is the frontend's to say: one's own,
+// unless everybody's are asked for or one's own are not served, as the
+// commands do.
 type Resources struct {
 	workspace   *Workspace
 	definitions func() []resource.Definition
@@ -48,12 +49,12 @@ type ResourceDefinition struct {
 	// Key are the fields that identify one, in order.
 	Key []string `json:"key"`
 
-	// Audiences are whose things it is listed of, one's own (mine) first,
-	// then everybody's (everyone).
+	// Audiences are whose things the session may list of it, one's own
+	// (mine) first, then everybody's (everyone).
 	Audiences []string `json:"audiences"`
 
-	// Mine are what one's own can be asked, and Everyone what everybody's
-	// can.
+	// Mine are what the session may ask of one's own, and Everyone what it
+	// may ask of everybody's.
 	Mine     Routes `json:"mine"`
 	Everyone Routes `json:"everyone"`
 
@@ -70,7 +71,8 @@ type ResourceDefinition struct {
 	Columns []string `json:"columns"`
 }
 
-// Routes say what an audience of a resource can be asked.
+// Routes say what the session may ask an audience of a resource: what is
+// served there that its permissions allow.
 type Routes struct {
 	List   bool `json:"list"`
 	Get    bool `json:"get"`
@@ -90,6 +92,9 @@ type ResourceAction struct {
 	// Keyed says it is asked of one thing, by its key, rather than of the
 	// resource.
 	Keyed bool `json:"keyed"`
+
+	// Allowed says the session's permissions allow it.
+	Allowed bool `json:"allowed"`
 }
 
 // ResourceFilter is what a listing can be narrowed by: a query parameter.
@@ -147,17 +152,24 @@ type Row struct {
 	Item json.RawMessage `json:"item"`
 }
 
-// Definitions are every kind of resource there is, in the order they are
-// shown.
-func (r *Resources) Definitions() []ResourceDefinition {
-	definitions := r.definitions()
-	described := make([]ResourceDefinition, len(definitions))
-
-	for i, d := range definitions {
-		described[i] = describe(d)
+// Definitions are the kinds of resource the session may list, in the order
+// they are shown, each with what its permissions allow of it: a hint of
+// what to offer, as the API decides every request.
+func (r *Resources) Definitions(ctx context.Context) ([]ResourceDefinition, error) {
+	granted, err := r.workspace.Granted(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	return described
+	described := []ResourceDefinition{}
+
+	for _, d := range r.definitions() {
+		if offered := describe(d, granted); len(offered.Audiences) > 0 {
+			described = append(described, offered)
+		}
+	}
+
+	return described, nil
 }
 
 // List reads a page of a resource's listing.
@@ -215,7 +227,7 @@ func (r *Resources) Get(ctx context.Context, name string, everyone bool, key []s
 		return nil, unserved(d, "read")
 	}
 
-	return r.send(ctx, http.MethodGet, d.Path(path, key), nil)
+	return r.send(ctx, methods[operationGet], d.Path(path, key), nil)
 }
 
 // Create creates one of a resource from body, its JSON object.
@@ -235,7 +247,7 @@ func (r *Resources) Create(ctx context.Context, name string, everyone bool, body
 		return nil, err
 	}
 
-	return r.send(ctx, http.MethodPost, path, withDefaults(object, d.Defaults))
+	return r.send(ctx, methods[operationCreate], path, withDefaults(object, d.Defaults))
 }
 
 // Update changes one of a resource to body, its JSON object: the one key
@@ -264,7 +276,7 @@ func (r *Resources) Update(ctx context.Context, name string, everyone bool, key 
 
 	maps.Copy(object, d.BodyKey(path, key))
 
-	return r.send(ctx, http.MethodPut, d.Path(path, key), withDefaults(object, d.Defaults))
+	return r.send(ctx, methods[operationUpdate], d.Path(path, key), withDefaults(object, d.Defaults))
 }
 
 // Delete deletes one of a resource, by its key.
@@ -284,7 +296,7 @@ func (r *Resources) Delete(ctx context.Context, name string, everyone bool, key 
 		body = withDefaults(body, d.Defaults)
 	}
 
-	_, err = r.send(ctx, http.MethodDelete, d.Path(path, key), requestBody(body))
+	_, err = r.send(ctx, methods[operationDelete], d.Path(path, key), requestBody(body))
 
 	return err
 }
@@ -302,10 +314,7 @@ func (r *Resources) Action(ctx context.Context, name, action string, everyone bo
 		return nil, fmt.Errorf("%s cannot be asked to %s", d.Title, action)
 	}
 
-	method := a.Method
-	if len(method) == 0 {
-		method = http.MethodPost
-	}
+	method := methodOf(a)
 
 	if !keyed(d, a) {
 		return r.send(ctx, method, a.Path, requestBody(a.Body))
@@ -380,10 +389,12 @@ func read(ctx context.Context, client *api.Client, path, cursor string, query Li
 	return Listing{TotalPages: page.Pagination.TotalPages, CurrentPage: page.Pagination.CurrentPage}, page.Items, nil
 }
 
-func describe(d resource.Definition) ResourceDefinition {
+// describe is a resource as the frontend builds its pages from it, for a
+// session granted what granted says.
+func describe(d resource.Definition, granted access.Granted) ResourceDefinition {
 	actions := make([]ResourceAction, len(d.Actions))
 	for i, a := range d.Actions {
-		actions[i] = ResourceAction{Name: a.Name, Description: a.Description, Mine: a.Mine, Keyed: keyed(d, a)}
+		actions[i] = ResourceAction{Name: a.Name, Description: a.Description, Mine: a.Mine, Keyed: keyed(d, a), Allowed: granted.Allows(methodOf(a), a.Path)}
 	}
 
 	return ResourceDefinition{
@@ -393,9 +404,9 @@ func describe(d resource.Definition) ResourceDefinition {
 		Description: d.Description,
 		Section:     d.Section,
 		Key:         append([]string{}, d.Key...),
-		Audiences:   audiencesOf(d),
-		Mine:        routesOf(d, false),
-		Everyone:    routesOf(d, true),
+		Audiences:   audiencesOf(d, granted),
+		Mine:        routesOf(d, false, granted),
+		Everyone:    routesOf(d, true, granted),
 		Actions:     actions,
 		Filters:     filtersOf(d),
 		Cursor:      len(d.Cursor) > 0,
@@ -403,17 +414,22 @@ func describe(d resource.Definition) ResourceDefinition {
 	}
 }
 
-// routesOf are what an audience of a resource can be asked, a route of the
-// other audience serving what its own does not.
-func routesOf(d resource.Definition, everyone bool) Routes {
-	served := func(op operation) bool { return len(routeOf(d, op, everyone)) > 0 }
+// routesOf are what a session granted what granted says may ask an
+// audience of a resource, a route of the other audience serving what its
+// own does not.
+func routesOf(d resource.Definition, everyone bool, granted access.Granted) Routes {
+	allowed := func(op operation) bool {
+		path := routeOf(d, op, everyone)
+
+		return len(path) > 0 && granted.Allows(methods[op], path)
+	}
 
 	return Routes{
-		List:   served(operationList),
-		Get:    served(operationGet),
-		Create: served(operationCreate),
-		Update: served(operationUpdate),
-		Delete: served(operationDelete),
+		List:   allowed(operationList),
+		Get:    allowed(operationGet),
+		Create: allowed(operationCreate),
+		Update: allowed(operationUpdate),
+		Delete: allowed(operationDelete),
 	}
 }
 

@@ -89,6 +89,24 @@ func roundTripThrough(t *testing.T, address string) string {
 	return string(answer)
 }
 
+// forbidding is an ingress whose nodes refuse every stream for the session's
+// permissions.
+func forbidding() *streamtest.Ingress {
+	return &streamtest.Ingress{Refuse: func(streamtest.Request) (int, string) { return http.StatusForbidden, "" }}
+}
+
+// requireDenied requires err to be a stream refused for the permission it
+// names.
+func requireDenied(t *testing.T, err error, permission string) {
+	t.Helper()
+
+	var denied *desktop.StreamDeniedError
+	require.ErrorAs(t, err, &denied)
+	assert.Equal(t, permission, denied.Permission)
+	assert.Equal(t, http.StatusForbidden, denied.Refused.StatusCode)
+	assert.Equal(t, desktop.Failure{Message: `permission denied: this needs the "` + permission + `" permission, which none of your roles gives you`, Denied: true, Permission: permission}, desktop.FailureOf(err))
+}
+
 func TestStreamsOpen(t *testing.T) {
 	t.Parallel()
 
@@ -149,8 +167,11 @@ func TestStreamsOpen(t *testing.T) {
 		assert.Equal(t, "load", string(output))
 		assert.Equal(t, command.StatusError{Code: 3}, err)
 
-		_, err = terminal.Write([]byte("q"))
-		assert.Error(t, err, "nothing reads what is typed into a command that ended")
+		assert.Eventually(t, func() bool {
+			_, err := terminal.Write([]byte("q"))
+
+			return err != nil
+		}, 5*time.Second, 10*time.Millisecond, "nothing reads what is typed into a command that ended, once its stream is gone")
 		assert.NoError(t, terminal.Close())
 	})
 
@@ -238,6 +259,30 @@ func TestStreamsOpen(t *testing.T) {
 			_, err := desktop.NewStreams().Open(context.Background(), reachable(t, refusing), request)
 
 			assert.Error(t, err, name)
+		}
+	})
+
+	t.Run("a terminal the session's roles do not allow names the permission it needs", func(t *testing.T) {
+		t.Parallel()
+
+		cases := map[string]struct {
+			request    desktop.TerminalRequest
+			permission string
+		}{
+			"a vm's shell":           {request: desktop.TerminalRequest{Target: desktop.Target{VM: machineUUID}}, permission: "self.workload.vms.attach"},
+			"a command in a vm":      {request: desktop.TerminalRequest{Target: desktop.Target{VM: machineUUID}, Command: []string{"ls"}}, permission: "self.workload.vms.exec"},
+			"a shell in a container": {request: desktop.TerminalRequest{Target: desktop.Target{VM: dockUUID, Container: "web"}}, permission: "self.workload.vms.exec"},
+		}
+
+		for name, c := range cases {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+
+				terminal, err := desktop.NewStreams().Open(context.Background(), reachable(t, forbidding()), c.request)
+
+				assert.Nil(t, terminal)
+				requireDenied(t, err, c.permission)
+			})
 		}
 	})
 
@@ -409,6 +454,62 @@ func TestStreamsForward(t *testing.T) {
 		assert.Error(t, err, "a context with no ingress")
 	})
 
+	t.Run("a container's port the session's roles do not allow is not forwarded", func(t *testing.T) {
+		t.Parallel()
+
+		forward, err := desktop.NewStreams().Forward(context.Background(), reachable(t, forbidding()), desktop.ForwardRequest{Target: desktop.Target{VM: dockUUID, Container: "web"}, Port: 80})
+
+		assert.Nil(t, forward)
+		requireDenied(t, err, "self.workload.vms.exec")
+	})
+
+	t.Run("a forward whose connection a node refuses for the session's permissions stops, saying why", func(t *testing.T) {
+		t.Parallel()
+
+		forward, err := desktop.NewStreams().Forward(context.Background(), reachable(t, forbidding()), desktop.ForwardRequest{Target: desktop.Target{VM: machineUUID}, Port: 8080})
+		require.NoError(t, err)
+
+		conn, err := new(net.Dialer).DialContext(context.Background(), "tcp", forward.Address())
+		require.NoError(t, err)
+
+		defer conn.Close()
+
+		stopped := make(chan error, 1)
+		go func() { stopped <- forward.Wait() }()
+
+		select {
+		case err := <-stopped:
+			requireDenied(t, err, "self.workload.vms.forward")
+		case <-time.After(5 * time.Second):
+			t.Fatal("the forward went on though its connections are refused")
+		}
+
+		assert.NoError(t, forward.Wait(), "why it stopped is said once")
+	})
+
+	t.Run("a connection that fails otherwise leaves the forward as it is", func(t *testing.T) {
+		t.Parallel()
+
+		ingress := &streamtest.Ingress{Refuse: func(streamtest.Request) (int, string) { return http.StatusServiceUnavailable, "not running" }}
+
+		forward, err := desktop.NewStreams().Forward(context.Background(), reachable(t, ingress), desktop.ForwardRequest{Target: desktop.Target{VM: machineUUID}, Port: 8080})
+		require.NoError(t, err)
+
+		conn, err := new(net.Dialer).DialContext(context.Background(), "tcp", forward.Address())
+		require.NoError(t, err)
+
+		_, err = conn.Read(make([]byte, 1))
+		assert.Error(t, err, "the connection is closed")
+		_ = conn.Close()
+
+		again, err := new(net.Dialer).DialContext(context.Background(), "tcp", forward.Address())
+		require.NoError(t, err, "it still listens")
+		_ = again.Close()
+
+		assert.NoError(t, forward.Close())
+		assert.NoError(t, forward.Wait())
+	})
+
 	t.Run("a local port that is taken cannot be listened on", func(t *testing.T) {
 		t.Parallel()
 
@@ -468,6 +569,16 @@ func TestStreamsCopy(t *testing.T) {
 		assert.Error(t, err, "a copy docker cp failed")
 		assert.Equal(t, []string{"docker", "cp"}, (<-commands)[:2])
 		assert.Equal(t, dockUUID, ingress.Requests()[0].UUID)
+	})
+
+	t.Run("a copy the session's roles do not allow names the permission it needs", func(t *testing.T) {
+		t.Parallel()
+
+		streams := desktop.NewStreams()
+		cli := reachable(t, forbidding())
+
+		requireDenied(t, streams.CopyIn(context.Background(), cli, desktop.CopyRequest{Target: desktop.Target{VM: machineUUID}, Path: "/tmp", LocalPath: t.TempDir()}), "self.workload.vms.exec")
+		requireDenied(t, streams.CopyOut(context.Background(), cli, desktop.CopyRequest{Target: desktop.Target{VM: dockUUID, Container: "web"}, Path: "/etc/hosts", LocalPath: t.TempDir()}), "self.workload.vms.exec")
 	})
 
 	t.Run("what cannot be reached is not copied", func(t *testing.T) {

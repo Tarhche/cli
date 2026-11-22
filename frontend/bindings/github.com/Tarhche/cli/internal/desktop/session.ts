@@ -75,7 +75,10 @@ export function Remove(name: string): $CancellablePromise<void> {
 
 /**
  * Status is the session the app has in the context it talks to. A session
- * the API no longer takes is none.
+ * the API no longer takes is none: one that ran out says it ended, and one
+ * whose account the estate refuses says it is blocked, and is signed out
+ * of. Its profile is read first, which renews it when it is about to run
+ * out, so that what its token says is what is answered.
  */
 export function Status(): $CancellablePromise<$models.Status> {
     return $Call.ByID(1912084869).then(($result: any) => {

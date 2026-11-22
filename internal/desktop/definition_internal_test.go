@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/api"
 	"github.com/Tarhche/cli/internal/resource"
 )
@@ -96,13 +97,23 @@ func TestDefinitionHelpers(t *testing.T) {
 		assert.Empty(t, routeOf(d, operationCreate, true))
 	})
 
-	t.Run("the audiences offered are those with a listing", func(t *testing.T) {
+	t.Run("the audiences offered are those with a listing the session may ask", func(t *testing.T) {
 		t.Parallel()
 
 		d := resource.Definition{Mine: resource.Paths{Get: "/my/{uuid}"}, Everyone: resource.Paths{List: "/all"}}
+		users := resource.Definition{Mine: resource.Paths{List: "/api/dashboard/profile/roles"}, Everyone: resource.Paths{List: "/api/dashboard/users"}}
 
-		assert.Equal(t, []string{"everyone"}, audiencesOf(d))
-		assert.Equal(t, []string{}, audiencesOf(resource.Definition{}))
+		assert.Equal(t, []string{"everyone"}, audiencesOf(d, nil))
+		assert.Equal(t, []string{}, audiencesOf(resource.Definition{}, nil))
+		assert.Equal(t, []string{"mine"}, audiencesOf(users, nil))
+		assert.Equal(t, []string{"mine", "everyone"}, audiencesOf(users, access.Granted{"users.index"}))
+	})
+
+	t.Run("an action is asked with its method, and POST when it names none", func(t *testing.T) {
+		t.Parallel()
+
+		assert.Equal(t, http.MethodPut, methodOf(resource.Action{Method: http.MethodPut}))
+		assert.Equal(t, http.MethodPost, methodOf(resource.Action{}))
 	})
 
 	t.Run("filters are offered with the listings that take them", func(t *testing.T) {

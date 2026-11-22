@@ -3,7 +3,11 @@ package desktop
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"net/http"
+	"strings"
+	"sync"
 
 	"github.com/Tarhche/cli/internal/command"
 	"github.com/Tarhche/cli/internal/portforward"
@@ -22,9 +26,35 @@ var containerShell = []string{"sh", "-c", "if command -v bash >/dev/null 2>&1; t
 
 // Streams reaches into workloads through the workload ingress of the context
 // a Cli talks to, as the CLI's attach, exec, port-forward and cp do: a VM
-// through its own streams, and a container through its Docker VM's.
+// through its own streams, and a container through its Docker VM's. A
+// stream a node refuses for the session's permissions is a
+// StreamDeniedError.
 type Streams struct {
 	forwarder *portforward.Forwarder
+
+	// denials are why the forwards a node refused a connection of for the
+	// session's permissions were stopped, by forward.
+	denials sync.Map
+}
+
+// StreamDeniedError is a stream a node refused for the session's
+// permissions: the token it was opened with does not say its roles allow it
+// on one's own workload, nor on anybody's.
+type StreamDeniedError struct {
+	// Permission is what one's own workload needs for the stream.
+	Permission string
+
+	// Refused is what the ingress answered.
+	Refused *stream.Error
+}
+
+func (e *StreamDeniedError) Error() string {
+	return fmt.Sprintf("permission denied: this needs the %q permission, which none of your roles gives you", e.Permission)
+}
+
+// Unwrap is what the ingress answered, so that a denial is still a refusal.
+func (e *StreamDeniedError) Unwrap() error {
+	return e.Refused
 }
 
 var (
@@ -35,12 +65,24 @@ var (
 
 // NewStreams is what reaches into workloads.
 func NewStreams() *Streams {
-	return &Streams{forwarder: portforward.New()}
+	s := &Streams{}
+	s.forwarder = portforward.New(portforward.WithEvents(s.heard))
+
+	return s
 }
 
 // Open opens a terminal: a VM's own shell (its attach stream), a command run
 // on a terminal in a VM, or one run in a container with docker exec.
 func (s *Streams) Open(ctx context.Context, cli *command.Cli, request TerminalRequest) (Terminal, error) {
+	terminal, err := s.open(ctx, cli, request)
+	if err != nil {
+		return nil, deniedOf(err)
+	}
+
+	return terminal, nil
+}
+
+func (s *Streams) open(ctx context.Context, cli *command.Cli, request TerminalRequest) (Terminal, error) {
 	dialer, resolver, err := reachOf(ctx, cli)
 	if err != nil {
 		return nil, err
@@ -85,8 +127,18 @@ func (s *Streams) Open(ctx context.Context, cli *command.Cli, request TerminalRe
 }
 
 // Forward forwards a port of a VM or a container to the host, until it is
-// closed or ctx is done.
+// closed or ctx is done, or until a node refuses one of its connections for
+// the session's permissions, which every other would be refused for too.
 func (s *Streams) Forward(ctx context.Context, cli *command.Cli, request ForwardRequest) (PortForward, error) {
+	forward, err := s.forward(ctx, cli, request)
+	if err != nil {
+		return nil, deniedOf(err)
+	}
+
+	return forward, nil
+}
+
+func (s *Streams) forward(ctx context.Context, cli *command.Cli, request ForwardRequest) (PortForward, error) {
 	dialer, resolver, err := reachOf(ctx, cli)
 	if err != nil {
 		return nil, err
@@ -122,7 +174,25 @@ func (s *Streams) Forward(ctx context.Context, cli *command.Cli, request Forward
 		return nil, err
 	}
 
-	return forwardedPort{forward: forward, stop: context.AfterFunc(ctx, func() { _ = forward.Close() })}, nil
+	return forwardedPort{forward: forward, stop: context.AfterFunc(ctx, func() { _ = forward.Close() }), denials: &s.denials}, nil
+}
+
+// heard stops a forward once a node refuses one of its connections for the
+// session's permissions, keeping why for its Wait: each connection would
+// otherwise fail where nobody sees it.
+func (s *Streams) heard(event portforward.Event) {
+	if event.Kind != portforward.Failed {
+		return
+	}
+
+	denied, isDenied := errors.AsType[*StreamDeniedError](deniedOf(event.Err))
+	if !isDenied {
+		return
+	}
+
+	if _, stopping := s.denials.LoadOrStore(event.Forward, denied); !stopping {
+		go func() { _ = event.Forward.Close() }()
+	}
 }
 
 // CopyIn copies what is at the request's local path into the workload, at
@@ -135,7 +205,7 @@ func (s *Streams) CopyIn(ctx context.Context, cli *command.Cli, request CopyRequ
 
 	_, err = transfer.Upload(ctx, files, request.LocalPath, request.Path, nil, transfer.Options{})
 
-	return err
+	return deniedOf(err)
 }
 
 // CopyOut copies what is at the request's path in the workload to its local
@@ -148,7 +218,7 @@ func (s *Streams) CopyOut(ctx context.Context, cli *command.Cli, request CopyReq
 
 	_, err = transfer.Download(ctx, files, request.Path, request.LocalPath, nil, transfer.Options{})
 
-	return err
+	return deniedOf(err)
 }
 
 // reachOf is what reaches into the workloads of the context cli talks to:
@@ -267,6 +337,10 @@ func (t executedTerminal) Close() error {
 type forwardedPort struct {
 	forward *portforward.Forward
 	stop    func() bool
+
+	// denials are why the forwards a node refused a connection of were
+	// stopped, this one's among them once it is.
+	denials *sync.Map
 }
 
 // Address is where it listens on the host.
@@ -274,9 +348,15 @@ func (f forwardedPort) Address() string {
 	return f.forward.Addr().String()
 }
 
-// Wait waits until it stops, and is why when it stopped on its own.
+// Wait waits until it stops, and is why when it stopped on its own: a
+// connection a node refused for the session's permissions, or a listener
+// that failed.
 func (f forwardedPort) Wait() error {
 	<-f.forward.Done()
+
+	if denied, found := f.denials.LoadAndDelete(f.forward); found {
+		return denied.(*StreamDeniedError)
+	}
 
 	return f.forward.Err()
 }
@@ -286,4 +366,24 @@ func (f forwardedPort) Close() error {
 	f.stop()
 
 	return f.forward.Close()
+}
+
+// deniedOf is err, but for a stream a node refused for the session's
+// permissions, which is a StreamDeniedError naming the permission it needs.
+func deniedOf(err error) error {
+	refused, isRefusal := errors.AsType[*stream.Error](err)
+	if !isRefusal || refused.StatusCode != http.StatusForbidden {
+		return err
+	}
+
+	return &StreamDeniedError{Permission: streamPermission(refused.Stream), Refused: refused}
+}
+
+// streamPermission is the permission the stream of that name into one's own
+// workload needs: its name says its kind first and its action last, as
+// "vms/<uuid>/exec", which needs self.workload.vms.exec.
+func streamPermission(name string) string {
+	segments := strings.Split(name, "/")
+
+	return ownStreamPermission(segments[0], segments[len(segments)-1])
 }

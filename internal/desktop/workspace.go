@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/api"
 	"github.com/Tarhche/cli/internal/auth"
 	"github.com/Tarhche/cli/internal/command"
@@ -62,6 +63,24 @@ func (w *Workspace) Client(ctx context.Context) (*api.Client, error) {
 	defer w.lock.RUnlock()
 
 	return w.current.Client(ctx)
+}
+
+// Granted are what the session of the context the app talks to may do, as
+// the access token its requests are signed with says: renewed first when it
+// runs out, as a request's would be. It is a hint of what to offer; the API
+// decides every request.
+func (w *Workspace) Granted(ctx context.Context) (access.Granted, error) {
+	tokens, err := w.Cli().Tokens()
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := tokens.Token(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return access.GrantedBy(token), nil
 }
 
 // ContextName is the name of the context the app talks to.

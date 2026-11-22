@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/api"
 	"github.com/Tarhche/cli/internal/desktop"
 )
@@ -314,6 +315,7 @@ func TestWorkloads(t *testing.T) {
 			assert.Equal(t, c.path, asked.Path)
 			assert.Equal(t, c.query, asked.Query)
 			assert.Equal(t, "Bearer test-token", asked.Token)
+			assert.True(t, access.Required(asked.Method, asked.Path).Known, "what %s %s is asked under is known, which what the session may do is read off", asked.Method, asked.Path)
 
 			if len(c.body) > 0 {
 				assert.JSONEq(t, c.body, asked.Body)

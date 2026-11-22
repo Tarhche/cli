@@ -17,11 +17,13 @@ export {
 };
 
 export {
+    Abilities,
     ContainerRequest,
     ContextInfo,
     Forward,
     ForwardRequest,
     ForwardStopped,
+    KindAbilities,
     ListQuery,
     Listing,
     LogsQuery,

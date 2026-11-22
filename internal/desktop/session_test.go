@@ -3,6 +3,7 @@ package desktop_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
 	"slices"
@@ -255,13 +256,14 @@ func TestSession(t *testing.T) {
 		assert.ErrorIs(t, err, failure)
 	})
 
-	t.Run("a session is whoever its profile says", func(t *testing.T) {
+	t.Run("a session is whoever its profile says, with what its roles allow", func(t *testing.T) {
 		t.Parallel()
 
 		api := newRecorder(http.StatusOK, `{"uuid":"u-1","name":"Sarah","username":"sarah","email":"s@example.com","avatar":"a.png"}`)
 		session, _, authenticator, _ := newSession(t, api)
 		expires := time.Date(2026, 11, 22, 10, 0, 0, 0, time.UTC)
-		authenticator.On("Status", testify.Anything, testContext).Return(auth.Status{LoggedIn: true, Method: "oauth", Subject: "u-1", ExpiresAt: expires}, nil).Once()
+		permissions := []string{"self.workload.vms.index", "articles.index"}
+		authenticator.On("Status", testify.Anything, testContext).Return(auth.Status{LoggedIn: true, Method: "oauth", Subject: "u-1", ExpiresAt: expires, Permissions: permissions}, nil).Once()
 
 		status, err := session.Status(context.Background())
 
@@ -270,20 +272,81 @@ func TestSession(t *testing.T) {
 		assert.Equal(t, "oauth", status.Method)
 		assert.Equal(t, "u-1", status.Subject)
 		assert.Equal(t, expires, status.ExpiresAt)
+		assert.Equal(t, permissions, status.Permissions)
 		assert.Equal(t, &desktop.User{UUID: "u-1", Name: "Sarah", Username: "sarah", Email: "s@example.com", Avatar: "a.png"}, status.User)
+		assert.False(t, status.Ended)
+		assert.False(t, status.Blocked)
 		assert.Equal(t, "/api/dashboard/profile", api.last(t).Path)
 	})
 
 	t.Run("a session the API refuses is none", func(t *testing.T) {
 		t.Parallel()
 
-		session, _, authenticator, _ := newSession(t, newRecorder(http.StatusUnauthorized, ``))
-		authenticator.On("Status", testify.Anything, testContext).Return(auth.Status{LoggedIn: true}, nil).Once()
+		session, _, _, _ := newSession(t, newRecorder(http.StatusUnauthorized, ``))
 
 		status, err := session.Status(context.Background())
 
 		require.NoError(t, err)
 		assert.False(t, status.LoggedIn)
+		assert.False(t, status.Ended)
+	})
+
+	t.Run("a session its estate would not renew says it ended", func(t *testing.T) {
+		t.Parallel()
+
+		session := desktop.NewSession(workspaceFailing(t, nil, auth.ErrSessionEnded), &mock.Authenticator{})
+
+		status, err := session.Status(context.Background())
+
+		require.NoError(t, err)
+		assert.False(t, status.LoggedIn)
+		assert.True(t, status.Ended)
+		assert.False(t, status.Blocked)
+		assert.Equal(t, testContext, status.Context.Name)
+	})
+
+	t.Run("a session whose account its estate refuses says it is blocked, and why", func(t *testing.T) {
+		t.Parallel()
+
+		session := desktop.NewSession(workspaceFailing(t, nil, fmt.Errorf("renewing: %w", &auth.AccountRefusedError{Reason: "the user is banned"})), &mock.Authenticator{})
+
+		status, err := session.Status(context.Background())
+
+		require.NoError(t, err)
+		assert.False(t, status.LoggedIn)
+		assert.True(t, status.Blocked)
+		assert.Equal(t, "the user is banned", status.Reason)
+		assert.False(t, status.Ended)
+	})
+
+	t.Run("a session refused everything is signed out of, and says it is blocked", func(t *testing.T) {
+		t.Parallel()
+
+		api := newRecorder(http.StatusForbidden, ``)
+		session, w, authenticator, _ := newSession(t, api)
+		authenticator.On("Logout", testify.Anything, testContext).Return(nil).Once()
+		before := w.Cli()
+
+		status, err := session.Status(context.Background())
+
+		require.NoError(t, err)
+		assert.False(t, status.LoggedIn)
+		assert.True(t, status.Blocked)
+		assert.Empty(t, status.Reason)
+		assert.NotSame(t, before, w.Cli(), "it talks to the context afresh")
+		assert.Equal(t, 2, api.count(), "its profile was asked, and asked again to tell why")
+	})
+
+	t.Run("a session refused everything that cannot be signed out of is an error", func(t *testing.T) {
+		t.Parallel()
+
+		session, _, authenticator, _ := newSession(t, newRecorder(http.StatusForbidden, ``))
+		failure := errors.New("the keychain is locked")
+		authenticator.On("Logout", testify.Anything, testContext).Return(failure).Once()
+
+		_, err := session.Status(context.Background())
+
+		assert.ErrorIs(t, err, failure)
 	})
 
 	t.Run("a session whose profile cannot be read is still one", func(t *testing.T) {

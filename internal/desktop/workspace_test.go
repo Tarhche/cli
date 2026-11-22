@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/auth"
 	"github.com/Tarhche/cli/internal/command"
 	"github.com/Tarhche/cli/internal/command/commandtest"
@@ -261,5 +262,24 @@ func TestWorkspace(t *testing.T) {
 
 		assert.NotSame(t, before, w.Cli())
 		assert.Equal(t, testContext, name)
+	})
+
+	t.Run("what its session may do is what its token says its roles allow", func(t *testing.T) {
+		t.Parallel()
+
+		granted, err := newWorkspaceGranting(t, nil, "articles.index", "self.workload.vms.exec").Granted(context.Background())
+
+		require.NoError(t, err)
+		assert.Equal(t, access.Granted{"articles.index", "self.workload.vms.exec"}, granted)
+	})
+
+	t.Run("a session that cannot be had may do nothing", func(t *testing.T) {
+		t.Parallel()
+
+		_, sessionErr := workspaceFailing(t, nil, auth.ErrNotLoggedIn).Granted(context.Background())
+		_, configErr := brokenWorkspace(t).Granted(context.Background())
+
+		assert.ErrorIs(t, sessionErr, auth.ErrNotLoggedIn)
+		assert.Error(t, configErr)
 	})
 }

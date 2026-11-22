@@ -1,6 +1,8 @@
 package desktop_test
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -23,8 +25,14 @@ const testContext = "test"
 // opener opens the Cli of a context as the harness's own is: on its
 // configuration, signed in with its token.
 func opener(h *commandtest.Harness) desktop.Opener {
+	return openerWith(h, commandtest.Token)
+}
+
+// openerWith opens the Cli of a context on the harness's configuration,
+// signed in with token.
+func openerWith(h *commandtest.Harness, token string) desktop.Opener {
 	return func(contextName string) *command.Cli {
-		cli := command.NewCli(h.In, h.Out, h.Err, command.WithConfig(h.Config), command.WithTokens(commandtest.Tokens(commandtest.Token)))
+		cli := command.NewCli(h.In, h.Out, h.Err, command.WithConfig(h.Config), command.WithTokens(commandtest.Tokens(token)))
 		cli.Globals.Context = contextName
 
 		return cli
@@ -39,6 +47,54 @@ func newWorkspace(t *testing.T, handler http.Handler) (*desktop.Workspace, *comm
 	h := commandtest.New(t, handler)
 
 	return desktop.NewWorkspace(testContext, opener(h)), h
+}
+
+// newWorkspaceGranting is a workspace talking to the test context, whose API
+// is handler, signed in with a token whose roles allow permissions.
+func newWorkspaceGranting(t *testing.T, handler http.Handler, permissions ...string) *desktop.Workspace {
+	t.Helper()
+
+	return desktop.NewWorkspace(testContext, openerWith(commandtest.New(t, handler), tokenGranting(t, permissions...)))
+}
+
+// tokenGranting is an access token, signed by nobody, whose roles allow
+// permissions: the desktop reads its claims without verifying it, as the
+// estate verifies every token it is handed.
+func tokenGranting(t *testing.T, permissions ...string) string {
+	t.Helper()
+
+	claims, err := json.Marshal(map[string]any{"sub": "u-1", "permissions": permissions})
+	require.NoError(t, err)
+
+	return "e30." + base64.RawURLEncoding.EncodeToString(claims) + ".unsigned"
+}
+
+// failingTokens is a token source that cannot hand over a token.
+type failingTokens struct {
+	err error
+}
+
+func (f failingTokens) Token(context.Context) (string, error) {
+	return "", f.err
+}
+
+func (f failingTokens) Renew(context.Context, string) (string, error) {
+	return "", f.err
+}
+
+// workspaceFailing is a workspace talking to the test context, whose API is
+// handler, whose session cannot be had: err is why.
+func workspaceFailing(t *testing.T, handler http.Handler, err error) *desktop.Workspace {
+	t.Helper()
+
+	h := commandtest.New(t, handler)
+
+	return desktop.NewWorkspace(testContext, func(contextName string) *command.Cli {
+		cli := command.NewCli(h.In, h.Out, h.Err, command.WithConfig(h.Config), command.WithTokens(failingTokens{err: err}))
+		cli.Globals.Context = contextName
+
+		return cli
+	})
 }
 
 // brokenConfig is a directory whose configuration cannot be read.

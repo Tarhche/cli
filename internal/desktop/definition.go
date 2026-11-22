@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"maps"
+	"net/http"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/resource"
 )
 
@@ -19,6 +21,25 @@ const (
 	operationDelete = resource.OperationDelete
 )
 
+// methods are what each operation is asked with.
+var methods = map[operation]string{
+	operationList:   http.MethodGet,
+	operationGet:    http.MethodGet,
+	operationCreate: http.MethodPost,
+	operationUpdate: http.MethodPut,
+	operationDelete: http.MethodDelete,
+}
+
+// methodOf is what an action is asked with: its method, POST when it names
+// none.
+func methodOf(a resource.Action) string {
+	if len(a.Method) == 0 {
+		return http.MethodPost
+	}
+
+	return a.Method
+}
+
 // routeOf is the path op is served at: for one's own things unless
 // everybody's are asked for or one's own are not served, for everybody's
 // otherwise; empty when op is not served that way.
@@ -28,12 +49,13 @@ func routeOf(d resource.Definition, op operation, everyone bool) string {
 	return path
 }
 
-// audiencesOf are the audiences a resource is listed to, one's own first.
-func audiencesOf(d resource.Definition) []string {
+// audiencesOf are the audiences of a resource a session granted what
+// granted says may list, one's own first.
+func audiencesOf(d resource.Definition, granted access.Granted) []string {
 	audiences := []string{}
 
 	for _, audience := range d.Audiences() {
-		if len(d.PathsOf(audience).List) > 0 {
+		if list := d.PathsOf(audience).List; len(list) > 0 && granted.Allows(methods[operationList], list) {
 			audiences = append(audiences, string(audience))
 		}
 	}

@@ -10,9 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/api"
 	"github.com/Tarhche/cli/internal/auth"
 	"github.com/Tarhche/cli/internal/desktop"
+	"github.com/Tarhche/cli/internal/stream"
 )
 
 func TestInvalidError(t *testing.T) {
@@ -54,6 +56,36 @@ func TestFailureOf(t *testing.T) {
 			name: "no session is a session gone",
 			err:  fmt.Errorf("listing: %w", auth.ErrNotLoggedIn),
 			want: desktop.Failure{Message: "listing: not logged in", LoggedOut: true},
+		},
+		{
+			name: "a session its estate would not renew is a session gone, which ended",
+			err:  fmt.Errorf("listing: %w", auth.ErrSessionEnded),
+			want: desktop.Failure{Message: "listing: the session has expired or ended: not logged in", LoggedOut: true, Ended: true},
+		},
+		{
+			name: "an account refused every request is a session gone, blocked",
+			err:  &access.BlockedError{Refused: &api.Error{StatusCode: http.StatusForbidden}},
+			want: desktop.Failure{Message: "your account is blocked: the estate refuses every request of yours", Status: http.StatusForbidden, LoggedOut: true, Blocked: true},
+		},
+		{
+			name: "an account refused a session is a session gone, blocked for the reason the estate gave",
+			err:  fmt.Errorf("renewing: %w", &auth.AccountRefusedError{Reason: "the user is banned"}),
+			want: desktop.Failure{Message: "renewing: your account may not sign in: the user is banned", LoggedOut: true, Blocked: true, Reason: "the user is banned"},
+		},
+		{
+			name: "a request the roles do not allow is denied, naming the permission it needs",
+			err:  &access.DeniedError{Permission: "workload.vms.create", Refused: &api.Error{StatusCode: http.StatusForbidden}},
+			want: desktop.Failure{Message: `permission denied: this needs the "workload.vms.create" permission, which none of your roles gives you`, Status: http.StatusForbidden, Denied: true, Permission: "workload.vms.create"},
+		},
+		{
+			name: "a request a role disallows on what it was asked of is denied",
+			err:  &access.DeniedError{Permission: "comments.delete", Here: true, Refused: &api.Error{StatusCode: http.StatusForbidden}},
+			want: desktop.Failure{Message: `permission denied: your roles do not allow "comments.delete" on this`, Status: http.StatusForbidden, Denied: true, Permission: "comments.delete"},
+		},
+		{
+			name: "a stream a node refuses for the session's permissions is denied, naming the permission it needs",
+			err:  &desktop.StreamDeniedError{Permission: "self.workload.vms.exec", Refused: &stream.Error{Stream: "vms/v-1/exec", StatusCode: http.StatusForbidden}},
+			want: desktop.Failure{Message: `permission denied: this needs the "self.workload.vms.exec" permission, which none of your roles gives you`, Denied: true, Permission: "self.workload.vms.exec"},
 		},
 		{
 			name: "what the desktop cannot do yet says so",
