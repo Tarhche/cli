@@ -9,6 +9,7 @@ import {type Target, Terminals} from "../../api/services";
 import {FailureAlert} from "../../components/FailureAlert";
 import {binary, fromBase64, toBase64, typed} from "../terminal/bytes";
 import {exitOf} from "../terminal/exit";
+import {newID} from "../terminal/id";
 import {WriteQueue} from "../terminal/writeQueue";
 
 const THEMES = {
@@ -61,7 +62,7 @@ function TerminalSession({target, command, onReconnect}: Props & {onReconnect: (
     fit.fit();
     terminal.current = xterm;
 
-    const id = crypto.randomUUID();
+    const id = newID();
     let opened = false;
     let disposed = false;
 
