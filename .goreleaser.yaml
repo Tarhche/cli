@@ -64,6 +64,7 @@ archives:
           - zip
     files:
       - README.md
+      - LICENSE*
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
