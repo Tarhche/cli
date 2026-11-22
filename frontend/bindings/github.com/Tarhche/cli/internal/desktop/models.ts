@@ -262,6 +262,55 @@ export class ForwardStopped {
 }
 
 /**
+ * ListQuery says which page of a listing to read, and what narrows it.
+ */
+export class ListQuery {
+    /**
+     * Page is the page of a listing paged by number; the first is 1.
+     */
+    "page": number;
+
+    /**
+     * Cursor is where a listing paged by a cursor goes on from: the next
+     * its last page named, empty for its first page.
+     */
+    "cursor": string;
+
+    /**
+     * Filters are the values of its filters, by name; an empty one
+     * narrows nothing.
+     */
+    "filters": { [_ in string]?: string };
+
+    /** Creates a new ListQuery instance. */
+    constructor($$source: Partial<ListQuery> = {}) {
+        if (!("page" in $$source)) {
+            this["page"] = 0;
+        }
+        if (!("cursor" in $$source)) {
+            this["cursor"] = "";
+        }
+        if (!("filters" in $$source)) {
+            this["filters"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListQuery instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListQuery {
+        const $$createField2_0 = $$createType8;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("filters" in $$parsedSource) {
+            $$parsedSource["filters"] = $$createField2_0($$parsedSource["filters"]);
+        }
+        return new ListQuery($$parsedSource as Partial<ListQuery>);
+    }
+}
+
+/**
  * Listing is a page of a resource's listing, laid out as its table.
  */
 export class Listing {
@@ -269,6 +318,12 @@ export class Listing {
     "rows": Row[];
     "total_pages": number;
     "current_page": number;
+
+    /**
+     * Next is where a listing paged by a cursor goes on from, empty once it
+     * is all read.
+     */
+    "next": string;
 
     /** Creates a new Listing instance. */
     constructor($$source: Partial<Listing> = {}) {
@@ -284,6 +339,9 @@ export class Listing {
         if (!("current_page" in $$source)) {
             this["current_page"] = 0;
         }
+        if (!("next" in $$source)) {
+            this["next"] = "";
+        }
 
         Object.assign(this, $$source);
     }
@@ -293,7 +351,7 @@ export class Listing {
      */
     static createFrom($$source: any = {}): Listing {
         const $$createField0_0 = $$createType2;
-        const $$createField1_0 = $$createType9;
+        const $$createField1_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField0_0($$parsedSource["columns"]);
@@ -382,7 +440,7 @@ export class NetworkRequest {
      * Creates a new NetworkRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): NetworkRequest {
-        const $$createField3_0 = $$createType10;
+        const $$createField3_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("labels" in $$parsedSource) {
             $$parsedSource["labels"] = $$createField3_0($$parsedSource["labels"]);
@@ -507,9 +565,15 @@ export class ResourceAction {
     "description": string;
 
     /**
-     * Mine says it is asked of one's own, else of anybody's.
+     * Mine says it is asked of one's own, else of everybody's.
      */
     "mine": boolean;
+
+    /**
+     * Keyed says it is asked of one thing, by its key, rather than of the
+     * resource.
+     */
+    "keyed": boolean;
 
     /** Creates a new ResourceAction instance. */
     constructor($$source: Partial<ResourceAction> = {}) {
@@ -521,6 +585,9 @@ export class ResourceAction {
         }
         if (!("mine" in $$source)) {
             this["mine"] = false;
+        }
+        if (!("keyed" in $$source)) {
+            this["keyed"] = false;
         }
 
         Object.assign(this, $$source);
@@ -552,11 +619,29 @@ export class ResourceDefinition {
     "key": string[];
 
     /**
-     * Everyone are the routes of anybody's, and Mine of one's own.
+     * Audiences are whose things it is listed of, one's own (mine) first,
+     * then everybody's (everyone).
      */
-    "everyone": Routes;
+    "audiences": string[];
+
+    /**
+     * Mine are what one's own can be asked, and Everyone what everybody's
+     * can.
+     */
     "mine": Routes;
+    "everyone": Routes;
     "actions": ResourceAction[];
+
+    /**
+     * Filters are what its listings can be narrowed by.
+     */
+    "filters": ResourceFilter[];
+
+    /**
+     * Cursor says its listing is paged by a cursor, the next a page names,
+     * rather than by number.
+     */
+    "cursor": boolean;
 
     /**
      * Columns are the headers of its listing's table.
@@ -583,14 +668,23 @@ export class ResourceDefinition {
         if (!("key" in $$source)) {
             this["key"] = [];
         }
-        if (!("everyone" in $$source)) {
-            this["everyone"] = (new Routes());
+        if (!("audiences" in $$source)) {
+            this["audiences"] = [];
         }
         if (!("mine" in $$source)) {
             this["mine"] = (new Routes());
         }
+        if (!("everyone" in $$source)) {
+            this["everyone"] = (new Routes());
+        }
         if (!("actions" in $$source)) {
             this["actions"] = [];
+        }
+        if (!("filters" in $$source)) {
+            this["filters"] = [];
+        }
+        if (!("cursor" in $$source)) {
+            this["cursor"] = false;
         }
         if (!("columns" in $$source)) {
             this["columns"] = [];
@@ -604,32 +698,101 @@ export class ResourceDefinition {
      */
     static createFrom($$source: any = {}): ResourceDefinition {
         const $$createField5_0 = $$createType2;
-        const $$createField6_0 = $$createType16;
+        const $$createField6_0 = $$createType2;
         const $$createField7_0 = $$createType16;
-        const $$createField8_0 = $$createType18;
-        const $$createField9_0 = $$createType2;
+        const $$createField8_0 = $$createType16;
+        const $$createField9_0 = $$createType18;
+        const $$createField10_0 = $$createType20;
+        const $$createField12_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("key" in $$parsedSource) {
             $$parsedSource["key"] = $$createField5_0($$parsedSource["key"]);
         }
-        if ("everyone" in $$parsedSource) {
-            $$parsedSource["everyone"] = $$createField6_0($$parsedSource["everyone"]);
+        if ("audiences" in $$parsedSource) {
+            $$parsedSource["audiences"] = $$createField6_0($$parsedSource["audiences"]);
         }
         if ("mine" in $$parsedSource) {
             $$parsedSource["mine"] = $$createField7_0($$parsedSource["mine"]);
         }
+        if ("everyone" in $$parsedSource) {
+            $$parsedSource["everyone"] = $$createField8_0($$parsedSource["everyone"]);
+        }
         if ("actions" in $$parsedSource) {
-            $$parsedSource["actions"] = $$createField8_0($$parsedSource["actions"]);
+            $$parsedSource["actions"] = $$createField9_0($$parsedSource["actions"]);
+        }
+        if ("filters" in $$parsedSource) {
+            $$parsedSource["filters"] = $$createField10_0($$parsedSource["filters"]);
         }
         if ("columns" in $$parsedSource) {
-            $$parsedSource["columns"] = $$createField9_0($$parsedSource["columns"]);
+            $$parsedSource["columns"] = $$createField12_0($$parsedSource["columns"]);
         }
         return new ResourceDefinition($$parsedSource as Partial<ResourceDefinition>);
     }
 }
 
 /**
- * Routes say which of a resource's routes an audience has.
+ * ResourceFilter is what a listing can be narrowed by: a query parameter.
+ */
+export class ResourceFilter {
+    "name": string;
+    "description": string;
+
+    /**
+     * Values are what it takes, when it takes only some.
+     */
+    "values": string[];
+
+    /**
+     * Moment says it takes a moment, in RFC 3339.
+     */
+    "moment": boolean;
+
+    /**
+     * Audiences are the listings that take it, mine or everyone; none is
+     * every one.
+     */
+    "audiences": string[];
+
+    /** Creates a new ResourceFilter instance. */
+    constructor($$source: Partial<ResourceFilter> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+        if (!("values" in $$source)) {
+            this["values"] = [];
+        }
+        if (!("moment" in $$source)) {
+            this["moment"] = false;
+        }
+        if (!("audiences" in $$source)) {
+            this["audiences"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ResourceFilter instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ResourceFilter {
+        const $$createField2_0 = $$createType2;
+        const $$createField4_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("values" in $$parsedSource) {
+            $$parsedSource["values"] = $$createField2_0($$parsedSource["values"]);
+        }
+        if ("audiences" in $$parsedSource) {
+            $$parsedSource["audiences"] = $$createField4_0($$parsedSource["audiences"]);
+        }
+        return new ResourceFilter($$parsedSource as Partial<ResourceFilter>);
+    }
+}
+
+/**
+ * Routes say what an audience of a resource can be asked.
  */
 export class Routes {
     "list": boolean;
@@ -669,11 +832,12 @@ export class Routes {
 }
 
 /**
- * Row is one item of a listing.
+ * Row is one row of a listing.
  */
 export class Row {
     /**
-     * Key is what identifies it, in the order of its definition's key.
+     * Key is what identifies it, in the order of its definition's key,
+     * empty when it says none.
      */
     "key": string[];
 
@@ -683,7 +847,7 @@ export class Row {
     "cells": string[];
 
     /**
-     * Item is the item as the API answered it.
+     * Item is the row as the API answered it.
      */
     "item": json$0.RawMessage;
 
@@ -801,8 +965,8 @@ export class Status {
      * Creates a new Status instance from a string or object.
      */
     static createFrom($$source: any = {}): Status {
-        const $$createField0_0 = $$createType19;
-        const $$createField5_0 = $$createType21;
+        const $$createField0_0 = $$createType21;
+        const $$createField5_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("context" in $$parsedSource) {
             $$parsedSource["context"] = $$createField0_0($$parsedSource["context"]);
@@ -957,7 +1121,7 @@ export class TerminalRequest {
     static createFrom($$source: any = {}): TerminalRequest {
         const $$createField0_0 = $$createType7;
         const $$createField1_0 = $$createType2;
-        const $$createField2_0 = $$createType22;
+        const $$createField2_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target" in $$parsedSource) {
             $$parsedSource["target"] = $$createField0_0($$parsedSource["target"]);
@@ -1222,7 +1386,7 @@ export class VolumeRequest {
      * Creates a new VolumeRequest instance from a string or object.
      */
     static createFrom($$source: any = {}): VolumeRequest {
-        const $$createField2_0 = $$createType10;
+        const $$createField2_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("labels" in $$parsedSource) {
             $$parsedSource["labels"] = $$createField2_0($$parsedSource["labels"]);
@@ -1240,9 +1404,9 @@ const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = Mount.createFrom;
 const $$createType6 = $Create.Array($$createType5);
 const $$createType7 = Target.createFrom;
-const $$createType8 = Row.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $Create.Map($Create.Any, $Create.Any);
+const $$createType8 = $Create.Map($Create.Any, $Create.Any);
+const $$createType9 = Row.createFrom;
+const $$createType10 = $Create.Array($$createType9);
 const $$createType11 = VMResources.createFrom;
 const $$createType12 = $Create.Nullable($$createType11);
 const $$createType13 = $Create.Array($Create.Any);
@@ -1251,7 +1415,9 @@ const $$createType15 = $Create.Nullable($$createType14);
 const $$createType16 = Routes.createFrom;
 const $$createType17 = ResourceAction.createFrom;
 const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = ContextInfo.createFrom;
-const $$createType20 = User.createFrom;
-const $$createType21 = $Create.Nullable($$createType20);
-const $$createType22 = TerminalSize.createFrom;
+const $$createType19 = ResourceFilter.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = ContextInfo.createFrom;
+const $$createType22 = User.createFrom;
+const $$createType23 = $Create.Nullable($$createType22);
+const $$createType24 = TerminalSize.createFrom;

@@ -4,7 +4,9 @@
 /**
  * Resources is how the frontend reaches what the dashboard manages beside
  * the workload, each kind as package resource describes it: its generic
- * pages are built from whatever definitions there are.
+ * pages are built from whatever definitions there are. Whose things are
+ * asked for is the frontend's to say: one's own, unless everybody's are
+ * asked for or one's own are not served, as the commands do.
  * @module
  */
 
@@ -21,18 +23,18 @@ import * as json$0 from "../../../../../encoding/json/models.js";
 import * as $models from "./models.js";
 
 /**
- * Action asks one of a resource, by its key, something more than reading,
- * creating, changing and deleting.
+ * Action asks a resource something more than reading, creating, changing
+ * and deleting: one thing of it, by its key, when the action is keyed.
  */
-export function Action(name: string, action: string, key: string[]): $CancellablePromise<json$0.RawMessage> {
-    return $Call.ByID(529487166, name, action, key);
+export function Action(name: string, action: string, everyone: boolean, key: string[]): $CancellablePromise<json$0.RawMessage> {
+    return $Call.ByID(529487166, name, action, everyone, key);
 }
 
 /**
- * Create creates one of a resource from body, its JSON.
+ * Create creates one of a resource from body, its JSON object.
  */
-export function Create(name: string, mine: boolean, body: string): $CancellablePromise<json$0.RawMessage> {
-    return $Call.ByID(1680370648, name, mine, body);
+export function Create(name: string, everyone: boolean, body: string): $CancellablePromise<json$0.RawMessage> {
+    return $Call.ByID(1680370648, name, everyone, body);
 }
 
 /**
@@ -48,32 +50,32 @@ export function Definitions(): $CancellablePromise<$models.ResourceDefinition[]>
 /**
  * Delete deletes one of a resource, by its key.
  */
-export function Delete(name: string, mine: boolean, key: string[]): $CancellablePromise<void> {
-    return $Call.ByID(2702386055, name, mine, key);
+export function Delete(name: string, everyone: boolean, key: string[]): $CancellablePromise<void> {
+    return $Call.ByID(2702386055, name, everyone, key);
 }
 
 /**
  * Get reads one of a resource, by its key.
  */
-export function Get(name: string, mine: boolean, key: string[]): $CancellablePromise<json$0.RawMessage> {
-    return $Call.ByID(2007478392, name, mine, key);
+export function Get(name: string, everyone: boolean, key: string[]): $CancellablePromise<json$0.RawMessage> {
+    return $Call.ByID(2007478392, name, everyone, key);
 }
 
 /**
- * List reads a page of a resource's listing, one's own when mine and
- * anybody's otherwise; the first page is 1.
+ * List reads a page of a resource's listing.
  */
-export function List(name: string, mine: boolean, page: number): $CancellablePromise<$models.Listing> {
-    return $Call.ByID(1781008852, name, mine, page).then(($result: any) => {
+export function List(name: string, everyone: boolean, query: $models.ListQuery): $CancellablePromise<$models.Listing> {
+    return $Call.ByID(1781008852, name, everyone, query).then(($result: any) => {
         return $$createType2($result);
     });
 }
 
 /**
- * Update changes one of a resource to body, its JSON, which carries its key.
+ * Update changes one of a resource to body, its JSON object: the one key
+ * names, or, given no key, the one body says.
  */
-export function Update(name: string, mine: boolean, body: string): $CancellablePromise<json$0.RawMessage> {
-    return $Call.ByID(3361360781, name, mine, body);
+export function Update(name: string, everyone: boolean, key: string[], body: string): $CancellablePromise<json$0.RawMessage> {
+    return $Call.ByID(3361360781, name, everyone, key, body);
 }
 
 // Private type creation functions
