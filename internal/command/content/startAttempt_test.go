@@ -20,11 +20,11 @@ func TestStartAttemptCommand(t *testing.T) {
 		api := newFakeAPI(map[string][]reply{"POST /api/exams/x1/attempts": answered(http.StatusCreated, `{"uuid":"a1"}`)})
 		h := harness(t, api)
 
-		status := h.Run(newStartAttemptCommand(h.Cli, "tarhche exam-attempt"), "--first-name", "Mahdi", "--last-name", "Khanzadi", "x1")
+		status := h.Run(newStartAttemptCommand(h.Cli, "tarhche exam-attempt"), "--first-name", "Sarah", "--last-name", "Hosseini", "x1")
 
 		require.Equal(t, console.ExitSuccess, status, h.Err.String())
 		assert.Equal(t, []string{"POST /api/exams/x1/attempts"}, api.routes())
-		assert.JSONEq(t, `{"first_name":"Mahdi","last_name":"Khanzadi"}`, api.requests()[0].Body)
+		assert.JSONEq(t, `{"first_name":"Sarah","last_name":"Hosseini"}`, api.requests()[0].Body)
 		assert.Equal(t, "a1\n", h.Out.String())
 	})
 

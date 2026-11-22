@@ -14,7 +14,7 @@ import (
 func TestShowCommand(t *testing.T) {
 	t.Parallel()
 
-	const profile = `{"uuid":"u1","name":"Mahdi","email":"m@example.com","username":"mahdi","language_code":"en"}`
+	const profile = `{"uuid":"u1","name":"Sarah","email":"s@example.com","username":"sarah","language_code":"en"}`
 
 	profiles := func() *fakeAPI {
 		return newFakeAPI(map[string][]reply{
@@ -39,7 +39,7 @@ func TestShowCommand(t *testing.T) {
 
 		require.Equal(t, console.ExitSuccess, status, h.Err.String())
 		assert.Equal(t, []string{"GET /api/dashboard/profile"}, api.routes())
-		assert.Equal(t, "{\n    \"uuid\": \"u1\",\n    \"name\": \"Mahdi\",\n    \"email\": \"m@example.com\",\n    \"username\": \"mahdi\",\n    \"language_code\": \"en\"\n}\n", h.Out.String())
+		assert.Equal(t, "{\n    \"uuid\": \"u1\",\n    \"name\": \"Sarah\",\n    \"email\": \"s@example.com\",\n    \"username\": \"sarah\",\n    \"language_code\": \"en\"\n}\n", h.Out.String())
 	})
 
 	t.Run("as JSON on a line", func(t *testing.T) {
@@ -61,7 +61,7 @@ func TestShowCommand(t *testing.T) {
 		status := h.Run(show(h.Cli, "/api/dashboard/profile"), "-f", "{{.username}} <{{.email}}>")
 
 		require.Equal(t, console.ExitSuccess, status, h.Err.String())
-		assert.Equal(t, "mahdi <m@example.com>\n", h.Out.String())
+		assert.Equal(t, "sarah <s@example.com>\n", h.Out.String())
 	})
 
 	t.Run("what its route names by the uuid given", func(t *testing.T) {

@@ -292,10 +292,9 @@ func (e *containerEnd) exitStatus() (int, error) {
 		return 0, nil
 	}
 
-	status, err := strconv.Atoi(matched[1])
-	if err != nil {
-		return 0, nil
+	if status, err := strconv.Atoi(matched[1]); err == nil {
+		return status, nil
 	}
 
-	return status, nil
+	return 0, nil
 }

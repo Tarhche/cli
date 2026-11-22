@@ -21,11 +21,11 @@ func TestUpdateCommand(t *testing.T) {
 		api := newFakeAPI(map[string][]reply{"PUT /api/dashboard/users": answered(http.StatusNoContent, "")})
 		h := harness(t, api)
 
-		status := h.Run(newUpdateCommand(h.Cli, lookup("user"), "tarhche user"), "-f", fileOf(t, `{"uuid":"u1","name":"Mahdi"}`))
+		status := h.Run(newUpdateCommand(h.Cli, lookup("user"), "tarhche user"), "-f", fileOf(t, `{"uuid":"u1","name":"Sarah"}`))
 
 		require.Equal(t, console.ExitSuccess, status, h.Err.String())
 		assert.Equal(t, []string{"PUT /api/dashboard/users"}, api.routes())
-		assert.JSONEq(t, `{"uuid":"u1","name":"Mahdi"}`, api.requests()[0].Body)
+		assert.JSONEq(t, `{"uuid":"u1","name":"Sarah"}`, api.requests()[0].Body)
 		assert.Equal(t, "u1\n", h.Out.String())
 	})
 

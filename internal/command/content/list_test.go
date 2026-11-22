@@ -15,8 +15,8 @@ import (
 
 const (
 	articlesPage1 = `{"items":[{"correlation_uuid":"c1","corrolated_items":[
-		{"title":"Hello","published_at":"0001-01-01T00:00:00Z","author":{"uuid":"u1","name":"Mahdi","avatar":"","username":"mahdi"},"language":{"code":"en","name":"English"}},
-		{"title":"سلام","published_at":"0001-01-01T00:00:00Z","author":{"uuid":"u1","name":"Mahdi","avatar":"","username":"mahdi"},"language":{"code":"fa","name":"Persian"}}]}],
+		{"title":"Hello","published_at":"0001-01-01T00:00:00Z","author":{"uuid":"u1","name":"Sarah","avatar":"","username":"sarah"},"language":{"code":"en","name":"English"}},
+		{"title":"سلام","published_at":"0001-01-01T00:00:00Z","author":{"uuid":"u1","name":"Sarah","avatar":"","username":"sarah"},"language":{"code":"fa","name":"Persian"}}]}],
 		"pagination":{"total_pages":2,"current_page":1}}`
 	articlesPage2 = `{"items":[{"correlation_uuid":"c2","corrolated_items":[
 		{"title":"Second","published_at":"0001-01-01T00:00:00Z","author":{"uuid":"u2","name":"Sara","avatar":"","username":"sara"},"language":{"code":"en","name":"English"}}]}],
@@ -46,8 +46,8 @@ func TestListCommand(t *testing.T) {
 		assert.Equal(t, []string{"GET /api/dashboard/my/articles?page=1", "GET /api/dashboard/my/articles?page=2"}, api.routes())
 		assert.Equal(t, ""+
 			"CORRELATION UUID   LANGUAGE   TITLE     AUTHOR    PUBLISHED\n"+
-			"c1                 en         Hello     Mahdi     \n"+
-			"c1                 fa         سلام      Mahdi     \n"+
+			"c1                 en         Hello     Sarah     \n"+
+			"c1                 fa         سلام      Sarah     \n"+
 			"c2                 en         Second    Sara      \n", h.Out.String())
 	})
 
@@ -186,7 +186,7 @@ func TestListCommand(t *testing.T) {
 		t.Parallel()
 
 		api := newFakeAPI(map[string][]reply{
-			"GET /api/dashboard/audit-logs": answer(`{"items":[{"uuid":"g1","action":"articles.index","kind":"read","entity":{"type":"article"},"status":200,"user":{"uuid":"u1","username":"mahdi"},"ip":"10.0.0.1","occurred_at":"2026-11-20T10:00:00Z"}],"next":"cursor-2"}`),
+			"GET /api/dashboard/audit-logs": answer(`{"items":[{"uuid":"g1","action":"articles.index","kind":"read","entity":{"type":"article"},"status":200,"user":{"uuid":"u1","username":"sarah"},"ip":"10.0.0.1","occurred_at":"2026-11-20T10:00:00Z"}],"next":"cursor-2"}`),
 		})
 		h := harness(t, api)
 

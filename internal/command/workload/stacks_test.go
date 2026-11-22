@@ -116,14 +116,14 @@ func TestListStacksCommand(t *testing.T) {
 	t.Run("anybody's in one vm, with whose they are", func(t *testing.T) {
 		t.Parallel()
 
-		owned := blog.With("owner", workloadtest.Object{"uuid": "u1", "username": "mahdi"})
+		owned := blog.With("owner", workloadtest.Object{"uuid": "u1", "username": "sarah"})
 		fake := workloadtest.New().
 			On(http.MethodGet, everyone+"/vms/"+vmWeb, http.StatusOK, web).
 			On(http.MethodGet, everyone+"/stacks", http.StatusOK, workloadtest.Page(owned))
 		h := harnessOf(t, fake)
 
 		assert.Equal(t, console.ExitSuccess, h.Run(newListStacksCommand(h.Cli), "-A", "--vm", vmWeb))
-		assert.Equal(t, table(append(header, "OWNER"), []string{stackBlog, "blog", "1", "web", "running", "3 hours ago", "mahdi"}), h.Out.String())
+		assert.Equal(t, table(append(header, "OWNER"), []string{stackBlog, "blog", "1", "web", "running", "3 hours ago", "sarah"}), h.Out.String())
 
 		sent, _ := fake.Sent(http.MethodGet, everyone+"/stacks")
 		assert.Equal(t, url.Values{"vm": {vmWeb}, "page": {"1"}}, sent.Query)

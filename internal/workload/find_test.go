@@ -2,7 +2,6 @@ package workload
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -428,12 +427,12 @@ func TestErrors(t *testing.T) {
 
 	notFound := &NotFoundError{Kind: "image", Reference: "nginx"}
 	assert.EqualError(t, notFound, "no such image: nginx")
-	assert.True(t, errors.Is(notFound, ErrNotFound))
-	assert.False(t, errors.Is(notFound, ErrAmbiguous))
+	assert.ErrorIs(t, notFound, ErrNotFound)
+	assert.NotErrorIs(t, notFound, ErrAmbiguous)
 
 	ambiguous := &AmbiguousError{Kind: "vm", Reference: "web", Matches: []string{"a", "b"}}
 	assert.EqualError(t, ambiguous, `"web" names more than one vm: a, b`)
-	assert.True(t, errors.Is(ambiguous, ErrAmbiguous))
+	assert.ErrorIs(t, ambiguous, ErrAmbiguous)
 }
 
 func TestResolver(t *testing.T) {

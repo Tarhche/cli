@@ -23,13 +23,13 @@ var placeholder = regexp.MustCompile(`\{([a-z_]+)\}`)
 var listed = map[string]map[Audience]string{
 	"article": {
 		AudienceEveryone: `[{"correlation_uuid":"c1","corrolated_items":[
-			{"cover":"","video":"","title":"Hello\nworld","published_at":"2026-11-20T10:00:00Z","author":{"uuid":"u1","name":"Mahdi","avatar":"","username":"mahdi"},"language":{"code":"en","name":"English"}},
-			{"cover":"","video":"","title":"سلام","published_at":"0001-01-01T00:00:00Z","author":{"uuid":"u1","name":"Mahdi","avatar":"","username":"mahdi"},"language":{"code":"fa","name":"Persian"}}]}]`,
+			{"cover":"","video":"","title":"Hello\nworld","published_at":"2026-11-20T10:00:00Z","author":{"uuid":"u1","name":"Sarah","avatar":"","username":"sarah"},"language":{"code":"en","name":"English"}},
+			{"cover":"","video":"","title":"سلام","published_at":"0001-01-01T00:00:00Z","author":{"uuid":"u1","name":"Sarah","avatar":"","username":"sarah"},"language":{"code":"fa","name":"Persian"}}]}]`,
 		AudienceMine: `[{"correlation_uuid":"c2","corrolated_items":[
-			{"cover":"","video":"","title":"Mine","published_at":"2026-11-20T10:00:00Z","author":{"uuid":"u1","name":"Mahdi","avatar":"","username":"mahdi"},"language":{"code":"en","name":"English"}}]}]`,
+			{"cover":"","video":"","title":"Mine","published_at":"2026-11-20T10:00:00Z","author":{"uuid":"u1","name":"Sarah","avatar":"","username":"sarah"},"language":{"code":"en","name":"English"}}]}]`,
 	},
 	"comment": {
-		AudienceEveryone: `[{"uuid":"m1","body":"first\nline","author":{"uuid":"u1","name":"Mahdi","avatar":"","username":"mahdi"},"object_type":"article","object_uuid":"c1","language_code":"en","approved_at":"0001-01-01T00:00:00Z","created_at":"2026-11-20T10:00:00Z"},
+		AudienceEveryone: `[{"uuid":"m1","body":"first\nline","author":{"uuid":"u1","name":"Sarah","avatar":"","username":"sarah"},"object_type":"article","object_uuid":"c1","language_code":"en","approved_at":"0001-01-01T00:00:00Z","created_at":"2026-11-20T10:00:00Z"},
 			{"uuid":"m2","body":"reply","author":{"uuid":"","name":"","avatar":"","username":""},"parent_uuid":"m1","object_type":"article","object_uuid":"c1","language_code":"en","approved_at":"2026-11-21T10:00:00Z","created_at":"2026-11-20T10:00:00Z"}]`,
 		AudienceMine: `[{"uuid":"m1","body":"mine","object_type":"article","object_uuid":"c1","language_code":"en","approved_at":"0001-01-01T00:00:00Z","created_at":"2026-11-20T10:00:00Z"}]`,
 	},
@@ -58,7 +58,7 @@ var listed = map[string]map[Audience]string{
 			{"uuid":"x2","language_code":"en","title":"Rust","description":"","time_limit_seconds":0,"stages":1,"questions":5,"passing_score":70,"issues_license":false,"allows_ai_attempts":true,"attempts_left":0,"in_progress_uuid":"a1"}]`,
 	},
 	"exam-attempt": {
-		AudienceEveryone: `[{"uuid":"a1","exam_uuid":"x1","exam_title":"Go","user_uuid":"u1","first_name":"Mahdi","last_name":"Khanzadi","status":"passed","score":80,"passing_score":70,"license_uuid":"l1","started_at":"2026-11-20T10:00:00Z","finished_at":"2026-11-20T11:00:00Z"}]`,
+		AudienceEveryone: `[{"uuid":"a1","exam_uuid":"x1","exam_title":"Go","user_uuid":"u1","first_name":"Sarah","last_name":"Hosseini","status":"passed","score":80,"passing_score":70,"license_uuid":"l1","started_at":"2026-11-20T10:00:00Z","finished_at":"2026-11-20T11:00:00Z"}]`,
 		AudienceMine:     `[{"uuid":"a2","exam_uuid":"x1","exam_title":"Go","language_code":"en","status":"in_progress","passing_score":70,"started_at":"2026-11-20T10:00:00Z","deadline":"2026-11-20T11:00:00Z"}]`,
 	},
 	"license-template": {
@@ -66,11 +66,11 @@ var listed = map[string]map[Audience]string{
 		AudienceMine:     `[{"uuid":"t2","title":"Mine","validity_seconds":0,"created_at":"2026-11-20T10:00:00Z","updated_at":"2026-11-20T10:00:00Z"}]`,
 	},
 	"license": {
-		AudienceEveryone: `[{"uuid":"l1","user_uuid":"u1","first_name":"Mahdi","last_name":"Khanzadi","exam_uuid":"x1","topic":"Go","title":"Go for Mahdi","issued_at":"2026-11-20T10:00:00Z","expires_at":"2027-11-20T10:00:00Z","expired":false}]`,
+		AudienceEveryone: `[{"uuid":"l1","user_uuid":"u1","first_name":"Sarah","last_name":"Hosseini","exam_uuid":"x1","topic":"Go","title":"Go for Sarah","issued_at":"2026-11-20T10:00:00Z","expires_at":"2027-11-20T10:00:00Z","expired":false}]`,
 		AudienceMine:     `[{"uuid":"l2","exam_uuid":"x1","topic":"Go","title":"Go","issued_at":"2026-11-20T10:00:00Z","expired":false}]`,
 	},
 	"user": {
-		AudienceEveryone: `[{"uuid":"u1","name":"Mahdi","avatar":"a.png","email":"m@example.com","username":"mahdi"},{"uuid":"u2","email":"x@example.com","username":"x"}]`,
+		AudienceEveryone: `[{"uuid":"u1","name":"Sarah","avatar":"a.png","email":"s@example.com","username":"sarah"},{"uuid":"u2","email":"x@example.com","username":"x"}]`,
 	},
 	"role": {
 		AudienceEveryone: `[{"uuid":"r1","translations":{"en":{"title":"Admin","description":"all"},"fa":{"title":"مدیر"}},"is_default":true},{"uuid":"r2","translations":{"en":{"title":"Writer"}},"is_default":false}]`,
@@ -87,7 +87,7 @@ var listed = map[string]map[Audience]string{
 		AudienceEveryone: `[{"name":"list of articles","value":"articles.index"}]`,
 	},
 	"audit-log": {
-		AudienceEveryone: `[{"uuid":"g1","action":"articles.index","kind":"read","entity":{"type":"article"},"payload":{"page":"1"},"status":200,"user":{"uuid":"u1","username":"mahdi"},"ip":"10.0.0.1","occurred_at":"2026-11-20T10:00:00Z"},
+		AudienceEveryone: `[{"uuid":"g1","action":"articles.index","kind":"read","entity":{"type":"article"},"payload":{"page":"1"},"status":200,"user":{"uuid":"u1","username":"sarah"},"ip":"10.0.0.1","occurred_at":"2026-11-20T10:00:00Z"},
 			{"uuid":"g2","action":"auth.login","kind":"create","entity":{"type":"session"},"status":401,"occurred_at":"2026-11-20T10:00:00Z"}]`,
 		AudienceMine: `[{"uuid":"g3","action":"articles.delete","kind":"delete","entity":{"type":"article","id":"c1/en"},"status":204,"session_uuid":"s1","occurred_at":"2026-11-20T10:00:00Z"}]`,
 	},

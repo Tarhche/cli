@@ -42,13 +42,13 @@ func TestListVMsCommand(t *testing.T) {
 	t.Run("anybody's, with whose they are", func(t *testing.T) {
 		t.Parallel()
 
-		owned := web.With("owner", workloadtest.Object{"uuid": "u1", "name": "Mahdi"})
+		owned := web.With("owner", workloadtest.Object{"uuid": "u1", "name": "Sarah"})
 		guest := box.With("metadata.owner_uuid", "guest")
 		fake := workloadtest.New().On(http.MethodGet, everyone+"/vms", http.StatusOK, workloadtest.Page(owned, guest))
 		h := harnessOf(t, fake)
 
 		assert.Equal(t, console.ExitSuccess, h.Run(newListVMsCommand(h.Cli), "-A", "--format", "{{.Name}} {{.Owner}} {{.Type}} {{.Slug}} {{.URLs}}"))
-		assert.Equal(t, "web Mahdi docker web-x1y2 https://web-x1y2-8080.workload.example\nbox guest machine box-x1y2 https://box-x1y2-8080.workload.example\n", h.Out.String())
+		assert.Equal(t, "web Sarah docker web-x1y2 https://web-x1y2-8080.workload.example\nbox guest machine box-x1y2 https://box-x1y2-8080.workload.example\n", h.Out.String())
 	})
 
 	t.Run("uuids alone", func(t *testing.T) {
@@ -148,7 +148,7 @@ func TestCreateVMCommand(t *testing.T) {
 
 		body := sentJSON(t, fake, http.MethodPost, everyone+"/vms")
 		assert.Equal(t, "machine", body["kind"])
-		assert.Equal(t, float64(10<<30), body["resources"].(map[string]any)["disk"])
+		assert.InDelta(t, float64(10<<30), body["resources"].(map[string]any)["disk"], 0)
 		assert.Regexp(t, `^machine-[a-z2-7]{4}$`, body["name"])
 	})
 

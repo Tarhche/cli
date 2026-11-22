@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -149,9 +150,9 @@ func (a *API) Routes() []string {
 func (a *API) Sent(method, path string) (Request, bool) {
 	requests := a.Requests()
 
-	for i := len(requests) - 1; i >= 0; i-- {
-		if requests[i].Method == method && requests[i].Path == path {
-			return requests[i], true
+	for _, request := range slices.Backward(requests) {
+		if request.Method == method && request.Path == path {
+			return request, true
 		}
 	}
 

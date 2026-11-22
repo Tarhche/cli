@@ -637,7 +637,7 @@ func TestManifests(t *testing.T) {
 		answered := `{"kind":"vm","metadata":{"uuid":"v1","name":"web","slug":"web-x","owner_uuid":"u1","labels":{"a":"b"},"owners":[{"kind":"stack","uuid":"s1"}],"refs":[{"kind":"vm","uuid":"v0"}],"node":"node-1","lifetime":3600000000000,"created_at":"2026-11-22T09:00:00Z"},
 			"spec":{"image":"ubuntu:24.04","resources":{"cpus":2,"memory":536870912,"disk":4294967296},"ports":[80,443],"network":{"ingress":"allow","egress":"deny"},"persistent_disk":true,"source":{"snapshot":"p1"}},
 			"status":{"state":"running","expected":"running","reason":"started","since":"2026-11-22T09:01:00Z","stats":{"cpu_percent":3.5,"memory_used":1,"memory_limit":2,"disk_used":3,"disk_total":4,"network_rx":5,"network_tx":6,"sampled_at":"2026-11-22T09:02:00Z"},"started_at":"2026-11-22T09:01:00Z"},
-			"docker":false,"owner":{"uuid":"u1","name":"Mahdi","username":"mahdi"},"urls":[{"port":80,"url":"https://web-x-80.example"}],"future":"kept"}`
+			"docker":false,"owner":{"uuid":"u1","name":"Sarah","username":"sarah"},"urls":[{"port":80,"url":"https://web-x-80.example"}],"future":"kept"}`
 
 		var vm VMManifest
 		require.NoError(t, json.Unmarshal([]byte(answered), &vm))
@@ -647,8 +647,8 @@ func TestManifests(t *testing.T) {
 		assert.Equal(t, Resources{CPUs: 2, Memory: 512 << 20, Disk: 4 << 30}, vm.Spec.Resources)
 		assert.Equal(t, &VMSource{Snapshot: "p1"}, vm.Spec.Source)
 		assert.Equal(t, "started", vm.Status.Reason)
-		assert.Equal(t, 3.5, vm.Status.Stats.CPUPercent)
-		assert.Equal(t, "mahdi", vm.Owner.Username)
+		assert.InDelta(t, 3.5, vm.Status.Stats.CPUPercent, 0)
+		assert.Equal(t, "sarah", vm.Owner.Username)
 		assert.Equal(t, []URL{{Port: 80, URL: "https://web-x-80.example"}}, vm.URLs)
 		assert.JSONEq(t, answered, string(vm.Raw()), "what the client does not know of is kept too")
 		assert.Equal(t, VM{UUID: "v1", Name: "web", Slug: "web-x", State: "running", Ports: []uint{80, 443}}, vm.Reach())
