@@ -6,7 +6,6 @@ import {Workloads} from "../../api/services";
 import {useQuery} from "../../api/useQuery";
 import {DeleteModal} from "../../components/DeleteModal";
 import {FailureAlert} from "../../components/FailureAlert";
-import {JsonDrawer} from "../../components/JsonDrawer";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {useNavigation} from "../../shell/navigation";
@@ -23,7 +22,6 @@ export function SnapshotsPage() {
   const may = abilities.snapshots;
   const takes = may.create && abilities.vms.show;
   const [page, setPage] = useState(1);
-  const [inspected, setInspected] = useState<Snapshot | null>(null);
   const [renamed, setRenamed] = useState<Snapshot | null>(null);
   const [deleted, setDeleted] = useState<Snapshot | null>(null);
   const snapshots = useQuery(`snapshots:${page}`, () => Workloads.Snapshots(page, "") as Promise<Page<Snapshot>>, {interval: POLL});
@@ -94,7 +92,7 @@ export function SnapshotsPage() {
                             </ActionIcon>
                           </Tooltip>
                         )}
-                        <WorkloadActions onInspect={() => setInspected(snapshot)} onDelete={may.delete ? () => setDeleted(snapshot) : undefined} />
+                        <WorkloadActions onDelete={may.delete ? () => setDeleted(snapshot) : undefined} />
                       </Group>
                     </Table.Td>
                   </Table.Tr>
@@ -109,7 +107,6 @@ export function SnapshotsPage() {
           <Pagination total={pages} value={page} onChange={setPage} />
         </Group>
       )}
-      <JsonDrawer opened={inspected !== null} onClose={() => setInspected(null)} title={inspected?.metadata.name ?? "Snapshot"} value={inspected} />
       <RenameModal
         opened={renamed !== null}
         onClose={() => setRenamed(null)}

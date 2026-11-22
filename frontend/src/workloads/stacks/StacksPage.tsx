@@ -7,7 +7,6 @@ import {useAct} from "../../api/useAct";
 import {useQuery} from "../../api/useQuery";
 import {DeleteModal} from "../../components/DeleteModal";
 import {FailureAlert} from "../../components/FailureAlert";
-import {JsonDrawer} from "../../components/JsonDrawer";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {useNavigation} from "../../shell/navigation";
@@ -22,7 +21,6 @@ export function StacksPage() {
   const act = useAct();
   const {stacks: may} = useAbilities();
   const [page, setPage] = useState(1);
-  const [inspected, setInspected] = useState<Stack | null>(null);
   const [deleted, setDeleted] = useState<Stack | null>(null);
   const stacks = useQuery(`stacks:${page}`, () => Workloads.Stacks(page) as Promise<Page<Stack>>, {interval: POLL});
   const items = stacks.data?.items ?? [];
@@ -102,7 +100,6 @@ export function StacksPage() {
                         onStart={may.start ? () => command(`Starting ${name}`, () => Workloads.StartStack(uuid)) : undefined}
                         onStop={may.stop ? () => command(`Stopping ${name}`, () => Workloads.StopStack(uuid)) : undefined}
                         onRestart={may.restart ? () => command(`Restarting ${name}`, () => Workloads.RestartStack(uuid)) : undefined}
-                        onInspect={() => setInspected(stack)}
                         onDelete={may.delete ? () => setDeleted(stack) : undefined}
                       />
                     </Table.Td>
@@ -118,7 +115,6 @@ export function StacksPage() {
           <Pagination total={pages} value={page} onChange={setPage} />
         </Group>
       )}
-      <JsonDrawer opened={inspected !== null} onClose={() => setInspected(null)} title={inspected?.metadata.name ?? "Stack"} value={inspected} />
       <DeleteModal
         opened={deleted !== null}
         onClose={() => setDeleted(null)}

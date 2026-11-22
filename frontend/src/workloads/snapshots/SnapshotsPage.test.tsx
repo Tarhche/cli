@@ -44,7 +44,7 @@ describe("SnapshotsPage", () => {
     expect(screen.queryByRole("button", {name: "Make a VM from it"})).not.toBeInTheDocument();
     expect(screen.queryByRole("button", {name: "Rename"})).not.toBeInTheDocument();
     expect(screen.queryByRole("button", {name: "Delete"})).not.toBeInTheDocument();
-    expect(screen.getByRole("button", {name: "Inspect"})).toBeInTheDocument();
+    expect(screen.queryByRole("button", {name: "Inspect"})).not.toBeInTheDocument();
     expect(screen.queryByText(/A snapshot is taken on its VM's page/)).not.toBeInTheDocument();
   });
 });

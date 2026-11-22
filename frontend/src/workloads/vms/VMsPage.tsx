@@ -7,7 +7,6 @@ import {useAct} from "../../api/useAct";
 import {useQuery} from "../../api/useQuery";
 import {DeleteModal, type Dependents} from "../../components/DeleteModal";
 import {FailureAlert} from "../../components/FailureAlert";
-import {JsonDrawer} from "../../components/JsonDrawer";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {useNavigation} from "../../shell/navigation";
@@ -22,7 +21,6 @@ export function VMsPage() {
   const act = useAct();
   const {vms: may} = useAbilities();
   const [page, setPage] = useState(1);
-  const [inspected, setInspected] = useState<VM | null>(null);
   const [deleted, setDeleted] = useState<VM | null>(null);
   const vms = useQuery(`vms:${page}`, () => Workloads.VMs(page) as Promise<Page<VM>>, {interval: POLL});
   const items = vms.data?.items ?? [];
@@ -101,7 +99,6 @@ export function VMsPage() {
                         onStart={may.start ? () => command(`Starting ${vm.metadata.name}`, () => Workloads.StartVM(uuid)) : undefined}
                         onStop={may.stop ? () => command(`Stopping ${vm.metadata.name}`, () => Workloads.StopVM(uuid)) : undefined}
                         onRestart={may.restart ? () => command(`Restarting ${vm.metadata.name}`, () => Workloads.RestartVM(uuid)) : undefined}
-                        onInspect={() => setInspected(vm)}
                         onDelete={may.delete ? () => setDeleted(vm) : undefined}
                       />
                     </Table.Td>
@@ -117,7 +114,6 @@ export function VMsPage() {
           <Pagination total={pages} value={page} onChange={setPage} />
         </Group>
       )}
-      <JsonDrawer opened={inspected !== null} onClose={() => setInspected(null)} title={inspected?.metadata.name ?? ""} value={inspected} />
       <DeleteModal
         opened={deleted !== null}
         onClose={() => setDeleted(null)}

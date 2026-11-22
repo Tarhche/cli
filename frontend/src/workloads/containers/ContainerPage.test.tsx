@@ -46,6 +46,7 @@ describe("ContainerPage", () => {
     await userEvent.click(screen.getByRole("button", {name: "More"}));
 
     expect(await screen.findByRole("menuitem", {name: "Delete"})).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", {name: "Inspect"})).not.toBeInTheDocument();
   });
 
   it("offers nothing the session may not do with it", async () => {
@@ -56,6 +57,6 @@ describe("ContainerPage", () => {
     expect(screen.queryByRole("button", {name: "Stop"})).not.toBeInTheDocument();
     expect(screen.queryByRole("button", {name: "Restart"})).not.toBeInTheDocument();
     expect(screen.queryByRole("button", {name: "More"})).not.toBeInTheDocument();
-    expect(screen.getByRole("button", {name: "Inspect"})).toBeInTheDocument();
+    expect(screen.queryByRole("button", {name: "Inspect"})).not.toBeInTheDocument();
   });
 });

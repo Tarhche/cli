@@ -76,7 +76,7 @@ describe("VMsPage", () => {
     expect(screen.getByRole("button", {name: "Stop"})).toBeInTheDocument();
     expect(screen.queryByRole("button", {name: "Restart"})).not.toBeInTheDocument();
     expect(screen.queryByRole("button", {name: "Delete"})).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", {name: "Inspect"})).toHaveLength(2);
+    expect(screen.queryByRole("button", {name: "Inspect"})).not.toBeInTheDocument();
   });
 
   it("says when there are none", async () => {

@@ -8,7 +8,6 @@ import {useQuery} from "../../api/useQuery";
 import {useRun} from "../../api/useRun";
 import {DeleteModal, type Dependents} from "../../components/DeleteModal";
 import {FailureAlert} from "../../components/FailureAlert";
-import {JsonDrawer} from "../../components/JsonDrawer";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {ago} from "../format";
@@ -28,7 +27,6 @@ export function NetworksPage() {
   const [vm, setVM] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [internal, setInternal] = useState(false);
-  const [inspected, setInspected] = useState<DockerNetwork | null>(null);
   const [deleted, setDeleted] = useState<DockerNetwork | null>(null);
   const networks = useQuery(`networks:${vm}`, () => Workloads.Networks(vm ?? "") as Promise<Items<DockerNetwork>>, {interval: POLL, enabled: vm !== null});
   const creating = useRun(async () => {
@@ -104,7 +102,7 @@ export function NetworksPage() {
                         <Text size="sm">{ago(network.status.created_at)}</Text>
                       </Table.Td>
                       <Table.Td>
-                        <WorkloadActions onInspect={() => setInspected(network)} onDelete={may.delete ? () => setDeleted(network) : undefined} />
+                        <WorkloadActions onDelete={may.delete ? () => setDeleted(network) : undefined} />
                       </Table.Td>
                     </Table.Tr>
                   ))}
@@ -114,7 +112,6 @@ export function NetworksPage() {
           )}
         </>
       )}
-      <JsonDrawer opened={inspected !== null} onClose={() => setInspected(null)} title={inspected?.spec.name ?? "Network"} value={inspected} />
       <DeleteModal
         opened={deleted !== null}
         onClose={() => setDeleted(null)}

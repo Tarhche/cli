@@ -7,7 +7,6 @@ import {useAct} from "../../api/useAct";
 import {useQuery} from "../../api/useQuery";
 import {DeleteModal} from "../../components/DeleteModal";
 import {FailureAlert} from "../../components/FailureAlert";
-import {JsonDrawer} from "../../components/JsonDrawer";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {useNavigation} from "../../shell/navigation";
@@ -26,7 +25,6 @@ export function ContainersPage() {
   const {navigate} = useNavigation();
   const act = useAct();
   const {containers: may} = useAbilities();
-  const [inspected, setInspected] = useState<Container | null>(null);
   const [deleted, setDeleted] = useState<Container | null>(null);
   const containers = useQuery("containers", () => Workloads.Containers("") as Promise<Items<Container>>, {interval: POLL});
   const items = containers.data?.items ?? [];
@@ -104,7 +102,6 @@ export function ContainersPage() {
                         onStart={may.start ? () => command(`Starting ${name}`, () => Workloads.StartContainer(vm, id)) : undefined}
                         onStop={may.stop ? () => command(`Stopping ${name}`, () => Workloads.StopContainer(vm, id)) : undefined}
                         onRestart={may.restart ? () => command(`Restarting ${name}`, () => Workloads.RestartContainer(vm, id)) : undefined}
-                        onInspect={() => setInspected(container)}
                         onDelete={may.delete ? () => setDeleted(container) : undefined}
                       />
                     </Table.Td>
@@ -115,7 +112,6 @@ export function ContainersPage() {
           </Table>
         </Table.ScrollContainer>
       )}
-      <JsonDrawer opened={inspected !== null} onClose={() => setInspected(null)} title={inspected?.status.name ?? "Container"} value={inspected} />
       <DeleteModal
         opened={deleted !== null}
         onClose={() => setDeleted(null)}

@@ -1,5 +1,5 @@
-import {ActionIcon, Button, Group, Loader, Menu, Tabs, Tooltip} from "@mantine/core";
-import {IconBraces, IconDots, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTrash} from "@tabler/icons-react";
+import {ActionIcon, Button, Group, Loader, Menu, Tabs} from "@mantine/core";
+import {IconDots, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTrash} from "@tabler/icons-react";
 import {useState} from "react";
 import {useAbilities} from "../../access/access";
 import {Workloads} from "../../api/services";
@@ -7,7 +7,6 @@ import {useAct} from "../../api/useAct";
 import {useQuery} from "../../api/useQuery";
 import {DeleteModal} from "../../components/DeleteModal";
 import {FailureAlert} from "../../components/FailureAlert";
-import {JsonDrawer} from "../../components/JsonDrawer";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {useNavigation} from "../../shell/navigation";
@@ -35,7 +34,7 @@ export function ContainerPage({vm, id}: {vm: string; id: string}) {
   const container = useQuery(`container:${vm}/${id}`, () => Workloads.Container(vm, id) as Promise<Container>, {interval: POLL});
   const [tab, setTab] = useState<Tab>("overview");
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>(["overview"]));
-  const [dialog, setDialog] = useState<"inspect" | "delete" | null>(null);
+  const [dialog, setDialog] = useState<"delete" | null>(null);
   const shown = container.data;
 
   if (shown === undefined) {
@@ -83,7 +82,7 @@ export function ContainerPage({vm, id}: {vm: string; id: string}) {
                 Restart
               </Button>
             )}
-            {may.delete ? (
+            {may.delete && (
               <Menu position="bottom-end" withinPortal>
                 <Menu.Target>
                   <ActionIcon variant="default" size="md" aria-label="More">
@@ -91,21 +90,11 @@ export function ContainerPage({vm, id}: {vm: string; id: string}) {
                   </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
-                  <Menu.Item leftSection={<IconBraces size={14} />} onClick={() => setDialog("inspect")}>
-                    Inspect
-                  </Menu.Item>
-                  <Menu.Divider />
                   <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => setDialog("delete")}>
                     Delete
                   </Menu.Item>
                 </Menu.Dropdown>
               </Menu>
-            ) : (
-              <Tooltip label="Inspect">
-                <ActionIcon variant="default" size="md" aria-label="Inspect" onClick={() => setDialog("inspect")}>
-                  <IconBraces size={16} />
-                </ActionIcon>
-              </Tooltip>
             )}
           </Group>
         }
@@ -143,7 +132,6 @@ export function ContainerPage({vm, id}: {vm: string; id: string}) {
           )}
         </Tabs.Panel>
       </Tabs>
-      <JsonDrawer opened={dialog === "inspect"} onClose={() => setDialog(null)} title={name} value={shown} />
       <DeleteModal
         opened={dialog === "delete"}
         onClose={() => setDialog(null)}

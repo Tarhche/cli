@@ -51,9 +51,10 @@ describe("VMPage", () => {
 
     await userEvent.click(screen.getByRole("button", {name: "More"}));
 
-    for (const item of ["Take a snapshot", "Restore a snapshot", "Inspect", "Delete"]) {
+    for (const item of ["Take a snapshot", "Restore a snapshot", "Delete"]) {
       expect(await screen.findByRole("menuitem", {name: item})).toBeInTheDocument();
     }
+    expect(screen.queryByRole("menuitem", {name: "Inspect"})).not.toBeInTheDocument();
   });
 
   it("offers only the tabs whose data the session may read, and only what it may do", async () => {
@@ -64,7 +65,7 @@ describe("VMPage", () => {
     expect(screen.queryByRole("button", {name: "Stop"})).not.toBeInTheDocument();
     expect(screen.getByRole("button", {name: "Restart"})).toBeInTheDocument();
     expect(screen.queryByRole("button", {name: "More"})).not.toBeInTheDocument();
-    expect(screen.getByRole("button", {name: "Inspect"})).toBeInTheDocument();
+    expect(screen.queryByRole("button", {name: "Inspect"})).not.toBeInTheDocument();
   });
 
   it("offers a Docker VM's files and ports under exec alone, and a machine's ports only under forward", async () => {
