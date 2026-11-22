@@ -25,7 +25,7 @@ make snapshot       # what a release publishes but its images, into dist/, publi
 docker compose run --rm develop go test -tags purego ./internal/api -run TestClientDo -v   # a single test
 ```
 
-Go 1.27 (`toolchain go1.27.4`). **Every build is `CGO_ENABLED=0 -tags purego`**, and a binary is built `-tags purego,production` (`BUILD_TAGS`), which leaves Wails' dev tools out: the desktop app is Wails v3.1 with its purego backends, which load GTK4/WebKitGTK 6.0 (Linux) and AppKit/WebKit (macOS) at run time; Windows is pure Go. So one static binary per platform is cross-compiled from anywhere, and the CLI runs on a server with no GTK at all: only `--desktop` needs the libraries. Without the tag on Linux, Wails tries cgo and pkg-config.
+Go 1.27 (`toolchain go1.27.4`). **Every build is `CGO_ENABLED=0 -tags purego`**, and a binary is built `-tags purego,production` (`BUILD_TAGS`), which leaves Wails' dev tools out: the desktop app is Wails v3.1 with its purego backends, which load GTK4/WebKitGTK 6.0 (Linux) and AppKit/WebKit (macOS) at run time; Windows is pure Go. So one static binary per platform is cross-compiled from anywhere, and the CLI runs on a server with no GTK at all: only `--desktop` needs the libraries. Without the tag on Linux, Wails tries cgo and pkg-config. On Linux such a binary is linked to glibc's loader (purego dlopens), so the image's binary is built `-tags nodesktop` instead (`cmd/tarhche/nodesktop.go`): the CLI alone, static, on `scratch`; `make test` runs `cmd/tarhche` under both.
 
 ## What it is
 
