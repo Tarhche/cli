@@ -1,8 +1,8 @@
 // Package config reads and writes the CLI's configuration: the contexts it
 // can talk to, and which of them it talks to.
 //
-// A context is an estate of Tarhche: its API, its workload ingress, and the
-// application the CLI registered there to sign in through. The default
+// A context is an estate of Tarhche: its API, its workload ingress, its
+// website, and the application the CLI registered there to sign in through. The default
 // context is Tarhche itself and needs no configuration.
 package config
 
@@ -36,6 +36,9 @@ const (
 
 	// DefaultIngress is where the default context's workload ingress is.
 	DefaultIngress = "https://workload.tarhche.com"
+
+	// DefaultWeb is where the default context's website is.
+	DefaultWeb = "https://tarhche.com"
 )
 
 var (
@@ -65,6 +68,11 @@ type Context struct {
 	// Ingress is where the estate's workload ingress is, which terminals,
 	// commands and forwarded ports are carried through.
 	Ingress string `json:"ingress,omitempty"`
+
+	// Web is where the estate's website is: its public pages, and the web
+	// dashboard what the desktop app does not do itself is done on. None
+	// is a website the app links to nothing of.
+	Web string `json:"web,omitempty"`
 
 	// OAuthClient is the application the CLI registered with the estate's
 	// authorization server, kept so it is registered once.
@@ -282,6 +290,7 @@ func DefaultContext() Context {
 		Description: "Tarhche",
 		API:         DefaultAPI,
 		Ingress:     DefaultIngress,
+		Web:         DefaultWeb,
 	}
 }
 
@@ -298,6 +307,12 @@ func (c Context) Validate() error {
 	if len(c.Ingress) > 0 {
 		if err := validateURL(c.Ingress); err != nil {
 			return fmt.Errorf("%w: its ingress %w", ErrInvalidContext, err)
+		}
+	}
+
+	if len(c.Web) > 0 {
+		if err := validateURL(c.Web); err != nil {
+			return fmt.Errorf("%w: its website %w", ErrInvalidContext, err)
 		}
 	}
 
