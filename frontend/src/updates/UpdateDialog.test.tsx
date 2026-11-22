@@ -83,6 +83,13 @@ describe("UpdateDialog", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("says a build of one's own is a development build", async () => {
+    vi.mocked(Updates.Check).mockResolvedValue(found({current: "dev"}) as never);
+    renderDialog();
+
+    expect(await screen.findByText("Tarhche 0.3.0 is available — you have a development build.")).toBeInTheDocument();
+  });
+
   it("shows a newer release, what it says of itself, and what upgrading replaces", async () => {
     vi.mocked(Updates.Check).mockResolvedValue(found() as never);
     renderDialog();
@@ -140,7 +147,8 @@ describe("UpdateDialog", () => {
 
     await act(async () => upgrading.resolve({version: "0.3.0", path: "/usr/local/bin/tarhche"} as Upgraded));
 
-    expect(await screen.findByText("Upgraded to 0.3.0. Restart Tarhche to use it.")).toBeInTheDocument();
+    expect(await screen.findByText("Upgraded to 0.3.0")).toBeInTheDocument();
+    expect(screen.getByText("Restart Tarhche to use it.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", {name: "Restart now"}));
 
     expect(Updates.Restart).toHaveBeenCalled();

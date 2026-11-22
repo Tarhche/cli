@@ -43,6 +43,11 @@ export function UpdateDialog({opened, onClose}: Props) {
   );
 }
 
+/** Reports whether version is a release's, rather than a build of one's own (dev). */
+function released(version: string): boolean {
+  return /^\d+\.\d+\.\d+/.test(version);
+}
+
 /** Looks for the latest release. */
 function lookForUpdates(): Promise<Update> {
   return Updates.Check();
@@ -102,7 +107,7 @@ function UpdateFlow({onClose, onBusy}: {onClose: () => void; onBusy: (busy: bool
     return (
       <Stack>
         <Alert color="green" icon={<IconCircleCheck />} title={`Upgraded to ${upgraded.version}`}>
-          Upgraded to {upgraded.version}. Restart Tarhche to use it.
+          Restart Tarhche to use it.
         </Alert>
         <FailureAlert failure={restart.failure} title="Tarhche could not be restarted" />
         {restarting ? (
@@ -168,7 +173,7 @@ function UpdateFlow({onClose, onBusy}: {onClose: () => void; onBusy: (busy: bool
     <Stack>
       <Stack gap={4}>
         <Text fw={600}>
-          Tarhche {latest.version} is available — you have {update.current}.
+          Tarhche {latest.version} is available — you have {released(update.current) ? update.current : "a development build"}.
         </Text>
         <Text size="sm" c="dimmed">
           Released {ago(latest.published_at)} ·{" "}
