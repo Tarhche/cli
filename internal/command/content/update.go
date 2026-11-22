@@ -39,7 +39,12 @@ func (c *updateCommand) Description() string {
 }
 
 func (c *updateCommand) Usage() string {
-	return c.group + " update [OPTIONS] -f FILE [" + c.resource.KeyUsage() + "]"
+	usage := c.group + " update "
+	if c.resource.ServesBoth(resource.OperationUpdate) {
+		usage += "[OPTIONS] "
+	}
+
+	return usage + "-f FILE [" + c.resource.KeyUsage() + "]"
 }
 
 func (c *updateCommand) Configure(flags *console.FlagSet) {

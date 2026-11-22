@@ -129,6 +129,7 @@ func TestUpdateCommand(t *testing.T) {
 		assert.Equal(t, "update", update.Name())
 		assert.Equal(t, "Update a license template from a JSON file", update.Description())
 		assert.Equal(t, "tarhche license-template update [OPTIONS] -f FILE [UUID]", update.Usage())
+		assert.Equal(t, "tarhche user update -f FILE [UUID]", newUpdateCommand(nil, lookup("user"), "tarhche user").Usage())
 	})
 
 	t.Run("without a client", func(t *testing.T) {

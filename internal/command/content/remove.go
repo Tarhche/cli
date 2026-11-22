@@ -39,9 +39,14 @@ func (c *removeCommand) Description() string {
 }
 
 func (c *removeCommand) Usage() string {
+	usage := c.group + " rm "
+	if c.resource.ServesBoth(resource.OperationDelete) {
+		usage += "[OPTIONS] "
+	}
+
 	key := c.resource.KeyUsage()
 
-	return c.group + " rm [OPTIONS] " + key + " [" + key + "...]"
+	return usage + key + " [" + key + "...]"
 }
 
 func (c *removeCommand) Configure(flags *console.FlagSet) {

@@ -82,7 +82,8 @@ func TestRemoveCommand(t *testing.T) {
 
 		assert.Equal(t, "rm", remove.Name())
 		assert.Equal(t, "Remove one or more bookmarks", remove.Description())
-		assert.Equal(t, "tarhche bookmark rm [OPTIONS] OBJECT_UUID/LANGUAGE_CODE [OBJECT_UUID/LANGUAGE_CODE...]", remove.Usage())
+		assert.Equal(t, "tarhche bookmark rm OBJECT_UUID/LANGUAGE_CODE [OBJECT_UUID/LANGUAGE_CODE...]", remove.Usage())
+		assert.Equal(t, "tarhche comment rm [OPTIONS] UUID [UUID...]", newRemoveCommand(nil, lookup("comment"), "tarhche comment").Usage())
 	})
 
 	for name, args := range map[string][]string{
