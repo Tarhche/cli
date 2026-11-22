@@ -15,6 +15,7 @@ import {VolumesPage} from "../workloads/docker/VolumesPage";
 import {ForwardsPage} from "../workloads/forwards/ForwardsPage";
 import {SnapshotsPage} from "../workloads/snapshots/SnapshotsPage";
 import {DeployStackPage} from "../workloads/stacks/DeployStackPage";
+import {StackPage} from "../workloads/stacks/StackPage";
 import {StacksPage} from "../workloads/stacks/StacksPage";
 import {CreateVMPage} from "../workloads/vms/CreateVMPage";
 import {VMPage} from "../workloads/vms/VMPage";
@@ -93,6 +94,8 @@ function Page({view, access, navigate}: {view: View; access: Access; navigate: (
       return <NetworksPage />;
     case "stacks":
       return <StacksPage />;
+    case "stack":
+      return <StackPage key={view.uuid} uuid={view.uuid} />;
     case "deploy-stack":
       return <DeployStackPage vm={view.vm} />;
     case "snapshots":

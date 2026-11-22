@@ -35,6 +35,7 @@ describe("pageOf", () => {
     expect(pageOf({page: "create-vm"})).toBe("vms");
     expect(pageOf({page: "container", vm: "v", id: "c"})).toBe("containers");
     expect(pageOf({page: "run-container"})).toBe("containers");
+    expect(pageOf({page: "stack", uuid: "s"})).toBe("stacks");
     expect(pageOf({page: "deploy-stack"})).toBe("stacks");
     expect(pageOf({page: "resource", name: "articles"})).toBe("resource:articles");
     expect(pageOf({page: "images"})).toBe("images");
@@ -77,12 +78,13 @@ describe("workloadPagesOf", () => {
 
 describe("allows", () => {
   it("lets a session see a detail it may read and a form it may send", () => {
-    const may = access({abilities: abilities({vms: {show: true}, containers: {create: true}})});
+    const may = access({abilities: abilities({vms: {show: true}, containers: {create: true}, stacks: {show: true}})});
 
     expect(allows(may, {page: "vm", uuid: "v"})).toBe(true);
     expect(allows(may, {page: "create-vm"})).toBe(false);
     expect(allows(may, {page: "container", vm: "v", id: "c"})).toBe(false);
     expect(allows(may, {page: "run-container"})).toBe(true);
+    expect(allows(may, {page: "stack", uuid: "s"})).toBe(true);
     expect(allows(may, {page: "deploy-stack"})).toBe(false);
     expect(allows(may, {page: "vms"})).toBe(false);
   });

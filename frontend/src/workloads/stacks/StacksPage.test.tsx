@@ -2,6 +2,7 @@ import {screen, waitFor, within} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 import {Workloads} from "../../api/services";
+import {NavigationContext, type View} from "../../shell/navigation";
 import {NavigationProvider} from "../../shell/NavigationProvider";
 import {abilities, access, type Allowed} from "../../test/access";
 import {render} from "../../test/render";
@@ -52,6 +53,33 @@ describe("StacksPage", () => {
     await userEvent.click(within(restart).getByRole("button", {name: "Cancel"}));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(Workloads.RestartStack).not.toHaveBeenCalled();
+  });
+
+  it("opens a stack's page from its row when the session may read it", async () => {
+    const navigate = vi.fn<(view: View) => void>();
+    const {unmount} = render(
+      <WithAccess access={access({abilities: abilities({stacks: {list: true, show: true}})})}>
+        <NavigationContext.Provider value={{view: {page: "stacks"}, home: {page: "stacks"}, navigate, back: vi.fn()}}>
+          <StacksPage />
+        </NavigationContext.Provider>
+      </WithAccess>,
+    );
+
+    await userEvent.click(await screen.findByText("shop"));
+    expect(navigate).toHaveBeenCalledWith({page: "stack", uuid: "s-1"});
+    unmount();
+
+    navigate.mockClear();
+    render(
+      <WithAccess access={access({abilities: abilities({stacks: {list: true}})})}>
+        <NavigationContext.Provider value={{view: {page: "stacks"}, home: {page: "stacks"}, navigate, back: vi.fn()}}>
+          <StacksPage />
+        </NavigationContext.Provider>
+      </WithAccess>,
+    );
+
+    await userEvent.click(await screen.findByText("shop"));
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("offers only what the session may do with its stacks", async () => {

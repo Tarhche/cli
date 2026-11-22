@@ -49,7 +49,7 @@ export function StacksPage() {
       )}
       {items.length > 0 && (
         <Table.ScrollContainer minWidth={720}>
-          <Table verticalSpacing="sm">
+          <Table highlightOnHover verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Name</Table.Th>
@@ -66,7 +66,7 @@ export function StacksPage() {
                 const name = stack.metadata.name ?? uuid;
 
                 return (
-                  <Table.Tr key={uuid}>
+                  <Table.Tr key={uuid} style={may.show ? {cursor: "pointer"} : undefined} onClick={may.show ? () => navigate({page: "stack", uuid}) : undefined}>
                     <Table.Td>
                       <Text size="sm" fw={500}>
                         {name}
