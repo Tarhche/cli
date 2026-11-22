@@ -10,6 +10,7 @@ import {FailureAlert} from "../../components/FailureAlert";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {useNavigation} from "../../shell/navigation";
+import {confirmRestart, confirmStop} from "../confirm";
 import {ago, sizeOf} from "../format";
 import {POLL} from "../listing";
 import type {Page, VM} from "../types";
@@ -63,6 +64,7 @@ export function VMsPage() {
             <Table.Tbody>
               {items.map((vm) => {
                 const uuid = vm.metadata.uuid ?? "";
+                const name = vm.metadata.name ?? uuid;
 
                 return (
                   <Table.Tr key={uuid} style={may.show ? {cursor: "pointer"} : undefined} onClick={may.show ? () => navigate({page: "vm", uuid}) : undefined}>
@@ -96,9 +98,9 @@ export function VMsPage() {
                     <Table.Td>
                       <WorkloadActions
                         state={vm.status.state}
-                        onStart={may.start ? () => command(`Starting ${vm.metadata.name}`, () => Workloads.StartVM(uuid)) : undefined}
-                        onStop={may.stop ? () => command(`Stopping ${vm.metadata.name}`, () => Workloads.StopVM(uuid)) : undefined}
-                        onRestart={may.restart ? () => command(`Restarting ${vm.metadata.name}`, () => Workloads.RestartVM(uuid)) : undefined}
+                        onStart={may.start ? () => command(`Starting ${name}`, () => Workloads.StartVM(uuid)) : undefined}
+                        onStop={may.stop ? () => confirmStop("vm", name, () => command(`Stopping ${name}`, () => Workloads.StopVM(uuid))) : undefined}
+                        onRestart={may.restart ? () => confirmRestart("vm", name, () => command(`Restarting ${name}`, () => Workloads.RestartVM(uuid))) : undefined}
                         onDelete={may.delete ? () => setDeleted(vm) : undefined}
                       />
                     </Table.Td>

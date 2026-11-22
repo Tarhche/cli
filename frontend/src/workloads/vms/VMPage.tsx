@@ -15,6 +15,7 @@ import {LogsPanel} from "../detail/LogsPanel";
 import {PortsPanel} from "../detail/PortsPanel";
 import {VMStatsPanel} from "../detail/StatsPanels";
 import {TerminalPanel} from "../detail/TerminalPanel";
+import {confirmRestart, confirmStop} from "../confirm";
 import {canStart, canStop} from "../format";
 import {POLL} from "../listing";
 import type {Logs, VM} from "../types";
@@ -85,12 +86,12 @@ export function VMPage({uuid}: {uuid: string}) {
               </Button>
             )}
             {may.stop && canStop(state) && (
-              <Button size="xs" variant="light" color="orange" leftSection={<IconPlayerStop size={14} />} onClick={() => command(`Stopping ${name}`, () => Workloads.StopVM(uuid))}>
+              <Button size="xs" variant="light" color="orange" leftSection={<IconPlayerStop size={14} />} onClick={() => confirmStop("vm", name, () => command(`Stopping ${name}`, () => Workloads.StopVM(uuid)))}>
                 Stop
               </Button>
             )}
             {may.restart && canStop(state) && (
-              <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={() => command(`Restarting ${name}`, () => Workloads.RestartVM(uuid))}>
+              <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={() => confirmRestart("vm", name, () => command(`Restarting ${name}`, () => Workloads.RestartVM(uuid)))}>
                 Restart
               </Button>
             )}

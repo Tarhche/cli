@@ -10,6 +10,7 @@ import {FailureAlert} from "../../components/FailureAlert";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {useNavigation} from "../../shell/navigation";
+import {confirmRestart, confirmStop} from "../confirm";
 import {ago, portsOf} from "../format";
 import {POLL} from "../listing";
 import type {Container, Items} from "../types";
@@ -100,8 +101,8 @@ export function ContainersPage() {
                       <WorkloadActions
                         state={container.status.state}
                         onStart={may.start ? () => command(`Starting ${name}`, () => Workloads.StartContainer(vm, id)) : undefined}
-                        onStop={may.stop ? () => command(`Stopping ${name}`, () => Workloads.StopContainer(vm, id)) : undefined}
-                        onRestart={may.restart ? () => command(`Restarting ${name}`, () => Workloads.RestartContainer(vm, id)) : undefined}
+                        onStop={may.stop ? () => confirmStop("container", name, () => command(`Stopping ${name}`, () => Workloads.StopContainer(vm, id))) : undefined}
+                        onRestart={may.restart ? () => confirmRestart("container", name, () => command(`Restarting ${name}`, () => Workloads.RestartContainer(vm, id))) : undefined}
                         onDelete={may.delete ? () => setDeleted(container) : undefined}
                       />
                     </Table.Td>

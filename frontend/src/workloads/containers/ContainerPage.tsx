@@ -15,6 +15,7 @@ import {LogsPanel} from "../detail/LogsPanel";
 import {PortsPanel} from "../detail/PortsPanel";
 import {ContainerStatsPanel} from "../detail/StatsPanels";
 import {TerminalPanel} from "../detail/TerminalPanel";
+import {confirmRestart, confirmStop} from "../confirm";
 import {canStart, canStop} from "../format";
 import {POLL} from "../listing";
 import type {Container, Logs} from "../types";
@@ -73,12 +74,12 @@ export function ContainerPage({vm, id}: {vm: string; id: string}) {
               </Button>
             )}
             {may.stop && canStop(state) && (
-              <Button size="xs" variant="light" color="orange" leftSection={<IconPlayerStop size={14} />} onClick={() => command(`Stopping ${name}`, () => Workloads.StopContainer(vm, id))}>
+              <Button size="xs" variant="light" color="orange" leftSection={<IconPlayerStop size={14} />} onClick={() => confirmStop("container", name, () => command(`Stopping ${name}`, () => Workloads.StopContainer(vm, id)))}>
                 Stop
               </Button>
             )}
             {may.restart && canStop(state) && (
-              <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={() => command(`Restarting ${name}`, () => Workloads.RestartContainer(vm, id))}>
+              <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={() => confirmRestart("container", name, () => command(`Restarting ${name}`, () => Workloads.RestartContainer(vm, id)))}>
                 Restart
               </Button>
             )}

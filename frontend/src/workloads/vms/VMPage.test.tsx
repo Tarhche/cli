@@ -1,4 +1,4 @@
-import {screen} from "@testing-library/react";
+import {screen, waitFor, within} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 import {Workloads} from "../../api/services";
@@ -55,6 +55,24 @@ describe("VMPage", () => {
       expect(await screen.findByRole("menuitem", {name: item})).toBeInTheDocument();
     }
     expect(screen.queryByRole("menuitem", {name: "Inspect"})).not.toBeInTheDocument();
+  });
+
+  it("stops and restarts it once that is confirmed", async () => {
+    renderPage({vms: {show: true, stop: true, restart: true}});
+    await screen.findByRole("heading", {name: "box"});
+
+    await userEvent.click(screen.getByRole("button", {name: "Restart"}));
+    const restart = await screen.findByRole("dialog");
+    expect(within(restart).getByText('Restart "box"? Everything running in it is stopped and started again.')).toBeInTheDocument();
+    await userEvent.click(within(restart).getByRole("button", {name: "Restart"}));
+    await waitFor(() => expect(Workloads.RestartVM).toHaveBeenCalledWith("v-1"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole("button", {name: "Stop"}));
+    const stop = await screen.findByRole("dialog");
+    expect(within(stop).getByText('Stop "box"? Everything running in it stops with it.')).toBeInTheDocument();
+    await userEvent.click(within(stop).getByRole("button", {name: "Stop"}));
+    await waitFor(() => expect(Workloads.StopVM).toHaveBeenCalledWith("v-1"));
   });
 
   it("offers only the tabs whose data the session may read, and only what it may do", async () => {

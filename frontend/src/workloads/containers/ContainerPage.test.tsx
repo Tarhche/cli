@@ -1,4 +1,4 @@
-import {screen, waitFor} from "@testing-library/react";
+import {screen, waitFor, within} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 import {Workloads} from "../../api/services";
@@ -47,6 +47,24 @@ describe("ContainerPage", () => {
 
     expect(await screen.findByRole("menuitem", {name: "Delete"})).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", {name: "Inspect"})).not.toBeInTheDocument();
+  });
+
+  it("stops and restarts it once that is confirmed", async () => {
+    renderPage({containers: {show: true, stop: true, restart: true}});
+    await screen.findByRole("heading", {name: "web"});
+
+    await userEvent.click(screen.getByRole("button", {name: "Stop"}));
+    const stop = await screen.findByRole("dialog");
+    expect(within(stop).getByText('Stop "web"? Whatever it is doing is interrupted.')).toBeInTheDocument();
+    await userEvent.click(within(stop).getByRole("button", {name: "Stop"}));
+    await waitFor(() => expect(Workloads.StopContainer).toHaveBeenCalledWith("v-1", "c-1"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole("button", {name: "Restart"}));
+    const restart = await screen.findByRole("dialog");
+    expect(within(restart).getByText('Restart "web"? Whatever it is doing is interrupted.')).toBeInTheDocument();
+    await userEvent.click(within(restart).getByRole("button", {name: "Restart"}));
+    await waitFor(() => expect(Workloads.RestartContainer).toHaveBeenCalledWith("v-1", "c-1"));
   });
 
   it("shows everything Docker says of it once asked, and folds it again", async () => {

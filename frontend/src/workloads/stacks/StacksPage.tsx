@@ -10,6 +10,7 @@ import {FailureAlert} from "../../components/FailureAlert";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {useNavigation} from "../../shell/navigation";
+import {confirmRestart, confirmStop} from "../confirm";
 import {ago, stateColor} from "../format";
 import {POLL} from "../listing";
 import type {Page, Stack} from "../types";
@@ -98,8 +99,8 @@ export function StacksPage() {
                       <WorkloadActions
                         state={stack.status.state}
                         onStart={may.start ? () => command(`Starting ${name}`, () => Workloads.StartStack(uuid)) : undefined}
-                        onStop={may.stop ? () => command(`Stopping ${name}`, () => Workloads.StopStack(uuid)) : undefined}
-                        onRestart={may.restart ? () => command(`Restarting ${name}`, () => Workloads.RestartStack(uuid)) : undefined}
+                        onStop={may.stop ? () => confirmStop("stack", name, () => command(`Stopping ${name}`, () => Workloads.StopStack(uuid))) : undefined}
+                        onRestart={may.restart ? () => confirmRestart("stack", name, () => command(`Restarting ${name}`, () => Workloads.RestartStack(uuid))) : undefined}
                         onDelete={may.delete ? () => setDeleted(stack) : undefined}
                       />
                     </Table.Td>
