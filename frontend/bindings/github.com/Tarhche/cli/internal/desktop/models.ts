@@ -752,6 +752,61 @@ export class PortBinding {
 }
 
 /**
+ * Release is a release of tarhche, as the frontend shows it.
+ */
+export class Release {
+    /**
+     * Version is the version it released, without the tag's v: 0.2.0.
+     */
+    "version": string;
+
+    /**
+     * Name is what it is titled.
+     */
+    "name": string;
+
+    /**
+     * Notes are what it says of itself, in Markdown.
+     */
+    "notes": string;
+
+    /**
+     * URL is its page on GitHub.
+     */
+    "url": string;
+    "published_at": string;
+
+    /** Creates a new Release instance. */
+    constructor($$source: Partial<Release> = {}) {
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("notes" in $$source)) {
+            this["notes"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("published_at" in $$source)) {
+            this["published_at"] = "0001-01-01T00:00:00.000Z";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Release instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Release {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Release($$parsedSource as Partial<Release>);
+    }
+}
+
+/**
  * ResourceAction is something more a resource can be asked.
  */
 export class ResourceAction {
@@ -1397,6 +1452,139 @@ export class TerminalSize {
 }
 
 /**
+ * Update is what looking for a newer release of tarhche found.
+ */
+export class Update {
+    /**
+     * Current is the version running: a release's, or dev for a build of
+     * one's own.
+     */
+    "current": string;
+
+    /**
+     * Available reports whether Latest is newer than Current.
+     */
+    "available": boolean;
+
+    /**
+     * Latest is the newest release.
+     */
+    "latest": Release;
+
+    /**
+     * Target is what upgrading replaces: the binary running, or the macOS
+     * app bundle it runs from.
+     */
+    "target"?: string;
+
+    /**
+     * Unsupported says why this build cannot upgrade itself, when it
+     * cannot: then there is no Target.
+     */
+    "unsupported"?: string;
+
+    /** Creates a new Update instance. */
+    constructor($$source: Partial<Update> = {}) {
+        if (!("current" in $$source)) {
+            this["current"] = "";
+        }
+        if (!("available" in $$source)) {
+            this["available"] = false;
+        }
+        if (!("latest" in $$source)) {
+            this["latest"] = (new Release());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Update instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Update {
+        const $$createField2_0 = $$createType26;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("latest" in $$parsedSource) {
+            $$parsedSource["latest"] = $$createField2_0($$parsedSource["latest"]);
+        }
+        return new Update($$parsedSource as Partial<Update>);
+    }
+}
+
+/**
+ * UpdateProgress is how much of the download of a release an upgrade
+ * installs has arrived.
+ */
+export class UpdateProgress {
+    /**
+     * Version is the release's.
+     */
+    "version": string;
+
+    /**
+     * Done is how many bytes of it arrived, of Total, which is 0 while how
+     * many there are is not known.
+     */
+    "done": number;
+    "total": number;
+
+    /** Creates a new UpdateProgress instance. */
+    constructor($$source: Partial<UpdateProgress> = {}) {
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("done" in $$source)) {
+            this["done"] = 0;
+        }
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateProgress instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateProgress {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateProgress($$parsedSource as Partial<UpdateProgress>);
+    }
+}
+
+/**
+ * Upgraded is what an upgrade installed.
+ */
+export class Upgraded {
+    "version": string;
+
+    /**
+     * Path is what it replaced: the binary, or the macOS app bundle.
+     */
+    "path": string;
+
+    /** Creates a new Upgraded instance. */
+    constructor($$source: Partial<Upgraded> = {}) {
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Upgraded instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Upgraded {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Upgraded($$parsedSource as Partial<Upgraded>);
+    }
+}
+
+/**
  * UsageQuery is the span what was used is read over (RFC 3339): no end is
  * now, and no start the hour before the end.
  */
@@ -1654,3 +1842,4 @@ const $$createType22 = ContextInfo.createFrom;
 const $$createType23 = User.createFrom;
 const $$createType24 = $Create.Nullable($$createType23);
 const $$createType25 = TerminalSize.createFrom;
+const $$createType26 = Release.createFrom;

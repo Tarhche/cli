@@ -13,7 +13,7 @@ import (
 // loads a web view is a static binary, which runs where no C library is.
 var errNoDesktop = errors.New("this build of tarhche has no desktop app: use a release binary for --desktop")
 
-// openDesktop says this build has no desktop app.
+// openDesktop fails: this build has no desktop app.
 func openDesktop(context.Context, *command.Cli) error {
-	return errNoDesktop
+	return unavailableError{err: errNoDesktop}
 }

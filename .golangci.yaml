@@ -63,8 +63,8 @@ linters:
         text: G117
         linters:
           - gosec
-      # the doubles of the API, the ingress and the commands, which tests alone import
-      - path: internal/(command/commandtest|stream/streamtest|workload/workloadtest)/
+      # the doubles of the API, the ingress, the commands and GitHub's releases, which tests alone import
+      - path: internal/(command/commandtest|stream/streamtest|workload/workloadtest|upgrade/upgradetest)/
         linters:
           - gosec
           - noctx
@@ -72,6 +72,13 @@ linters:
       # entry's path is checked to stay where it is extracted before it is
       - path: internal/transfer/archive\.go
         text: G301|G305
+        linters:
+          - gosec
+      # an app bundle's directories are everybody's to read, as every app's
+      # are, and every entry's path is checked to stay in the bundle before
+      # it is extracted
+      - path: internal/upgrade/extract\.go
+        text: G301
         linters:
           - gosec
     paths:

@@ -15,6 +15,7 @@ function configure() {
         "forward:stopped": $$createType0,
         "terminal:exit": $$createType1,
         "terminal:output": $$createType2,
+        "updates:progress": $$createType3,
     }));
 }
 
@@ -22,5 +23,6 @@ function configure() {
 const $$createType0 = desktop$0.ForwardStopped.createFrom;
 const $$createType1 = desktop$0.TerminalExit.createFrom;
 const $$createType2 = desktop$0.TerminalOutput.createFrom;
+const $$createType3 = desktop$0.UpdateProgress.createFrom;
 
 configure();

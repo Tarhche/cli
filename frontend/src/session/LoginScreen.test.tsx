@@ -5,6 +5,7 @@ import {Session} from "../api/services";
 import {render} from "../test/render";
 import {session} from "../test/session";
 import {WithSession} from "../test/WithSession";
+import {UpdatesContext} from "../updates/updates";
 import {LoginScreen} from "./LoginScreen";
 
 vi.mock("../api/services", () => ({
@@ -35,6 +36,22 @@ describe("LoginScreen", () => {
     expect(screen.getByRole("heading", {name: "Sign in"})).toBeInTheDocument();
     expect(screen.getByText("to local, http://localhost:8000")).toBeInTheDocument();
     expect(screen.getByRole("button", {name: "Sign in with browser"})).toBeInTheDocument();
+  });
+
+  it("says which version the app is, and looks for a newer one when asked", async () => {
+    const check = vi.fn();
+    render(
+      <UpdatesContext.Provider value={{version: "0.2.0", check}}>
+        <WithSession state={session()}>
+          <LoginScreen />
+        </WithSession>
+      </UpdatesContext.Provider>,
+    );
+
+    expect(screen.getByText("Version 0.2.0 ·")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", {name: "Check for updates"}));
+
+    expect(check).toHaveBeenCalled();
   });
 
   it("signs in with a password, and reads the session again", async () => {

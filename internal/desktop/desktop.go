@@ -5,8 +5,9 @@
 // frontend/dist) are plain services, each reaching the context the app
 // talks to through a Workspace: Session (contexts, signing in and out),
 // Resources (whatever package resource describes), Workloads (one's own
-// workload), and Terminals, Forwards and Files, which reach into workloads
-// through what a Reach gives them.
+// workload), Terminals, Forwards and Files, which reach into workloads
+// through what a Reach gives them, and Updates, which upgrades the app to a
+// newer release of tarhche.
 package desktop
 
 import (
@@ -26,6 +27,8 @@ import (
 	"github.com/Tarhche/cli/internal/command"
 	"github.com/Tarhche/cli/internal/credentials"
 	"github.com/Tarhche/cli/internal/resource"
+	"github.com/Tarhche/cli/internal/upgrade"
+	"github.com/Tarhche/cli/internal/version"
 )
 
 const (
@@ -104,7 +107,9 @@ func Run(ctx context.Context, cli *command.Cli) error {
 	streams := NewStreams()
 	reach := Reach{Terminals: streams, Forwards: streams, Files: streams}
 
-	for _, service := range Services(ctx, workspace, manager, reach, app.Event, dialogs{manager: app.Dialog}) {
+	upgrader := upgrade.New(upgrade.WithUserAgent(version.UserAgent()))
+
+	for _, service := range Services(ctx, workspace, manager, reach, app.Event, dialogs{manager: app.Dialog}, upgrader, app.Quit) {
 		app.RegisterService(service)
 	}
 
@@ -120,6 +125,10 @@ func Run(ctx context.Context, cli *command.Cli) error {
 
 	newTray(app, window)
 
+	if runtime.GOOS == "darwin" {
+		app.Menu.Set(newMenuBar(app, window))
+	}
+
 	stop := context.AfterFunc(ctx, app.Quit)
 	defer stop()
 
@@ -128,8 +137,10 @@ func Run(ctx context.Context, cli *command.Cli) error {
 
 // Services are what the app binds to its frontend, all of them over
 // workspace: terminals and forwards last at most as long as ctx, and are
-// heard through emitter; paths on the host are asked for through chooser.
-func Services(ctx context.Context, workspace *Workspace, authenticator Authenticator, reach Reach, emitter Emitter, chooser Chooser) []application.Service {
+// heard through emitter; paths on the host are asked for through chooser;
+// the app is upgraded by upgrader, and quit with quit to restart into what
+// it installed.
+func Services(ctx context.Context, workspace *Workspace, authenticator Authenticator, reach Reach, emitter Emitter, chooser Chooser, upgrader Upgrader, quit func()) []application.Service {
 	return []application.Service{
 		application.NewService(NewSession(workspace, authenticator)),
 		application.NewService(NewResources(workspace, resource.All)),
@@ -137,6 +148,7 @@ func Services(ctx context.Context, workspace *Workspace, authenticator Authentic
 		application.NewService(NewTerminals(ctx, workspace, reach.Terminals, emitter)),
 		application.NewService(NewForwards(ctx, workspace, reach.Forwards, emitter)),
 		application.NewService(NewFiles(workspace, reach.Files, chooser)),
+		application.NewService(NewUpdates(upgrader, emitter, quit)),
 	}
 }
 
@@ -155,13 +167,14 @@ func displayable(goos string, getenv func(string) string) error {
 }
 
 // newTray puts the app in the system tray, with a menu that brings its
-// window forward and quits it.
+// window forward, looks for a newer release and quits it.
 func newTray(app *application.App, window *application.WebviewWindow) {
 	menu := app.NewMenu()
 	menu.Add("Open").OnClick(func(*application.Context) {
-		window.UnMinimise()
-		window.Show()
-		window.Focus()
+		bringForward(window)
+	})
+	menu.Add(checkForUpdatesLabel).OnClick(func(*application.Context) {
+		checkForUpdates(window, app.Event)
 	})
 	menu.AddSeparator()
 	menu.Add("Quit").OnClick(func(*application.Context) {
@@ -180,6 +193,59 @@ func newTray(app *application.App, window *application.WebviewWindow) {
 
 	tray.SetIcon(trayIcon)
 	tray.SetDarkModeIcon(trayDarkIcon)
+}
+
+// newMenuBar is the macOS menu bar: the one Wails gives every app, with
+// Check for Updates… under About in the app's menu, and no Help menu, whose
+// one item would take the window away from the app to Wails' website.
+func newMenuBar(app *application.App, window *application.WebviewWindow) *application.Menu {
+	bar := app.NewMenu()
+
+	appMenu := bar.AddSubmenu(name)
+	appMenu.AddRole(application.About)
+	appMenu.Add(checkForUpdatesLabel).OnClick(func(*application.Context) {
+		checkForUpdates(window, app.Event)
+	})
+	appMenu.AddSeparator()
+	appMenu.AddRole(application.ServicesMenu)
+	appMenu.AddSeparator()
+	appMenu.AddRole(application.Hide)
+	appMenu.AddRole(application.HideOthers)
+	appMenu.AddRole(application.UnHide)
+	appMenu.AddSeparator()
+	appMenu.AddRole(application.Quit)
+
+	bar.AddRole(application.FileMenu)
+	bar.AddRole(application.EditMenu)
+	bar.AddRole(application.ViewMenu)
+	bar.AddRole(application.WindowMenu)
+
+	return bar
+}
+
+// checkForUpdatesLabel is what the menu item that looks for a newer
+// release says.
+const checkForUpdatesLabel = "Check for Updates…"
+
+// foreground is a window that can be brought in front of every other.
+type foreground interface {
+	UnMinimise()
+	Show() application.Window
+	Focus()
+}
+
+// bringForward shows window in front of every other.
+func bringForward(window foreground) {
+	window.UnMinimise()
+	window.Show()
+	window.Focus()
+}
+
+// checkForUpdates brings window forward and asks its frontend, through
+// emitter, to look for a newer release of tarhche.
+func checkForUpdates(window foreground, emitter Emitter) {
+	bringForward(window)
+	emitter.Emit(EventCheckForUpdates)
 }
 
 // dialogs ask for paths on the host in the operating system's own dialogs.

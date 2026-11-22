@@ -1,6 +1,6 @@
 // Package system holds the commands about the CLI itself and the estate it
-// talks to: signing in and out, its contexts, its version, and who it talks
-// to as whom.
+// talks to: signing in and out, its contexts, its version and upgrading it,
+// and who it talks to as whom.
 package system
 
 import (
@@ -12,6 +12,8 @@ import (
 
 	"github.com/Tarhche/cli/internal/command"
 	"github.com/Tarhche/cli/internal/formatter"
+	"github.com/Tarhche/cli/internal/upgrade"
+	"github.com/Tarhche/cli/internal/version"
 )
 
 // formatUsage is what --format is said to take by the commands that show
@@ -24,6 +26,7 @@ func Register(c *console.Console, cli *command.Cli) {
 		newLoginCommand(cli),
 		newLogoutCommand(cli),
 		newVersionCommand(cli),
+		newUpgradeCommand(cli, upgrade.New(upgrade.WithUserAgent(version.UserAgent()))),
 		newInfoCommand(cli),
 	)
 

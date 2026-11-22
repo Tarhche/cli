@@ -1,5 +1,5 @@
 import {Events} from "@wailsio/runtime";
-import type {ForwardStopped, TerminalExit} from "./services";
+import type {ForwardStopped, TerminalExit, UpdateProgress} from "./services";
 
 /** Stops listening. */
 export type Unsubscribe = () => void;
@@ -28,4 +28,14 @@ export function onTerminalExit(id: string, listener: (exit: TerminalExit) => voi
 /** Listens for port forwards that stop by themselves. */
 export function onForwardStopped(listener: (stopped: ForwardStopped) => void): Unsubscribe {
   return Events.On("forward:stopped", (event) => listener(event.data));
+}
+
+/** Listens for the app's menus asking to look for a newer release. */
+export function onCheckForUpdates(listener: () => void): Unsubscribe {
+  return Events.On("updates:check", () => listener());
+}
+
+/** Listens to how much of an upgrade's download has arrived. */
+export function onUpdateProgress(listener: (progress: UpdateProgress) => void): Unsubscribe {
+  return Events.On("updates:progress", (event) => listener(event.data));
 }

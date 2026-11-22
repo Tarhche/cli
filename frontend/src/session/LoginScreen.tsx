@@ -5,6 +5,7 @@ import {formFailure} from "../api/failure";
 import {Session} from "../api/services";
 import {useRun} from "../api/useRun";
 import {FailureAlert} from "../components/FailureAlert";
+import {useUpdates} from "../updates/updates";
 import {ContextMenu} from "./ContextMenu";
 import {endOfContext, type SessionEnd, useSession} from "./session";
 
@@ -22,6 +23,7 @@ type Cancellable = Promise<void> & {cancel?: () => void};
  */
 export function LoginScreen() {
   const session = useSession();
+  const updates = useUpdates();
   const [identity, setIdentity] = useState("");
   const [password, setPassword] = useState("");
   const waiting = useRef<Cancellable | null>(null);
@@ -117,6 +119,17 @@ export function LoginScreen() {
               </Button>
             </Stack>
           </form>
+
+          <Group justify="center" gap={4}>
+            {updates.version && (
+              <Text size="xs" c="dimmed">
+                Version {updates.version} ·
+              </Text>
+            )}
+            <Button variant="subtle" size="compact-xs" onClick={updates.check}>
+              Check for updates
+            </Button>
+          </Group>
         </Stack>
       </Paper>
     </Center>

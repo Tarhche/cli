@@ -23,3 +23,13 @@ export const TerminalExit = "terminal:exit";
  */
 export const TerminalOutput = "terminal:output";
 
+/**
+ * Name of the custom event "updates:check".
+ */
+export const UpdatesCheck = "updates:check";
+
+/**
+ * Name of the custom event "updates:progress".
+ */
+export const UpdatesProgress = "updates:progress";
+

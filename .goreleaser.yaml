@@ -71,12 +71,21 @@ builds:
       - "7"
     mod_timestamp: "{{ .CommitTimestamp }}"
 
-# Beside the binaries for each architecture, not instead of them.
+# Beside the binaries for each architecture, not instead of them, and
+# bundled as Tarhche.app (tarhche_<version>_darwin_app.zip): what Finder and
+# the Dock open as the desktop app, and what tarhche upgrade replaces a bundle
+# with.
 universal_binaries:
   - ids:
       - tarhche
     name_template: tarhche
     mod_timestamp: "{{ .CommitTimestamp }}"
+    hooks:
+      post:
+        - cmd: ./scripts/app.sh {{ .Path }} {{ .Version }} dist/app
+          env:
+            - SOURCE_DATE_EPOCH={{ .CommitTimestamp }}
+          output: true
 
 archives:
   - ids:
@@ -92,9 +101,15 @@ archives:
     files:
       - README.md
       - LICENSE*
+      # A Linux archive's desktop entry and its icon. Nothing else under
+      # build/ is named tarhche.*, so the others' archives hold none of it.
+      - src: build/{{ .Os }}/tarhche.*
+        strip_parent: true
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  extra_files:
+    - glob: ./dist/app/tarhche_*_darwin_app.zip
 
 changelog:
   use: github
@@ -117,6 +132,8 @@ release:
     owner: Tarhche
     name: cli
   prerelease: auto
+  extra_files:
+    - glob: ./dist/app/tarhche_*_darwin_app.zip
 
 # Built from the Dockerfile's release stage, which copies the image build's
 # binary for each platform; a prerelease is not the latest.

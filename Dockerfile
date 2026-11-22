@@ -25,6 +25,12 @@ ENV GOPATH=/go \
     PATH=/go/bin:/usr/local/go/bin:${PATH} \
     GOTOOLCHAIN=local
 
+# librsvg and ImageMagick render the app's icons from build/icon.svg (make
+# icons), and zip packs the macOS app bundle a release publishes.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends librsvg2-bin imagemagick zip \
+    && rm -rf /var/lib/apt/lists/*
+
 ARG WAILS_VERSION=v3.1.0
 RUN CGO_ENABLED=0 go install -tags purego github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION} \
     && rm -rf /root/.cache/go-build /go/pkg/mod \

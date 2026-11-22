@@ -1,12 +1,14 @@
 import {Avatar, Group, Menu, Text, UnstyledButton} from "@mantine/core";
-import {IconLogout} from "@tabler/icons-react";
+import {IconLogout, IconRefresh} from "@tabler/icons-react";
 import {Session} from "../api/services";
 import {useAct} from "../api/useAct";
+import {useUpdates} from "../updates/updates";
 import {useSession} from "./session";
 
-/** Who the app is signed in as, and signing out. */
+/** Who the app is signed in as, signing out, and the version of the app, which may be upgraded. */
 export function UserMenu() {
   const session = useSession();
+  const updates = useUpdates();
   const act = useAct();
   const status = session.status;
   const user = status?.user;
@@ -39,6 +41,19 @@ export function UserMenu() {
           Signed in {status?.method === "password" ? "with a password" : "in a browser"} to {status?.context.name}
         </Menu.Label>
         <Menu.Divider />
+        <Menu.Item
+          leftSection={<IconRefresh size={14} />}
+          rightSection={
+            updates.version && (
+              <Text size="xs" c="dimmed">
+                {updates.version}
+              </Text>
+            )
+          }
+          onClick={updates.check}
+        >
+          Check for updates…
+        </Menu.Item>
         <Menu.Item color="red" leftSection={<IconLogout size={14} />} onClick={() => void logout()}>
           Sign out
         </Menu.Item>

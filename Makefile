@@ -11,7 +11,7 @@ HOST_ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 
 PLATFORMS := darwin/amd64 darwin/arm64 linux/386 linux/amd64 linux/arm linux/arm64 windows/386 windows/amd64 windows/arm64
 
-.PHONY: image sh deps test cover lint generate frontend frontend-test build build-all desktop docker release-check snapshot clean
+.PHONY: image sh deps test cover lint generate icons frontend frontend-test build build-all app desktop docker release-check snapshot clean
 
 image: ## builds the development image every target runs in
 	$(COMPOSE) build develop
@@ -23,7 +23,7 @@ deps: ## downloads the Go modules and installs the frontend's packages
 	$(RUN) sh -c 'go mod download && npm --prefix frontend ci'
 
 test: ## runs the Go tests, with the race detector, as CI does
-	$(RUN) sh -c 'go test -race -cover -tags $(TAGS) ./... && go test -race -tags nodesktop ./cmd/tarhche'
+	$(RUN) sh -c 'go test -race -cover -tags $(TAGS) ./... && go test -race -tags nodesktop ./cmd/tarhche ./internal/upgrade'
 
 cover: ## writes coverage.out and prints the coverage of every function
 	$(RUN) sh -c 'go test -tags $(TAGS) -coverprofile=coverage.out ./... && go tool cover -func=coverage.out'
@@ -33,6 +33,9 @@ lint: ## lints the Go code, as .golangci.yaml says
 
 generate: ## regenerates the frontend's bindings to the desktop services
 	$(RUN) sh -c 'CGO_ENABLED=0 wails3 generate bindings -f "-tags=$(TAGS)" -ts -d frontend/bindings -clean ./internal/desktop/...'
+
+icons: ## renders every icon the app ships from build/icon.svg, and the Windows resources
+	$(RUN) ./scripts/icons.sh
 
 frontend: ## builds the desktop UI into frontend/dist
 	$(RUN) sh -c 'cd frontend && npm ci && npm run build'
@@ -49,6 +52,10 @@ build-all: frontend ## builds every released platform into dist/
 		echo "building $$os/$$arch"; \
 		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch GOARM=7 go build -trimpath -tags $(BUILD_TAGS) -ldflags "$(LDFLAGS)" -o dist/tarhche_$${os}_$${arch}$$ext ./cmd/tarhche || exit 1; \
 	done'
+
+app: frontend ## builds bin/Tarhche.app, the desktop app for a Mac of this architecture, and its zip
+	$(RUN) sh -c 'CGO_ENABLED=0 GOOS=darwin GOARCH=$(HOST_ARCH) go build -trimpath -tags $(BUILD_TAGS) -ldflags "$(LDFLAGS)" -o bin/darwin/tarhche ./cmd/tarhche \
+		&& ./scripts/app.sh bin/darwin/tarhche $(VERSION) bin'
 
 desktop: build ## builds bin/tarhche and opens the desktop UI on this machine
 	./bin/tarhche --desktop
