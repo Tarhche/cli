@@ -8,18 +8,37 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
+	"sync"
 	"time"
 
 	"github.com/Tarhche/cli/internal/api"
+	"github.com/Tarhche/cli/internal/browser"
 	"github.com/Tarhche/cli/internal/config"
 	"github.com/Tarhche/cli/internal/credentials"
+	"github.com/Tarhche/cli/internal/version"
 )
 
 // ErrNotLoggedIn is a context nobody is signed in to, or whose session is
 // gone, when signing in again is not something to do by itself.
 var ErrNotLoggedIn = errors.New("not logged in")
+
+// errNotRenewed is a token refused where it is not renewed.
+var errNotRenewed = errors.New("the token was refused")
+
+const (
+	// renewBefore is how long before it runs out an access token is
+	// renewed rather than used.
+	renewBefore = 30 * time.Second
+
+	// endSessionTimeout bounds how long a logout tries to end the session on
+	// its estate.
+	endSessionTimeout = 10 * time.Second
+)
 
 // Status is who a context is signed in as.
 type Status struct {
@@ -44,6 +63,17 @@ type Manager struct {
 	browser     func(url string) error
 	prompt      io.Writer
 	interactive bool
+
+	// loginTimeout bounds how long a browser login waits for the user.
+	loginTimeout time.Duration
+
+	// env reads the environment, which the language a device says it
+	// speaks is read off.
+	env func(string) string
+
+	lock    sync.Mutex
+	held    map[string]chan struct{}
+	configs sync.Mutex
 }
 
 // Option configures a manager.
@@ -73,8 +103,17 @@ func WithInteractive(interactive bool) Option {
 }
 
 // New is a manager of the contexts of cfg, keeping their sessions in store.
+// It opens pages in the user's default browser unless told otherwise.
 func New(cfg *config.File, store credentials.Store, options ...Option) *Manager {
-	m := &Manager{config: cfg, store: store, http: &http.Client{Timeout: api.DefaultTimeout}}
+	m := &Manager{
+		config:       cfg,
+		store:        store,
+		http:         &http.Client{Timeout: api.DefaultTimeout},
+		browser:      browser.Open,
+		loginTimeout: loginTimeout,
+		env:          os.Getenv,
+	}
+
 	for _, option := range options {
 		option(m)
 	}
@@ -82,40 +121,131 @@ func New(cfg *config.File, store credentials.Store, options ...Option) *Manager 
 	return m
 }
 
-// LoginWithBrowser signs in to a context in a browser, through its
-// authorization server, and keeps the session.
-func (m *Manager) LoginWithBrowser(ctx context.Context, contextName string) error {
-	return errors.New("auth: signing in with a browser is not implemented yet")
-}
-
-// LoginWithPassword signs in to a context with an identity (a username or
-// an email) and a password, and keeps the session.
-func (m *Manager) LoginWithPassword(ctx context.Context, contextName, identity, password string) error {
-	return errors.New("auth: signing in with a password is not implemented yet")
-}
-
 // Logout ends the session of a context, where it is kept and on the estate
-// where it can.
+// where it can: forgetting it is what a logout is, so nothing the estate
+// answers fails it.
 func (m *Manager) Logout(ctx context.Context, contextName string) error {
-	return errors.New("auth: signing out is not implemented yet")
+	release, err := m.hold(ctx, contextName)
+	if err != nil {
+		return err
+	}
+
+	defer release()
+
+	kept, readErr := m.store.Get(contextName)
+
+	if err := m.store.Delete(contextName); err != nil {
+		return err
+	}
+
+	if readErr == nil {
+		m.endSession(ctx, contextName, kept)
+	}
+
+	return nil
 }
 
-// Status is who a context is signed in as.
+// Status is who a context is signed in as, as its session is kept: the
+// estate is not asked.
 func (m *Manager) Status(ctx context.Context, contextName string) (Status, error) {
-	return Status{}, errors.New("auth: status is not implemented yet")
+	kept, err := m.store.Get(contextName)
+	if errors.Is(err, credentials.ErrNotFound) {
+		return Status{}, nil
+	} else if err != nil {
+		return Status{}, err
+	}
+
+	claims := claimsOf(kept.AccessToken)
+
+	return Status{LoggedIn: true, Method: kept.Method, Subject: claims.Subject, ExpiresAt: claims.expiry()}, nil
 }
 
-// TokenSource is the source of the access tokens of a context's session.
-func (m *Manager) TokenSource(contextName string) api.TokenSource {
-	return unimplemented{}
+// hold waits until nothing else signs in to, out of or renews the session of
+// a context, and is what lets it go.
+func (m *Manager) hold(ctx context.Context, contextName string) (func(), error) {
+	m.lock.Lock()
+	if m.held == nil {
+		m.held = make(map[string]chan struct{})
+	}
+
+	held, found := m.held[contextName]
+	if !found {
+		held = make(chan struct{}, 1)
+		m.held[contextName] = held
+	}
+	m.lock.Unlock()
+
+	select {
+	case held <- struct{}{}:
+		return func() { <-held }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
-type unimplemented struct{}
+// endSession ends a session on its estate, with its own token: a session
+// may always end itself. One about to run out is renewed first.
+func (m *Manager) endSession(ctx context.Context, contextName string, kept credentials.Credentials) {
+	current, err := m.config.Context(contextName)
+	if err != nil {
+		return
+	}
 
-func (unimplemented) Token(context.Context) (string, error) {
-	return "", ErrNotLoggedIn
+	session := claimsOf(kept.AccessToken).Session
+	if len(session) == 0 {
+		session = claimsOf(kept.RefreshToken).Session
+	}
+
+	if len(session) == 0 {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, endSessionTimeout)
+	defer cancel()
+
+	token := kept.AccessToken
+	if expiresWithin(token, renewBefore) {
+		if renewed, err := m.renew(ctx, current, kept); err == nil {
+			token = renewed.AccessToken
+		}
+	}
+
+	client, err := m.client(current.API, token)
+	if err != nil {
+		return
+	}
+
+	_ = client.Delete(ctx, "/api/dashboard/profile/sessions/"+url.PathEscape(session), nil, nil)
 }
 
-func (unimplemented) Renew(context.Context, string) (string, error) {
-	return "", ErrNotLoggedIn
+// client is a client of an estate's API, signing its requests with token
+// when there is one.
+func (m *Manager) client(base, token string) (*api.Client, error) {
+	options := []api.Option{api.WithHTTPClient(m.http), api.WithUserAgent(version.UserAgent())}
+	if len(token) > 0 {
+		options = append(options, api.WithTokens(fixedToken(token)))
+	}
+
+	return api.New(base, options...)
+}
+
+// say tells the user what is going on, on the prompt.
+func (m *Manager) say(format string, args ...any) {
+	if m.prompt == nil {
+		return
+	}
+
+	_, _ = fmt.Fprintf(m.prompt, format, args...)
+}
+
+// fixedToken signs requests with one token, which is not renewed when it is
+// refused.
+type fixedToken string
+
+func (t fixedToken) Token(context.Context) (string, error) {
+	return string(t), nil
+}
+
+func (t fixedToken) Renew(context.Context, string) (string, error) {
+	return "", errNotRenewed
 }

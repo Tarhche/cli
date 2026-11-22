@@ -124,7 +124,7 @@ func (f *File) write(kept map[string]Credentials) error {
 		return fmt.Errorf("writing %s: %w", f.path, err)
 	}
 
-	defer os.Remove(temporary.Name())
+	defer func() { _ = os.Remove(temporary.Name()) }()
 
 	if err := temporary.Chmod(0o600); err != nil {
 		_ = temporary.Close()
