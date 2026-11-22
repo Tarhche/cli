@@ -1,0 +1,10 @@
+/bin/
+/dist/
+/coverage.*
+/.claude/
+
+/frontend/node_modules/
+/frontend/dist/*
+!/frontend/dist/.gitkeep
+
+.DS_Store

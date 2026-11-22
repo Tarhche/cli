@@ -1,0 +1,60 @@
+COMPOSE ?= docker compose
+RUN ?= $(COMPOSE) run --rm develop
+
+TAGS := purego
+PACKAGES := $$(go list ./... | grep -v /node_modules/)
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS := -s -w -X github.com/Tarhche/cli/internal/version.Version=$(VERSION)
+
+HOST_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+HOST_ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
+
+PLATFORMS := darwin/amd64 darwin/arm64 linux/386 linux/amd64 linux/arm linux/arm64 windows/386 windows/amd64 windows/arm64
+
+.PHONY: image sh deps test cover lint generate frontend frontend-test build build-all desktop docker clean
+
+image: ## builds the development image every target runs in
+	$(COMPOSE) build develop
+
+sh: ## opens a shell in the development container
+	$(RUN) bash
+
+deps: ## downloads the Go modules and installs the frontend's packages
+	$(RUN) sh -c 'go mod download && npm --prefix frontend ci'
+
+test: ## runs the Go tests, with the race detector, as CI does
+	$(RUN) sh -c 'go test -race -cover -tags $(TAGS) $(PACKAGES)'
+
+cover: ## writes coverage.out and prints the coverage of every function
+	$(RUN) sh -c 'go test -tags $(TAGS) -coverprofile=coverage.out $(PACKAGES) && go tool cover -func=coverage.out'
+
+lint: ## lints the Go code
+	$(RUN) golangci-lint run --build-tags $(TAGS) ./...
+
+generate: ## regenerates the frontend's bindings to the desktop services
+	$(RUN) sh -c 'wails3 generate bindings -ts -d frontend/bindings -clean ./internal/desktop/...'
+
+frontend: ## builds the desktop UI into frontend/dist
+	$(RUN) sh -c 'cd frontend && npm ci && npm run build'
+
+frontend-test: ## lints, type checks and tests the desktop UI
+	$(RUN) sh -c 'cd frontend && npm ci && npm run lint && npm run typecheck && npm test'
+
+build: frontend ## builds bin/tarhche for this machine
+	$(RUN) env CGO_ENABLED=0 GOOS=$(HOST_OS) GOARCH=$(HOST_ARCH) go build -trimpath -tags $(TAGS) -ldflags "$(LDFLAGS)" -o bin/tarhche ./cmd/tarhche
+
+build-all: frontend ## builds every released platform into dist/
+	$(RUN) sh -c 'for platform in $(PLATFORMS); do \
+		os=$${platform%/*}; arch=$${platform#*/}; ext=; [ $$os = windows ] && ext=.exe; \
+		echo "building $$os/$$arch"; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch GOARM=7 go build -trimpath -tags $(TAGS) -ldflags "$(LDFLAGS)" -o dist/tarhche_$${os}_$${arch}$$ext ./cmd/tarhche || exit 1; \
+	done'
+
+desktop: build ## builds bin/tarhche and opens the desktop UI on this machine
+	./bin/tarhche --desktop
+
+docker: ## builds the production image
+	docker build --target production --build-arg VERSION=$(VERSION) -t tarhche/cli:$(VERSION) .
+
+clean: ## removes what the builds wrote
+	rm -rf bin dist coverage.out

@@ -1,0 +1,22 @@
+services:
+  develop:
+    build:
+      context: .
+      target: develop
+    working_dir: /app
+    command: sleep infinity
+    init: true
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+      - go-build:/root/.cache/go-build
+      - node-modules:/app/frontend/node_modules
+
+volumes:
+  # the Go caches are shared by every checkout, worktrees among them, since
+  # Go keeps them safe to use at once; node_modules is each checkout's own.
+  go-modules:
+    name: tarhche-cli-go-modules
+  go-build:
+    name: tarhche-cli-go-build
+  node-modules:
