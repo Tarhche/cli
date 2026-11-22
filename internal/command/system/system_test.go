@@ -19,6 +19,7 @@ func TestRegister(t *testing.T) {
 		{"login"},
 		{"logout"},
 		{"version"},
+		{"upgrade"},
 		{"info"},
 		{"context"},
 		{"context", "ls"},

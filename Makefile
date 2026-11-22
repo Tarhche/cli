@@ -23,7 +23,7 @@ deps: ## downloads the Go modules and installs the frontend's packages
 	$(RUN) sh -c 'go mod download && npm --prefix frontend ci'
 
 test: ## runs the Go tests, with the race detector, as CI does
-	$(RUN) sh -c 'go test -race -cover -tags $(TAGS) ./... && go test -race -tags nodesktop ./cmd/tarhche'
+	$(RUN) sh -c 'go test -race -cover -tags $(TAGS) ./... && go test -race -tags nodesktop ./cmd/tarhche ./internal/upgrade'
 
 cover: ## writes coverage.out and prints the coverage of every function
 	$(RUN) sh -c 'go test -tags $(TAGS) -coverprofile=coverage.out ./... && go tool cover -func=coverage.out'
