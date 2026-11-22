@@ -46,12 +46,12 @@ describe("LoginScreen", () => {
       </WithSession>,
     );
 
-    await userEvent.type(screen.getByLabelText("Username or email"), "mahdi");
+    await userEvent.type(screen.getByLabelText("Username or email"), "sarah");
     await userEvent.type(screen.getByLabelText("Password"), "secret");
     await userEvent.click(screen.getByRole("button", {name: "Sign in"}));
 
     await waitFor(() => expect(state.refresh).toHaveBeenCalled());
-    expect(Session.LoginWithPassword).toHaveBeenCalledWith("mahdi", "secret");
+    expect(Session.LoginWithPassword).toHaveBeenCalledWith("sarah", "secret");
   });
 
   it("says what the API refused beside each field, and the rest above", async () => {

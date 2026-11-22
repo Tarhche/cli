@@ -85,16 +85,38 @@ func TestRead(t *testing.T) {
 func TestDefinitionHelpers(t *testing.T) {
 	t.Parallel()
 
-	t.Run("every operation is served at its route", func(t *testing.T) {
+	t.Run("one's own route unless everybody's are asked for, and everybody's where one's own is not served", func(t *testing.T) {
 		t.Parallel()
 
-		paths := resource.Paths{List: "/l", Get: "/g", Create: "/c", Update: "/u", Delete: "/d"}
+		d := resource.Definition{Mine: resource.Paths{List: "/my"}, Everyone: resource.Paths{List: "/all", Delete: "/all/{uuid}"}}
 
-		assert.Equal(t, "/l", pathOf(paths, operationList))
-		assert.Equal(t, "/g", pathOf(paths, operationGet))
-		assert.Equal(t, "/c", pathOf(paths, operationCreate))
-		assert.Equal(t, "/u", pathOf(paths, operationUpdate))
-		assert.Equal(t, "/d", pathOf(paths, operationDelete))
+		assert.Equal(t, "/my", routeOf(d, operationList, false))
+		assert.Equal(t, "/all", routeOf(d, operationList, true))
+		assert.Equal(t, "/all/{uuid}", routeOf(d, operationDelete, false))
+		assert.Empty(t, routeOf(d, operationCreate, true))
+	})
+
+	t.Run("the audiences offered are those with a listing", func(t *testing.T) {
+		t.Parallel()
+
+		d := resource.Definition{Mine: resource.Paths{Get: "/my/{uuid}"}, Everyone: resource.Paths{List: "/all"}}
+
+		assert.Equal(t, []string{"everyone"}, audiencesOf(d))
+		assert.Equal(t, []string{}, audiencesOf(resource.Definition{}))
+	})
+
+	t.Run("filters are offered with the listings that take them", func(t *testing.T) {
+		t.Parallel()
+
+		d := resource.Definition{Filters: []resource.Filter{
+			{Name: "kind", Description: "of a kind", Values: []string{"read"}, Audiences: []resource.Audience{resource.AudienceEveryone}},
+			{Name: "from", Moment: true},
+		}}
+
+		assert.Equal(t, []ResourceFilter{
+			{Name: "kind", Description: "of a kind", Values: []string{"read"}, Audiences: []string{"everyone"}},
+			{Name: "from", Values: []string{}, Moment: true, Audiences: []string{}},
+		}, filtersOf(d))
 	})
 
 	t.Run("an action asked of the other audience is its only one", func(t *testing.T) {
@@ -143,13 +165,4 @@ func TestDefinitionHelpers(t *testing.T) {
 		assert.Error(t, brokenErr)
 	})
 
-	t.Run("what the definitions do not say yet is nothing", func(t *testing.T) {
-		t.Parallel()
-
-		assert.Equal(t, []any{"a"}, rowsOf(attempts, []any{"a"}))
-		assert.Nil(t, defaultsOf(attempts))
-		assert.Nil(t, actionBodyOf(attempts.Actions[0]))
-		assert.Empty(t, filtersOf(attempts))
-		assert.Empty(t, cursorOf(attempts))
-	})
 }

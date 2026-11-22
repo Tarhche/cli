@@ -3,137 +3,71 @@ package desktop
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"maps"
-	"strings"
 
 	"github.com/Tarhche/cli/internal/resource"
 )
 
-// Audiences of a resource: whose things a route serves.
-const (
-	audienceMine     = "mine"
-	audienceEveryone = "everyone"
-)
-
 // operation is one of the five things a resource may be asked.
-type operation string
+type operation = resource.Operation
 
 const (
-	operationList   operation = "list"
-	operationGet    operation = "get"
-	operationCreate operation = "create"
-	operationUpdate operation = "update"
-	operationDelete operation = "delete"
+	operationList   = resource.OperationList
+	operationGet    = resource.OperationGet
+	operationCreate = resource.OperationCreate
+	operationUpdate = resource.OperationUpdate
+	operationDelete = resource.OperationDelete
 )
-
-// pathOf is the path of paths op is served at, empty when it is not served.
-func pathOf(paths resource.Paths, op operation) string {
-	switch op {
-	case operationList:
-		return paths.List
-	case operationGet:
-		return paths.Get
-	case operationCreate:
-		return paths.Create
-	case operationUpdate:
-		return paths.Update
-	default:
-		return paths.Delete
-	}
-}
 
 // routeOf is the path op is served at: for one's own things unless
 // everybody's are asked for or one's own are not served, for everybody's
 // otherwise; empty when op is not served that way.
 func routeOf(d resource.Definition, op operation, everyone bool) string {
-	if !everyone {
-		if path := pathOf(d.Mine, op); len(path) > 0 {
-			return path
-		}
-	}
+	path, _, _ := d.Route(op, everyone)
 
-	return pathOf(d.Everyone, op)
+	return path
 }
 
 // audiencesOf are the audiences a resource is listed to, one's own first.
 func audiencesOf(d resource.Definition) []string {
 	audiences := []string{}
 
-	if len(d.Mine.List) > 0 {
-		audiences = append(audiences, audienceMine)
-	}
-
-	if len(d.Everyone.List) > 0 {
-		audiences = append(audiences, audienceEveryone)
+	for _, audience := range d.Audiences() {
+		if len(d.PathsOf(audience).List) > 0 {
+			audiences = append(audiences, string(audience))
+		}
 	}
 
 	return audiences
 }
 
-// bodyKeyOf are the fields of key that path does not name in braces, by
-// field: what a request to it carries in its body instead.
-func bodyKeyOf(d resource.Definition, path string, key []string) map[string]any {
-	fields := make(map[string]any)
-
-	for i, field := range d.Key {
-		if i < len(key) && !strings.Contains(path, "{"+field+"}") {
-			fields[field] = key[i]
-		}
-	}
-
-	return fields
-}
-
 // keyed reports whether an action is asked of one thing of its resource,
 // which its route names the key of, rather than of the resource.
 func keyed(d resource.Definition, a resource.Action) bool {
-	return len(bodyKeyOf(d, a.Path, d.Key)) < len(d.Key)
+	return len(d.BodyKey(a.Path, d.Key)) < len(d.Key)
 }
 
-// rowsOf are what a listing shows of the items the API answered it with:
-// an item a row.
-func rowsOf(_ resource.Definition, items []any) []any {
-	return items
-}
+// filtersOf are the filters the listings of a resource take, as the
+// frontend offers them.
+func filtersOf(d resource.Definition) []ResourceFilter {
+	filters := make([]ResourceFilter, len(d.Filters))
 
-// keyOfRow is the key of a row: its key fields, in order.
-func keyOfRow(d resource.Definition, row any) ([]string, error) {
-	fields, _ := row.(map[string]any)
-	key := make([]string, len(d.Key))
-
-	for i, field := range d.Key {
-		value, found := fields[field]
-		if !found || value == nil || fmt.Sprint(value) == "" {
-			return nil, fmt.Errorf("the %s has no %s", d.Name, field)
+	for i, filter := range d.Filters {
+		audiences := make([]string, len(filter.Audiences))
+		for j, audience := range filter.Audiences {
+			audiences[j] = string(audience)
 		}
 
-		key[i] = fmt.Sprint(value)
+		filters[i] = ResourceFilter{
+			Name:        filter.Name,
+			Description: filter.Description,
+			Values:      append([]string{}, filter.Values...),
+			Moment:      filter.Moment,
+			Audiences:   audiences,
+		}
 	}
 
-	return key, nil
-}
-
-// defaultsOf are the fields a body sent to a resource carries when it does
-// not say them itself.
-func defaultsOf(resource.Definition) map[string]any {
-	return nil
-}
-
-// actionBodyOf is what an action is sent with, nil for nothing.
-func actionBodyOf(resource.Action) map[string]any {
-	return nil
-}
-
-// filtersOf are the filters the listings of a resource take.
-func filtersOf(resource.Definition) []ResourceFilter {
-	return []ResourceFilter{}
-}
-
-// cursorOf is the query parameter a listing paged by a cursor is asked for
-// its next page with, empty for a listing paged by number.
-func cursorOf(resource.Definition) string {
-	return ""
+	return filters
 }
 
 // chosenAction is the action of that name asked of the audience asked, or

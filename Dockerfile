@@ -61,7 +61,7 @@ COPY . .
 COPY --from=frontend /app/frontend/dist ./frontend/dist
 
 RUN GOARM="${TARGETVARIANT#v}" CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
-    go build -trimpath -tags purego \
+    go build -trimpath -tags purego,production \
         -ldflags "-s -w -X github.com/Tarhche/cli/internal/version.Version=${VERSION}" \
         -o /out/tarhche ./cmd/tarhche
 

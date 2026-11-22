@@ -169,7 +169,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
         run: |
           export CGO_ENABLED=0 GOOS="${PLATFORM%/*}" GOARCH="${PLATFORM#*/}" GOARM=7
-          go build -trimpath -tags purego \
+          go build -trimpath -tags purego,production \
             -ldflags "-s -w -X github.com/Tarhche/cli/internal/version.Version=${GITHUB_SHA::7}" \
             -o "dist/tarhche_${GOOS}_${GOARCH}$(go env GOEXE)" ./cmd/tarhche
 

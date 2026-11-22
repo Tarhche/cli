@@ -182,12 +182,12 @@ func (r *Resources) List(ctx context.Context, name string, everyone bool, query 
 		return Listing{}, err
 	}
 
-	listing, raws, err := read(ctx, client, path, cursorOf(d), query)
+	listing, raws, err := read(ctx, client, path, d.Cursor, query)
 	if err != nil {
 		return Listing{}, err
 	}
 
-	rows := rowsOf(d, decodeItems(raws))
+	rows := d.Rows(decodeItems(raws))
 	listing.Columns = headersOf(d)
 	listing.Rows = make([]Row, 0, len(rows))
 
@@ -235,7 +235,7 @@ func (r *Resources) Create(ctx context.Context, name string, everyone bool, body
 		return nil, err
 	}
 
-	return r.send(ctx, http.MethodPost, path, withDefaults(object, defaultsOf(d)))
+	return r.send(ctx, http.MethodPost, path, withDefaults(object, d.Defaults))
 }
 
 // Update changes one of a resource to body, its JSON object: the one key
@@ -262,9 +262,9 @@ func (r *Resources) Update(ctx context.Context, name string, everyone bool, key 
 		}
 	}
 
-	maps.Copy(object, bodyKeyOf(d, path, key))
+	maps.Copy(object, d.BodyKey(path, key))
 
-	return r.send(ctx, http.MethodPut, d.Path(path, key), withDefaults(object, defaultsOf(d)))
+	return r.send(ctx, http.MethodPut, d.Path(path, key), withDefaults(object, d.Defaults))
 }
 
 // Delete deletes one of a resource, by its key.
@@ -279,9 +279,9 @@ func (r *Resources) Delete(ctx context.Context, name string, everyone bool, key 
 		return unserved(d, "deleted")
 	}
 
-	body := bodyKeyOf(d, path, key)
+	body := d.BodyKey(path, key)
 	if len(body) > 0 {
-		body = withDefaults(body, defaultsOf(d))
+		body = withDefaults(body, d.Defaults)
 	}
 
 	_, err = r.send(ctx, http.MethodDelete, d.Path(path, key), requestBody(body))
@@ -308,15 +308,15 @@ func (r *Resources) Action(ctx context.Context, name, action string, everyone bo
 	}
 
 	if !keyed(d, a) {
-		return r.send(ctx, method, a.Path, requestBody(actionBodyOf(a)))
+		return r.send(ctx, method, a.Path, requestBody(a.Body))
 	}
 
 	if len(key) != len(d.Key) {
 		return nil, fmt.Errorf("say which %s to %s", d.Name, action)
 	}
 
-	body := cloned(actionBodyOf(a))
-	maps.Copy(body, bodyKeyOf(d, a.Path, key))
+	body := cloned(a.Body)
+	maps.Copy(body, d.BodyKey(a.Path, key))
 
 	return r.send(ctx, method, d.Path(a.Path, key), requestBody(body))
 }
@@ -398,7 +398,7 @@ func describe(d resource.Definition) ResourceDefinition {
 		Everyone:    routesOf(d, true),
 		Actions:     actions,
 		Filters:     filtersOf(d),
-		Cursor:      len(cursorOf(d)) > 0,
+		Cursor:      len(d.Cursor) > 0,
 		Columns:     headersOf(d),
 	}
 }
@@ -473,7 +473,7 @@ func cellsOf(d resource.Definition) ([]cell, error) {
 // says none has none of, its cells, and itself, which, read from JSON, is
 // always written as JSON again.
 func rowOf(d resource.Definition, cells []cell, row any) (Row, error) {
-	key, err := keyOfRow(d, row)
+	key, err := d.KeyOf(row)
 	if err != nil {
 		key = []string{}
 	}

@@ -258,7 +258,7 @@ func TestSession(t *testing.T) {
 	t.Run("a session is whoever its profile says", func(t *testing.T) {
 		t.Parallel()
 
-		api := newRecorder(http.StatusOK, `{"uuid":"u-1","name":"Mahdi","username":"mahdi","email":"m@example.com","avatar":"a.png"}`)
+		api := newRecorder(http.StatusOK, `{"uuid":"u-1","name":"Sarah","username":"sarah","email":"s@example.com","avatar":"a.png"}`)
 		session, _, authenticator, _ := newSession(t, api)
 		expires := time.Date(2026, 11, 22, 10, 0, 0, 0, time.UTC)
 		authenticator.On("Status", testify.Anything, testContext).Return(auth.Status{LoggedIn: true, Method: "oauth", Subject: "u-1", ExpiresAt: expires}, nil).Once()
@@ -270,7 +270,7 @@ func TestSession(t *testing.T) {
 		assert.Equal(t, "oauth", status.Method)
 		assert.Equal(t, "u-1", status.Subject)
 		assert.Equal(t, expires, status.ExpiresAt)
-		assert.Equal(t, &desktop.User{UUID: "u-1", Name: "Mahdi", Username: "mahdi", Email: "m@example.com", Avatar: "a.png"}, status.User)
+		assert.Equal(t, &desktop.User{UUID: "u-1", Name: "Sarah", Username: "sarah", Email: "s@example.com", Avatar: "a.png"}, status.User)
 		assert.Equal(t, "/api/dashboard/profile", api.last(t).Path)
 	})
 
@@ -326,12 +326,12 @@ func TestSession(t *testing.T) {
 
 		session, w, authenticator, _ := newSession(t, nil)
 		authenticator.On("LoginWithBrowser", testify.Anything, testContext).Return(nil).Once()
-		authenticator.On("LoginWithPassword", testify.Anything, testContext, "mahdi", "secret").Return(nil).Once()
+		authenticator.On("LoginWithPassword", testify.Anything, testContext, "sarah", "secret").Return(nil).Once()
 		authenticator.On("Logout", testify.Anything, testContext).Return(nil).Once()
 
 		for _, signIn := range []func(context.Context) error{
 			session.LoginWithBrowser,
-			func(ctx context.Context) error { return session.LoginWithPassword(ctx, "mahdi", "secret") },
+			func(ctx context.Context) error { return session.LoginWithPassword(ctx, "sarah", "secret") },
 			session.Logout,
 		} {
 			before := w.Cli()

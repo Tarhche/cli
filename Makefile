@@ -2,6 +2,7 @@ COMPOSE ?= docker compose
 RUN ?= $(COMPOSE) run --rm develop
 
 TAGS := purego
+BUILD_TAGS := $(TAGS),production
 VERSION ?= $(or $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//'),dev)
 LDFLAGS := -s -w -X github.com/Tarhche/cli/internal/version.Version=$(VERSION)
 
@@ -40,13 +41,13 @@ frontend-test: ## lints, type checks and tests the desktop UI
 	$(RUN) sh -c 'cd frontend && npm ci && npm run lint && npm run typecheck && npm test'
 
 build: frontend ## builds bin/tarhche for this machine
-	$(RUN) env CGO_ENABLED=0 GOOS=$(HOST_OS) GOARCH=$(HOST_ARCH) go build -trimpath -tags $(TAGS) -ldflags "$(LDFLAGS)" -o bin/tarhche ./cmd/tarhche
+	$(RUN) env CGO_ENABLED=0 GOOS=$(HOST_OS) GOARCH=$(HOST_ARCH) go build -trimpath -tags $(BUILD_TAGS) -ldflags "$(LDFLAGS)" -o bin/tarhche ./cmd/tarhche
 
 build-all: frontend ## builds every released platform into dist/
 	$(RUN) sh -c 'for platform in $(PLATFORMS); do \
 		os=$${platform%/*}; arch=$${platform#*/}; ext=; [ $$os = windows ] && ext=.exe; \
 		echo "building $$os/$$arch"; \
-		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch GOARM=7 go build -trimpath -tags $(TAGS) -ldflags "$(LDFLAGS)" -o dist/tarhche_$${os}_$${arch}$$ext ./cmd/tarhche || exit 1; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch GOARM=7 go build -trimpath -tags $(BUILD_TAGS) -ldflags "$(LDFLAGS)" -o dist/tarhche_$${os}_$${arch}$$ext ./cmd/tarhche || exit 1; \
 	done'
 
 desktop: build ## builds bin/tarhche and opens the desktop UI on this machine

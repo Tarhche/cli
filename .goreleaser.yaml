@@ -24,6 +24,7 @@ builds:
       - -trimpath
     tags:
       - purego
+      - production
     ldflags:
       - -s -w -X github.com/Tarhche/cli/internal/version.Version={{ .Version }}
     goos:

@@ -44,7 +44,7 @@ describe("Gate", () => {
   });
 
   it("shows the app once it is signed in", async () => {
-    const status = {context: testContext, logged_in: true, method: "oauth", subject: "u-1", expires_at: "", user: {uuid: "u-1", name: "Mahdi"}} as Status;
+    const status = {context: testContext, logged_in: true, method: "oauth", subject: "u-1", expires_at: "", user: {uuid: "u-1", name: "Sarah"}} as Status;
 
     render(
       <WithSession state={session({status})}>
@@ -53,7 +53,7 @@ describe("Gate", () => {
     );
 
     expect(await screen.findByRole("heading", {name: "Containers"})).toBeInTheDocument();
-    expect(screen.getByText("Mahdi")).toBeInTheDocument();
+    expect(screen.getByText("Sarah")).toBeInTheDocument();
     expect(await screen.findByText("No containers yet")).toBeInTheDocument();
   });
 });
