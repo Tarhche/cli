@@ -11,6 +11,7 @@ import {HOME, homeOf} from "./shell/navigation";
 import {NavigationProvider} from "./shell/NavigationProvider";
 import {Shell} from "./shell/Shell";
 import {theme} from "./theme";
+import {UpdatesProvider} from "./updates/UpdatesProvider";
 
 /** The desktop app. */
 export function App() {
@@ -18,9 +19,11 @@ export function App() {
     <MantineProvider theme={theme} defaultColorScheme="auto">
       <ModalsProvider>
         <Notifications position="bottom-right" />
-        <SessionProvider>
-          <Gate />
-        </SessionProvider>
+        <UpdatesProvider>
+          <SessionProvider>
+            <Gate />
+          </SessionProvider>
+        </UpdatesProvider>
       </ModalsProvider>
     </MantineProvider>
   );

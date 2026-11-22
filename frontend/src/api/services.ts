@@ -8,6 +8,7 @@ export {
   Resources,
   Session,
   Terminals,
+  Updates,
   Workloads,
 } from "../../bindings/github.com/Tarhche/cli/internal/desktop";
 
@@ -26,6 +27,7 @@ export type {
   NewContext,
   NewDockerVM,
   PortBinding,
+  Release,
   ResourceAction,
   ResourceDefinition,
   ResourceFilter,
@@ -37,6 +39,9 @@ export type {
   TerminalExit,
   TerminalOutput,
   TerminalSize,
+  Update,
+  UpdateProgress,
+  Upgraded,
   UsageQuery,
   User,
   VMNetwork,
