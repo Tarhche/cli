@@ -492,7 +492,22 @@ func TestRelay(t *testing.T) {
 
 		var exitErr *ExitError
 		require.ErrorAs(t, err, &exitErr)
-		assert.Equal(t, "nc: can't connect to remote host (127.0.0.1): Connection refused", exitErr.Error())
+		assert.Equal(t, 1, exitErr.Code)
+		assert.EqualError(t, err, "nc could not relay to 127.0.0.1:81 in the vm: nc: can't connect to remote host (127.0.0.1): Connection refused")
+		require.NoError(t, conn.Close())
+	})
+
+	t.Run("nc that fails saying nothing says where it relayed to", func(t *testing.T) {
+		t.Parallel()
+
+		d := serve(t, &streamtest.Ingress{Exec: func(e *streamtest.Exec) { _ = e.Exit(1) }})
+
+		conn, err := d.Relay(context.Background(), "0190", "::1", 8080)
+		require.NoError(t, err)
+
+		_, err = io.ReadAll(conn)
+
+		assert.EqualError(t, err, "nc could not relay to [::1]:8080 in the vm: exit status 1")
 		require.NoError(t, conn.Close())
 	})
 

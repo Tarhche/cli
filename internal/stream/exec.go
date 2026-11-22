@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"strconv"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -378,22 +380,24 @@ func (f *firstBytes) String() string {
 func (d *Dialer) Relay(ctx context.Context, vm, host string, port uint) (*Relayed, error) {
 	stderr := &firstBytes{limit: maxStderr}
 
-	session, err := d.Exec(ctx, vm, ExecOptions{Command: []string{"nc", host, fmt.Sprint(port)}, Stderr: stderr})
+	session, err := d.Exec(ctx, vm, ExecOptions{Command: []string{"nc", host, strconv.FormatUint(uint64(port), 10)}, Stderr: stderr})
 	if err != nil {
 		return nil, err
 	}
 
-	return &Relayed{session: session, stderr: stderr}, nil
+	return &Relayed{session: session, stderr: stderr, address: net.JoinHostPort(host, strconv.FormatUint(uint64(port), 10))}, nil
 }
 
 // Relayed is a TCP connection relayed by nc in a VM.
 type Relayed struct {
 	session *Exec
 	stderr  *firstBytes
+	address string
 }
 
 // Read reads what the other end sent, and is io.EOF once it closed the
-// connection, or an *ExitError when nc failed.
+// connection, or an error wrapping an *ExitError when nc failed: nothing
+// answered, say, which busybox's nc does not say.
 func (r *Relayed) Read(p []byte) (int, error) {
 	n, err := r.session.Read(p)
 	if !errors.Is(err, io.EOF) {
@@ -405,7 +409,7 @@ func (r *Relayed) Read(p []byte) (int, error) {
 	case waitErr != nil:
 		return n, waitErr
 	case code != 0:
-		return n, &ExitError{Code: code, Stderr: r.stderr.String()}
+		return n, fmt.Errorf("nc could not relay to %s in the vm: %w", r.address, &ExitError{Code: code, Stderr: r.stderr.String()})
 	}
 
 	return n, io.EOF
