@@ -38,7 +38,7 @@ func TestNew(t *testing.T) {
 		client, prompt := &http.Client{}, &bytes.Buffer{}
 		opened := ""
 
-		m := New(nil, nil, WithHTTPClient(client), WithPrompt(prompt), WithInteractive(true), WithBrowser(func(page string) error {
+		m := New(nil, nil, WithHTTPClient(client), WithPrompt(prompt), WithInteractive(true), WithLanguage("fa"), WithBrowser(func(page string) error {
 			opened = page
 
 			return nil
@@ -47,6 +47,7 @@ func TestNew(t *testing.T) {
 		assert.Same(t, client, m.http)
 		assert.Same(t, prompt, m.prompt)
 		assert.True(t, m.interactive)
+		assert.Equal(t, "fa", m.language)
 		require.NoError(t, m.browser("https://backend.example"))
 		assert.Equal(t, "https://backend.example", opened)
 	})

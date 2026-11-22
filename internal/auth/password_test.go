@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"runtime"
 	"testing"
 
@@ -61,6 +62,27 @@ func TestManagerLoginWithPassword(t *testing.T) {
 
 		_, err = store.Get("test")
 		assert.ErrorIs(t, err, credentials.ErrNotFound)
+	})
+
+	t.Run("the estate is asked to answer in the language asked for", func(t *testing.T) {
+		t.Parallel()
+
+		asked := make(chan string, 1)
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			asked <- r.Header.Get("Accept-Language") + r.Header.Get("X-Language-Code")
+
+			writeJSON(rw, http.StatusOK, map[string]string{"access_token": "t", "refresh_token": "r"})
+		}))
+		t.Cleanup(server.Close)
+
+		cfg, err := config.Load(t.TempDir())
+		require.NoError(t, err)
+		require.NoError(t, cfg.SetContext(config.Context{Name: "test", API: server.URL}))
+
+		require.NoError(t, New(cfg, mock.NewStore(nil), WithLanguage("en")).LoginWithPassword(context.Background(), "test", "jane", "secret"))
+
+		assert.Equal(t, "en", <-asked)
 	})
 
 	t.Run("an estate failing to sign in is an error", func(t *testing.T) {

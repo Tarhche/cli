@@ -174,7 +174,7 @@ func (c *Cli) Auth() (*auth.Manager, error) {
 		return nil, err
 	}
 
-	c.auth = auth.New(cfg, store, auth.WithPrompt(c.Err), auth.WithInteractive(c.Interactive()))
+	c.auth = auth.New(cfg, store, auth.WithPrompt(c.Err), auth.WithInteractive(c.Interactive()), auth.WithLanguage(c.Globals.Language))
 
 	return c.auth, nil
 }

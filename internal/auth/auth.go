@@ -63,6 +63,7 @@ type Manager struct {
 	browser     func(url string) error
 	prompt      io.Writer
 	interactive bool
+	language    string
 
 	// loginTimeout bounds how long a browser login waits for the user.
 	loginTimeout time.Duration
@@ -100,6 +101,12 @@ func WithPrompt(w io.Writer) Option {
 // its context has no session.
 func WithInteractive(interactive bool) Option {
 	return func(m *Manager) { m.interactive = interactive }
+}
+
+// WithLanguage asks the API to answer in language, which is what the reasons
+// it refuses a login are worded in.
+func WithLanguage(language string) Option {
+	return func(m *Manager) { m.language = language }
 }
 
 // New is a manager of the contexts of cfg, keeping their sessions in store.
@@ -224,6 +231,10 @@ func (m *Manager) client(base, token string) (*api.Client, error) {
 	options := []api.Option{api.WithHTTPClient(m.http), api.WithUserAgent(version.UserAgent())}
 	if len(token) > 0 {
 		options = append(options, api.WithTokens(fixedToken(token)))
+	}
+
+	if len(m.language) > 0 {
+		options = append(options, api.WithLanguage(m.language))
 	}
 
 	return api.New(base, options...)
