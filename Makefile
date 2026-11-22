@@ -2,7 +2,8 @@ COMPOSE ?= docker compose
 RUN ?= $(COMPOSE) run --rm develop
 
 TAGS := purego
-PACKAGES := $$(go list ./... | grep -v /node_modules/)
+PACKAGES := $$(go list -tags $(TAGS) ./... | grep -v /node_modules/)
+PACKAGE_DIRS := $$(go list -tags $(TAGS) -f "{{.Dir}}" ./... | grep -v /node_modules/)
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X github.com/Tarhche/cli/internal/version.Version=$(VERSION)
 
@@ -28,8 +29,8 @@ test: ## runs the Go tests, with the race detector, as CI does
 cover: ## writes coverage.out and prints the coverage of every function
 	$(RUN) sh -c 'go test -tags $(TAGS) -coverprofile=coverage.out $(PACKAGES) && go tool cover -func=coverage.out'
 
-lint: ## lints the Go code
-	$(RUN) golangci-lint run --build-tags $(TAGS) ./...
+lint: ## lints the Go code, as .golangci.yaml says, every package but node_modules'
+	$(RUN) sh -c 'golangci-lint run $(PACKAGE_DIRS)'
 
 generate: ## regenerates the frontend's bindings to the desktop services
 	$(RUN) sh -c 'wails3 generate bindings -ts -d frontend/bindings -clean ./internal/desktop/...'
