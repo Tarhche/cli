@@ -180,6 +180,8 @@ tarhche --desktop
 
 It signs in the same way (it shows its own sign-in when the current context has no session), and has a page for everything above: containers, VMs and the rest with their logs, terminals, files and forwarded ports, and every content resource the dashboard manages.
 
+It upgrades itself: **Check for Updates…** (in the tray's menu, the app's menu on macOS, the account menu, which also shows the version running, and on the sign-in screen) looks for a newer release on GitHub, shows what it says of itself, and downloads and installs it in place of the binary, or of the app bundle on macOS, when you ask; then it restarts into it. Where only an administrator may write (`/usr/local/bin`, say), it says so: upgrade from a terminal with `sudo tarhche upgrade` instead.
+
 Sessions are kept in the operating system's keychain, or in a file only you may read (`~/.tarhche/credentials.json`) where there is no keychain. An access token is renewed before it runs out; when a session is gone, a command run in a terminal signs in again in the browser by itself.
 
 ### In Docker
