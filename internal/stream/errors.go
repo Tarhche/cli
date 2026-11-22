@@ -136,12 +136,6 @@ func IsTooManyRequests(err error) bool {
 	return hasStatus(err, http.StatusTooManyRequests)
 }
 
-// IsForbidden reports whether err is a stream refused for the session's
-// permissions: the token it was opened with does not say its roles allow it.
-func IsForbidden(err error) bool {
-	return hasStatus(err, http.StatusForbidden)
-}
-
 func hasStatus(err error, status int) bool {
 	var e *Error
 
