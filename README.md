@@ -108,7 +108,7 @@ tarhche upgrade 1.2.3      # the release of 1.2.3 instead: a downgrade, or a rei
 
 It downloads the archive of the release for your platform from GitHub, checks it against the release's checksums file, and replaces the binary only once all of that succeeded. A binary run from the macOS app bundle (`Tarhche.app/Contents/MacOS/tarhche`) has the whole bundle replaced. On Windows the running `tarhche.exe` is renamed to `tarhche.exe.old` first, since Windows does not let a running program be replaced; the next upgrade removes it.
 
-A binary only root may replace, such as one installed into `/usr/local/bin` with `sudo install`, is upgraded with `sudo tarhche upgrade`; on Windows, a binary under `Program Files` is upgraded from a terminal run as administrator. The Docker image cannot upgrade itself: pull a newer image instead (`docker pull ghcr.io/tarhche/cli`).
+A binary only root may replace, such as one installed into `/usr/local/bin` with `sudo install`, is upgraded with `sudo tarhche upgrade`; on Windows, a binary under `Program Files` is upgraded from a terminal run as administrator. The Docker image cannot upgrade itself: pull a newer image instead (`docker pull ghcr.io/tarhche/cli`). Release 0.1.0 came before `tarhche upgrade`: from it, install the next release by hand once.
 
 ## Quick start
 
