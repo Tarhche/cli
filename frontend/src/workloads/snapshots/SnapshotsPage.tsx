@@ -1,5 +1,5 @@
 import {ActionIcon, Badge, EmptyState, Group, Loader, Pagination, Table, Text, Tooltip} from "@mantine/core";
-import {IconCamera, IconPencil, IconServer2} from "@tabler/icons-react";
+import {IconCamera, IconCopyPlus, IconPencil, IconRestore} from "@tabler/icons-react";
 import {useState} from "react";
 import {useAbilities} from "../../access/access";
 import {Workloads} from "../../api/services";
@@ -14,14 +14,16 @@ import {POLL} from "../listing";
 import type {Page, Snapshot} from "../types";
 import {WorkloadActions} from "../WorkloadActions";
 import {RenameModal} from "./RenameModal";
+import {RestoreOntoModal} from "./RestoreOntoModal";
 
-/** One's snapshots: VMs' disks, kept to make a VM from or to restore one to, and what the session may do with them. */
+/** One's snapshots: VMs' disks, kept to restore as a new VM or onto one, and what the session may do with them. */
 export function SnapshotsPage() {
   const {navigate} = useNavigation();
   const abilities = useAbilities();
   const may = abilities.snapshots;
   const takes = may.create && abilities.vms.show;
   const [page, setPage] = useState(1);
+  const [restored, setRestored] = useState<Snapshot | null>(null);
   const [renamed, setRenamed] = useState<Snapshot | null>(null);
   const [deleted, setDeleted] = useState<Snapshot | null>(null);
   const snapshots = useQuery(`snapshots:${page}`, () => Workloads.Snapshots(page, "") as Promise<Page<Snapshot>>, {interval: POLL});
@@ -79,9 +81,16 @@ export function SnapshotsPage() {
                     <Table.Td>
                       <Group gap={4} justify="flex-end" wrap="nowrap">
                         {abilities.vms.create && (
-                          <Tooltip label="Make a VM from it">
-                            <ActionIcon variant="subtle" aria-label="Make a VM from it" disabled={!ready} onClick={() => navigate({page: "create-vm", snapshot: uuid})}>
-                              <IconServer2 size={16} />
+                          <Tooltip label="Restore as new VM">
+                            <ActionIcon variant="subtle" color="teal" aria-label="Restore as new VM" disabled={!ready} onClick={() => navigate({page: "create-vm", snapshot: uuid})}>
+                              <IconCopyPlus size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                        {abilities.vms.restore && (
+                          <Tooltip label="Restore onto a VM">
+                            <ActionIcon variant="subtle" color="orange" aria-label="Restore onto a VM" disabled={!ready} onClick={() => setRestored(snapshot)}>
+                              <IconRestore size={16} />
                             </ActionIcon>
                           </Tooltip>
                         )}
@@ -107,6 +116,7 @@ export function SnapshotsPage() {
           <Pagination total={pages} value={page} onChange={setPage} />
         </Group>
       )}
+      {restored && <RestoreOntoModal opened onClose={() => setRestored(null)} snapshot={restored} />}
       <RenameModal
         opened={renamed !== null}
         onClose={() => setRenamed(null)}
@@ -118,7 +128,7 @@ export function SnapshotsPage() {
         onClose={() => setDeleted(null)}
         title="Delete snapshot"
         name={deleted?.metadata.name ?? ""}
-        description="What it kept goes with it."
+        description="It cannot be restored once it is gone."
         onDelete={() => Workloads.DeleteSnapshot(deleted?.metadata.uuid ?? "")}
         onDeleted={snapshots.reload}
       />
