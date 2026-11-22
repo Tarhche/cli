@@ -47,6 +47,30 @@ builds:
         goarch: arm
     mod_timestamp: "{{ .CommitTimestamp }}"
 
+  # The CLI alone, for the image: a binary that never loads a web view is
+  # static, which scratch needs.
+  - id: image
+    main: ./cmd/tarhche
+    binary: tarhche
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    tags:
+      - nodesktop
+    ldflags:
+      - -s -w -X github.com/Tarhche/cli/internal/version.Version={{ .Version }}
+    goos:
+      - linux
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "7"
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
 # Beside the binaries for each architecture, not instead of them.
 universal_binaries:
   - ids:
@@ -55,7 +79,9 @@ universal_binaries:
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
-  - name_template: >-
+  - ids:
+      - tarhche
+    name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ if eq .Arch "all" }}universal{{ else }}{{ .Arch }}{{ end }}{{ with .Arm }}v{{ . }}{{ end }}
     formats:
       - tar.gz
@@ -92,10 +118,12 @@ release:
     name: cli
   prerelease: auto
 
-# Built from the Dockerfile's release stage, which copies the binary built
-# above for each platform; a prerelease is not the latest.
+# Built from the Dockerfile's release stage, which copies the image build's
+# binary for each platform; a prerelease is not the latest.
 dockers_v2:
-  - images:
+  - ids:
+      - image
+    images:
       - ghcr.io/tarhche/cli
     tags:
       - "{{ .Version }}"

@@ -11,7 +11,6 @@ import (
 
 	"github.com/Tarhche/cli/internal/command"
 	"github.com/Tarhche/cli/internal/command/commands"
-	"github.com/Tarhche/cli/internal/desktop"
 	"github.com/Tarhche/cli/internal/version"
 )
 
@@ -41,7 +40,7 @@ func run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer
 
 		return 0
 	case cli.Globals.Desktop:
-		return cli.Exit(desktop.Run(ctx, cli))
+		return cli.Exit(openDesktop(ctx, cli))
 	}
 
 	return app.Run(ctx, args)

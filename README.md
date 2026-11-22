@@ -2,7 +2,7 @@
 
 `tarhche` manages a [Tarhche](https://tarhche.com) estate from a terminal, the way `docker` manages containers. It manages everything the web dashboard does: content (articles, comments, users, roles and the rest) and workloads (VMs, containers, images, networks, volumes, stacks and snapshots). It also opens a terminal in a workload, runs commands there, copies files in and out, and forwards a workload's ports to your machine. Run with `--desktop`, it opens a desktop app that uses the same contexts and sessions.
 
-It is one static binary per platform. The command line needs nothing installed beside it; the desktop app needs a web view (see [Linux](#linux-the-desktop-apps-libraries)).
+It is one binary per platform. On macOS and Windows it needs nothing beside it. On Linux it needs the C library every mainstream distribution has (glibc), which the desktop app loads its web view through; on a musl distribution such as Alpine, use the [Docker image](#docker), whose binary is the CLI alone and static. The desktop app needs a web view (see [Linux](#linux-the-desktop-apps-libraries)).
 
 ## Install
 
@@ -39,7 +39,7 @@ On Windows, extract `tarhche.exe` from the zip into a directory on your `PATH`.
 docker run --rm -it ghcr.io/tarhche/cli --help
 ```
 
-The image is published for `linux/amd64`, `linux/arm64`, `linux/386` and `linux/arm/v7`. Its tags are `latest` (the latest release), each release's version (`1.2.3`), and `main` (the latest commit on main). See [In Docker](#in-docker) below for keeping a session.
+The image holds the CLI alone (no desktop app), a static binary on an empty base. It is published for `linux/amd64`, `linux/arm64`, `linux/386` and `linux/arm/v7`. Its tags are `latest` (the latest release), each release's version (`1.2.3`), and `main` (the latest commit on main). See [In Docker](#in-docker) below for keeping a session.
 
 ### With Go
 
@@ -47,7 +47,7 @@ The image is published for `linux/amd64`, `linux/arm64`, `linux/386` and `linux/
 CGO_ENABLED=0 go install -tags purego github.com/Tarhche/cli/cmd/tarhche@latest
 ```
 
-This needs Go 1.27 or newer. `CGO_ENABLED=0` makes the binary static, and the `purego` tag lets the desktop app be built without cgo. A build like this reports its version as `dev`, and it has no desktop interface: the interface is built from `frontend/` separately, and only release builds embed it. Use a release binary for `--desktop`.
+This needs Go 1.27 or newer. The `purego` tag lets the desktop app be built without cgo; `-tags nodesktop` instead builds the CLI alone, a static binary that runs without any C library. A build like this reports its version as `dev`, and it has no desktop interface: the interface is built from `frontend/` separately, and only release builds embed it. Use a release binary for `--desktop`.
 
 ### macOS
 

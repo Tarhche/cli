@@ -32,19 +32,11 @@ RUN CGO_ENABLED=0 go install -tags purego github.com/wailsapp/wails/v3/cmd/wails
 
 WORKDIR /app
 
-FROM --platform=$BUILDPLATFORM node:26.13-alpine AS frontend
-
-WORKDIR /app/frontend
-
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
-
-COPY frontend/ ./
-RUN npm run build
-
-# build cross-compiles on the machine building the image: the desktop UI is
-# loaded at run time (Wails' purego backend), so no C toolchain is involved
-# for any target.
+# build cross-compiles the CLI alone on the machine building the image: the
+# image has no display to open the desktop app on, and a binary that never
+# loads a web view (nodesktop) is static, which scratch needs. A release
+# binary loads one at run time (Wails' purego backend), and so needs the C
+# library of a desktop.
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 
 ARG TARGETOS
@@ -58,10 +50,9 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-COPY --from=frontend /app/frontend/dist ./frontend/dist
 
 RUN GOARM="${TARGETVARIANT#v}" CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
-    go build -trimpath -tags purego,production \
+    go build -trimpath -tags nodesktop \
         -ldflags "-s -w -X github.com/Tarhche/cli/internal/version.Version=${VERSION}" \
         -o /out/tarhche ./cmd/tarhche
 
