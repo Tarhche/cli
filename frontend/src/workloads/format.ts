@@ -65,7 +65,7 @@ export function moment(at: string | undefined): string {
   return date.toLocaleString();
 }
 
-const RUNNING = new Set(["running", "ready", "up", "healthy", "available", "pulled", "created"]);
+const RUNNING = new Set(["running", "ready", "up", "healthy", "available", "pulled"]);
 const DONE = new Set(["stopped", "exited", "completed", "deleted"]);
 const FAILED = new Set(["failed", "dead", "error", "unhealthy"]);
 

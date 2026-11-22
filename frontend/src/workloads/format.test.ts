@@ -51,6 +51,8 @@ describe("states", () => {
     expect(stateColor("stopped")).toBe("gray");
     expect(stateColor("failed")).toBe("red");
     expect(stateColor("starting")).toBe("blue");
+    expect(stateColor("created")).toBe("blue");
+    expect(stateColor("ready")).toBe("green");
     expect(stateColor(undefined)).toBe("gray");
   });
 

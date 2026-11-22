@@ -56,6 +56,25 @@ describe("CreateVMPage", () => {
     expect(vi.mocked(Workloads.CreateVM).mock.calls[0][0]).toMatchObject({kind: "docker", image: "", resources: {memory: 512 * 1024 * 1024, disk: 4 * 1024 ** 3}, ports: [80, 443, 8080]});
   });
 
+  it("makes a VM from a snapshot of the snapshot's kind", async () => {
+    vi.mocked(Workloads.Snapshots).mockResolvedValue({
+      items: [{kind: "snapshot", metadata: {uuid: "s-1", name: "before"}, spec: {vm: {uuid: "v-0"}}, status: {state: "ready", disk: 4 * 1024 ** 3}, docker: true}],
+      pagination: {total_pages: 1, current_page: 1},
+    } as never);
+    vi.mocked(Workloads.CreateVM).mockResolvedValue(null as never);
+    render(
+      <NavigationProvider>
+        <CreateVMPage snapshot="s-1" />
+      </NavigationProvider>,
+    );
+
+    await screen.findByDisplayValue(/before/);
+    await userEvent.click(screen.getByRole("button", {name: "Create"}));
+
+    await waitFor(() => expect(Workloads.CreateVM).toHaveBeenCalled());
+    expect(vi.mocked(Workloads.CreateVM).mock.calls[0][0]).toMatchObject({kind: "docker", image: "", snapshot_uuid: "s-1"});
+  });
+
   it("says what the API refused beside the fields it is of", async () => {
     vi.mocked(Workloads.CreateVM).mockRejectedValue(
       new Error("x", {cause: {message: "refused", status: 400, fields: {name: "the name is required", "resources.memory": "at least 128 MiB", odd: "something else"}}}),

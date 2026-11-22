@@ -19,7 +19,9 @@ export function CreateVMPage({snapshot = null}: {snapshot?: string | null}) {
   const snapshots = useQuery("snapshots:ready", async () =>
     (await allPages<Snapshot>((page) => Workloads.Snapshots(page, "") as Promise<Page<Snapshot>>)).filter((s) => s.status.state === "ready"),
   );
-  const creation = useRun(() => Workloads.CreateVM(vmRequestOf(form)) as Promise<VM | null>);
+  const chosen = snapshots.data?.find((s) => s.metadata.uuid === form.snapshot);
+  const asked = chosen ? switchKind(form, chosen.docker ? "docker" : "machine") : form;
+  const creation = useRun(() => Workloads.CreateVM(vmRequestOf(asked)) as Promise<VM | null>);
   const laidOut = formFailure(creation.failure, vmFieldOf);
   const update = (patch: Partial<VMForm>) => setForm((current) => ({...current, ...patch}));
 
@@ -32,8 +34,6 @@ export function CreateVMPage({snapshot = null}: {snapshot?: string | null}) {
       navigate(uuid ? {page: "vm", uuid} : {page: "vms"});
     }
   };
-
-  const chosen = snapshots.data?.find((s) => s.metadata.uuid === form.snapshot);
 
   return (
     <form onSubmit={(event) => void submit(event)} noValidate>
@@ -63,7 +63,7 @@ export function CreateVMPage({snapshot = null}: {snapshot?: string | null}) {
               <SegmentedControl
                 fullWidth
                 disabled={chosen !== undefined}
-                value={form.kind}
+                value={asked.kind}
                 onChange={(kind) => setForm((current) => switchKind(current, kind as VMKind))}
                 data={[
                   {value: "machine", label: "Machine"},
@@ -71,7 +71,7 @@ export function CreateVMPage({snapshot = null}: {snapshot?: string | null}) {
                 ]}
               />
             </InputWrapper>
-            {form.kind === "machine" && !chosen && (
+            {asked.kind === "machine" && !chosen && (
               <Autocomplete label="Image" description="An OCI image to boot." data={IMAGES} value={form.image} onChange={(image) => update({image})} error={laidOut.fields.image} />
             )}
           </Stack>
