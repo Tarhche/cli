@@ -19,9 +19,11 @@ import (
 )
 
 const (
-	// KindVMs and KindTasks are the kinds streams are opened on, as the
-	// plurals the ingress names them by.
-	KindVMs   = "vms"
+	// KindVMs is the kind a VM's streams are opened on, as the plural the
+	// ingress names it by.
+	KindVMs = "vms"
+
+	// KindTasks is the kind a code runner's task's streams are opened on.
 	KindTasks = "tasks"
 
 	// DefaultPingInterval is how often an open stream is pinged, so that
@@ -112,6 +114,8 @@ func (d *Dialer) open(ctx context.Context, kind, uuid, action string, payload an
 
 	conn, response, err := d.handshake(ctx, target, token)
 	if response != nil && response.StatusCode == http.StatusUnauthorized && d.tokens != nil {
+		_ = response.Body.Close()
+
 		renewed, renewErr := d.tokens.Renew(ctx, token)
 		if renewErr != nil {
 			return nil, renewErr
@@ -123,6 +127,8 @@ func (d *Dialer) open(ctx context.Context, kind, uuid, action string, payload an
 	if err != nil {
 		return nil, refusal(name, response, err)
 	}
+
+	_ = response.Body.Close()
 
 	return newSocket(conn, d.ping), nil
 }

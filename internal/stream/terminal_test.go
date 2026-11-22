@@ -3,6 +3,7 @@ package stream
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net"
 	"testing"
@@ -73,7 +74,7 @@ func TestTerminal(t *testing.T) {
 		d := serve(t, &streamtest.Ingress{Attach: func(terminal *streamtest.Terminal) {
 			var all []byte
 
-			for messages := 0; messages < 3; messages++ {
+			for range 3 {
 				message, err := terminal.Next()
 				if err != nil {
 					break
@@ -130,7 +131,7 @@ func TestTerminal(t *testing.T) {
 			output, err := io.ReadAll(terminal)
 			assert.Equal(t, "bye", string(output), name)
 
-			if c.want == io.EOF {
+			if errors.Is(c.want, io.EOF) {
 				assert.NoError(t, err, name)
 			} else {
 				assert.Equal(t, c.want, err, name)

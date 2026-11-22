@@ -73,8 +73,7 @@ func (r *localRunner) Run(ctx context.Context, command []string, stdin io.Reader
 
 	err := process.Run()
 
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, exited := errors.AsType[*exec.ExitError](err); exited {
 		return &failure{code: exitErr.ExitCode(), stderr: stderr.String()}
 	}
 

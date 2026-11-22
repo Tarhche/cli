@@ -57,8 +57,8 @@ func dockerCopy(root string) func(*streamtest.Exec) {
 		}
 
 		dir, base := filepath.Dir(filepath.Clean(host)), filepath.Base(filepath.Clean(host))
-		if strings.HasSuffix(host, "/.") {
-			dir, base = strings.TrimSuffix(host, "/."), "."
+		if trimmed, found := strings.CutSuffix(host, "/."); found {
+			dir, base = trimmed, "."
 		}
 
 		e.Payload.Command = []string{"tar", "-c", "-f", "-", "-C", dir, "--", base}

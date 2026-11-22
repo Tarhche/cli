@@ -63,6 +63,17 @@ linters:
         text: G117
         linters:
           - gosec
+      # the doubles of the API, the ingress and the commands, which tests alone import
+      - path: internal/(command/commandtest|stream/streamtest|workload/workloadtest)/
+        linters:
+          - gosec
+          - noctx
+      # a copy makes its parent directories as docker's does, and every
+      # entry's path is checked to stay where it is extracted before it is
+      - path: internal/transfer/archive\.go
+        text: G301|G305
+        linters:
+          - gosec
     paths:
       - frontend/node_modules
 

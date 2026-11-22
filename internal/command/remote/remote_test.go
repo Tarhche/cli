@@ -224,8 +224,11 @@ func TestCommands(t *testing.T) {
 			assert.Equal(t, []string{"attach", "exec", "cp", "port-forward"}, names)
 		}
 
-		assert.NotSame(t, ContainerCommands(cli)[0], ContainerCommands(cli)[0])
-		assert.NotSame(t, VMCommands(cli)[0], VMCommands(cli)[0])
+		containers, again := ContainerCommands(cli), ContainerCommands(cli)
+		assert.NotSame(t, containers[0], again[0])
+
+		vms, againVMs := VMCommands(cli), VMCommands(cli)
+		assert.NotSame(t, vms[0], againVMs[0])
 	})
 
 	t.Run("every command says what it does and how it is asked for, as docker's does", func(t *testing.T) {

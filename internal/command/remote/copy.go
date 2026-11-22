@@ -93,8 +93,7 @@ func (r *remote) copy(ctx context.Context, plan copyPlan, remote transfer.Remote
 		to = plan.reference + ":" + plan.remotePath
 	}
 
-	var notFound *transfer.NotFoundError
-	if errors.As(err, &notFound) {
+	if notFound, isNotFound := errors.AsType[*transfer.NotFoundError](err); isNotFound {
 		return fmt.Errorf("could not find the file %s in %s %s", notFound.Path, kind, plan.reference)
 	}
 

@@ -141,6 +141,8 @@ func refusal(name string, response *http.Response, err error) error {
 		return e
 	}
 
+	defer response.Body.Close()
+
 	content, readErr := io.ReadAll(io.LimitReader(response.Body, maxRefusal))
 	if readErr != nil {
 		return e

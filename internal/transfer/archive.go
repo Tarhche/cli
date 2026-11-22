@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -339,8 +340,10 @@ func (x *extraction) clear(target, raw string) error {
 	info, err := os.Lstat(target)
 
 	switch {
-	case err != nil:
+	case errors.Is(err, fs.ErrNotExist):
 		return nil
+	case err != nil:
+		return fmt.Errorf("making room for %q at %s: %w", raw, target, err)
 	case info.IsDir():
 		return fmt.Errorf("cannot overwrite the directory %s with %q, which is not one", target, raw)
 	}
@@ -403,8 +406,7 @@ func (x *extraction) file(target string, content io.Reader, header *tar.Header) 
 func (x *extraction) finish() error {
 	var errs []error
 
-	for i := len(x.made) - 1; i >= 0; i-- {
-		made := x.made[i]
+	for _, made := range slices.Backward(x.made) {
 		errs = append(errs, os.Chmod(made.path, made.mode), os.Chtimes(made.path, made.modTime, made.modTime))
 	}
 
