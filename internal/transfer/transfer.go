@@ -118,12 +118,15 @@ func Download(ctx context.Context, remote Remote, src, dst string, stdout io.Wri
 	defer cancel()
 
 	reader, writer := io.Pipe()
-	archived := make(chan error, 1)
+
+	var archiveErr error
+
+	archived := make(chan struct{})
 
 	go func() {
-		err := remote.Archive(ctx, src, options.FollowLink, writer)
-		archived <- err
-		_ = writer.CloseWithError(err)
+		archiveErr = remote.Archive(ctx, src, options.FollowLink, writer)
+		close(archived)
+		_ = writer.CloseWithError(archiveErr)
 	}()
 
 	counted := &countingReader{r: reader}
@@ -134,12 +137,14 @@ func Download(ctx context.Context, remote Remote, src, dst string, stdout io.Wri
 	}
 
 	if err == nil {
-		return counted.n.Load(), <-archived
+		<-archived
+
+		return counted.n.Load(), archiveErr
 	}
 
 	select {
-	case remoteErr := <-archived:
-		return counted.n.Load(), cause(err, remoteErr)
+	case <-archived:
+		return counted.n.Load(), cause(err, archiveErr)
 	default:
 	}
 
