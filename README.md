@@ -1,6 +1,6 @@
 # Tarhche CLI
 
-`tarhche` manages a [Tarhche](https://tarhche.com) estate from a terminal, the way `docker` manages containers. It manages everything the web dashboard does: content (articles, comments, users, roles and the rest) and workloads (VMs, containers, images, networks, volumes, stacks and snapshots). It also opens a terminal in a workload, runs commands there, copies files in and out, and forwards a workload's ports to your machine. Run with `--desktop`, it opens a desktop app that uses the same contexts and sessions.
+`tarhche` manages a [Tarhche](https://tarhche.com) estate from a terminal, the way `docker` manages containers. It manages everything the web dashboard does: content (articles, comments, users, roles and the rest) and workloads (VMs, containers, images, networks, volumes, stacks and snapshots). It also opens a terminal in a workload, runs commands there, copies files in and out, and forwards a workload's ports to your machine. Run with `--desktop`, or opened as an app is (from Finder or the Dock, Explorer, or a desktop entry), it is a desktop app that uses the same contexts and sessions.
 
 It is one binary per platform. On macOS and Windows it needs nothing beside it. On Linux it needs the C library every mainstream distribution has (glibc), which the desktop app loads its web view through; on a musl distribution such as Alpine, use the [Docker image](#docker), whose binary is the CLI alone and static. The desktop app needs a web view (see [Linux](#linux-the-desktop-apps-libraries)).
 
@@ -15,6 +15,9 @@ Every [release](https://github.com/Tarhche/cli/releases) has an archive for each
 | macOS | `amd64` (Intel), `arm64` (Apple silicon), `universal` (both) | `tarhche_<version>_darwin_<arch>.tar.gz` |
 | Linux | `386`, `amd64`, `armv7`, `arm64` | `tarhche_<version>_linux_<arch>.tar.gz` |
 | Windows | `386`, `amd64`, `arm64` | `tarhche_<version>_windows_<arch>.zip` |
+| macOS, as an app | `universal` | `tarhche_<version>_darwin_app.zip` (`Tarhche.app`) |
+
+A Linux archive also holds the desktop app's entry and icon (`tarhche.desktop`, `tarhche.png`).
 
 On Linux or macOS:
 
@@ -32,6 +35,26 @@ tarhche --version
 ```
 
 On Windows, extract `tarhche.exe` from the zip into a directory on your `PATH`.
+
+### The desktop app
+
+The binary is the desktop app too. Started with no command and no terminal of its own, as an app is started, it opens the desktop app instead of printing its help; from a terminal it is the CLI, and `--desktop` opens the app from anywhere.
+
+- **macOS:** unzip `tarhche_<version>_darwin_app.zip` and move `Tarhche.app` to `/Applications`. Finder, the Dock, Launchpad and Spotlight open it as the desktop app. Its binary is the CLI as well, so link it instead of installing a second one:
+
+  ```sh
+  sudo ln -sf /Applications/Tarhche.app/Contents/MacOS/tarhche /usr/local/bin/tarhche
+  ```
+
+- **Windows:** double-click `tarhche.exe`, or a shortcut to it, to open the desktop app. In a terminal it is the CLI. It is a console program, so a console window may flash for a moment as the app starts.
+- **Linux:** with the binary on your `PATH`, install the desktop entry and its icon from the archive. Your desktop then lists Tarhche among its applications:
+
+  ```sh
+  install -Dm644 tarhche.desktop ~/.local/share/applications/tarhche.desktop
+  install -Dm644 tarhche.png ~/.local/share/icons/hicolor/512x512/apps/tarhche.png
+  ```
+
+  Opened from a file manager without a terminal, the binary opens the desktop app as well. Where there is no display, it stays the CLI.
 
 ### Docker
 
@@ -51,10 +74,11 @@ This needs Go 1.27 or newer. The `purego` tag lets the desktop app be built with
 
 ### macOS
 
-The binaries are not notarized. A binary downloaded with a browser is quarantined, and Gatekeeper refuses to run it. Remove the quarantine once:
+The binaries and the app are not notarized. Anything downloaded with a browser is quarantined, and Gatekeeper refuses to run it. Remove the quarantine once:
 
 ```sh
 xattr -d com.apple.quarantine /usr/local/bin/tarhche
+xattr -dr com.apple.quarantine /Applications/Tarhche.app
 ```
 
 Files downloaded with `curl`, as shown above, are not quarantined.
@@ -133,7 +157,7 @@ tarhche vm ls -q
 
 Every command has `--help`. Global flags go before the command's name: `--context`/`-c`, `--host`/`-H` (another API), `--ingress`, `--language` (`en` or `fa`), `--debug`/`-D`, and `--config` (default `~/.tarhche`). Each one can also be set with an environment variable (`TARHCHE_CONTEXT`, `TARHCHE_HOST`, ...).
 
-Open the desktop app:
+Open the desktop app, or open it as any other app (see [The desktop app](#the-desktop-app)):
 
 ```sh
 tarhche --desktop
@@ -171,6 +195,8 @@ Nothing but Docker is needed. Every tool (Go, Node, wails3, golangci-lint, GoRel
 | `make build` | `bin/tarhche` for this machine |
 | `make build-all` | every released platform, into `dist/` |
 | `make desktop` | `make build`, then `./bin/tarhche --desktop` on this machine |
+| `make app` | `bin/Tarhche.app` (and its zip) for a Mac of this architecture: `open bin/Tarhche.app` |
+| `make icons` | every icon the app ships, rendered from the Tarhche logo (`build/icon.svg`) |
 | `make docker` | the production image |
 | `make release-check` | checks `.goreleaser.yaml` |
 | `make snapshot` | everything a release publishes except the images, into `dist/`, with nothing published |
