@@ -54,6 +54,7 @@ func TestInfoCommand(t *testing.T) {
 		t.Parallel()
 
 		h := newHarness(t, estate(nil, nil), loggedIn(credentials.MethodOAuth))
+		withWebsite(t, h, "https://www.example")
 
 		require.Equal(t, console.ExitSuccess, h.Run(newInfoCommand(h.Cli)), h.Err.String())
 
@@ -61,6 +62,7 @@ func TestInfoCommand(t *testing.T) {
 			[2]string{"Context:", "test"},
 			[2]string{" API:", h.Server.URL},
 			[2]string{" Ingress:", h.Server.URL},
+			[2]string{" Website:", "https://www.example"},
 			[2]string{" Logged in:", "yes, in a browser"},
 			[2]string{},
 			[2]string{"User:", "Jane Doe"},
@@ -149,6 +151,7 @@ func TestInfoCommand(t *testing.T) {
 			[2]string{"Context:", "test"},
 			[2]string{" API:", h.Server.URL},
 			[2]string{" Ingress:", h.Server.URL},
+			[2]string{" Website:", ""},
 			[2]string{" Logged in:", "no"},
 		), h.Out.String())
 		assert.Empty(t, seen.asked())

@@ -180,6 +180,12 @@ export class ContextInfo {
     "ingress": string;
 
     /**
+     * Web is the estate's website, which the app opens pages of: none links
+     * to nothing.
+     */
+    "web": string;
+
+    /**
      * Current says it is the one the app talks to.
      */
     "current": boolean;
@@ -197,6 +203,9 @@ export class ContextInfo {
         }
         if (!("ingress" in $$source)) {
             this["ingress"] = "";
+        }
+        if (!("web" in $$source)) {
+            this["web"] = "";
         }
         if (!("current" in $$source)) {
             this["current"] = false;
@@ -651,6 +660,7 @@ export class NewContext {
     "description": string;
     "api": string;
     "ingress": string;
+    "web": string;
 
     /** Creates a new NewContext instance. */
     constructor($$source: Partial<NewContext> = {}) {
@@ -665,6 +675,9 @@ export class NewContext {
         }
         if (!("ingress" in $$source)) {
             this["ingress"] = "";
+        }
+        if (!("web" in $$source)) {
+            this["web"] = "";
         }
 
         Object.assign(this, $$source);

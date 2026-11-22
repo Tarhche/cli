@@ -9,7 +9,7 @@ import (
 
 // contextTable is the default table of a listing of contexts, the one the
 // CLI talks to marked.
-const contextTable = "{{.Name}}{{if .Current}} *{{end}}\t{{.Description}}\t{{.API}}\t{{.Ingress}}"
+const contextTable = "{{.Name}}{{if .Current}} *{{end}}\t{{.Description}}\t{{.API}}\t{{.Ingress}}\t{{.Web}}"
 
 // contextView is a context as the context commands show it.
 type contextView struct {
@@ -17,6 +17,7 @@ type contextView struct {
 	Description string `json:"Description"`
 	API         string `json:"API"`
 	Ingress     string `json:"Ingress"`
+	Web         string `json:"Web"`
 
 	// Current says it is the context the CLI talks to.
 	Current bool `json:"Current"`
@@ -56,7 +57,7 @@ func newContextGroup(cli *command.Cli) *console.Group {
 // viewOf is c as the context commands show it, current when it is the one
 // the CLI talks to.
 func viewOf(c config.Context, current string) contextView {
-	return contextView{Name: c.Name, Description: c.Description, API: c.API, Ingress: c.Ingress, Current: c.Name == current}
+	return contextView{Name: c.Name, Description: c.Description, API: c.API, Ingress: c.Ingress, Web: c.Web, Current: c.Name == current}
 }
 
 // inspectionOf is c as inspect shows it.

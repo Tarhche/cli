@@ -19,6 +19,7 @@ import (
 const infoTemplate = `Context:	{{.Context.Name}}
  API:	{{.Context.API}}
  Ingress:	{{.Context.Ingress}}
+ Website:	{{.Context.Web}}
  Logged in:	{{if not .LoggedIn}}no{{else if eq .Method "oauth"}}yes, in a browser{{else}}yes, with a password{{end}}
 {{- with .User}}
 
@@ -210,7 +211,7 @@ func (c *infoCommand) run(ctx context.Context) error {
 	}
 
 	info := information{
-		Context:  contextInfo{Name: current.Name, API: current.API, Ingress: current.Ingress},
+		Context:  contextInfo{Name: current.Name, API: current.API, Ingress: current.Ingress, Web: current.Web},
 		LoggedIn: status.LoggedIn,
 		Method:   status.Method,
 	}

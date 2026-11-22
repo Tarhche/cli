@@ -20,6 +20,7 @@ Context:
  Name:	{{.Context.Name}}
  API:	{{.Context.API}}
  Ingress:	{{.Context.Ingress}}
+ Website:	{{.Context.Web}}
 `
 
 // versionInfo is what version shows: the CLI, and the context it talks to.
@@ -41,6 +42,7 @@ type contextInfo struct {
 	Name    string `json:"Name"`
 	API     string `json:"API"`
 	Ingress string `json:"Ingress"`
+	Web     string `json:"Web"`
 }
 
 // versionCommand is docker's version: what the CLI is, and what it talks to.
@@ -89,6 +91,6 @@ func (c *versionCommand) run(context.Context) error {
 
 	return show(c.cli.Out, versionInfo{
 		Client:  clientInfo{Version: version.Version, GoVersion: runtime.Version(), Os: runtime.GOOS, Arch: runtime.GOARCH},
-		Context: contextInfo{Name: current.Name, API: current.API, Ingress: current.Ingress},
+		Context: contextInfo{Name: current.Name, API: current.API, Ingress: current.Ingress, Web: current.Web},
 	}, c.format, versionTemplate)
 }

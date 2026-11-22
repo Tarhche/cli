@@ -18,6 +18,7 @@ type updateContextCommand struct {
 
 	api         string
 	ingress     string
+	web         string
 	description string
 }
 
@@ -42,6 +43,7 @@ func (c *updateContextCommand) Configure(flags *console.FlagSet) {
 
 	console.Var(flags, &c.api, console.Long("api"), "The estate's API, as an absolute http or https URL")
 	console.Var(flags, &c.ingress, console.Long("ingress"), "The estate's workload ingress, as an absolute http or https URL")
+	console.Var(flags, &c.web, console.Long("web"), "The estate's website, as an absolute http or https URL")
 	console.Var(flags, &c.description, console.Long("description"), "Description of the context")
 }
 
@@ -74,6 +76,10 @@ func (c *updateContextCommand) run(ctx context.Context) error {
 
 	if c.provided("ingress") {
 		updated.Ingress = c.ingress
+	}
+
+	if c.provided("web") {
+		updated.Web = c.web
 	}
 
 	if c.provided("description") {

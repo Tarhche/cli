@@ -47,7 +47,7 @@ Go 1.27 (`toolchain go1.27.4`). **Every build is `CGO_ENABLED=0 -tags purego`**,
 
 ## The API it talks to
 
-A context names an estate: its API (default `https://backend.tarhche.com`) and its workload ingress (default `https://workload.tarhche.com`), which streams are opened on (`docs/streams.md`). The API answers in the language `X-Language-Code` names (`--language`; English unless told otherwise). Listings answer `{"items": [...], "pagination": {"total_pages", "current_page"}}` and take `?page=`. A refusal is `400 {"errors": {"field": "message"}}`; a workload failure is `{"code", "message"}`. Workload resources are answered in their kind's manifest shape, `{kind, metadata, spec, status}`. One's own things are under `/api/dashboard/my/...`, anybody's (what an administrator manages) under `/api/dashboard/...`.
+A context names an estate: its API (default `https://backend.tarhche.com`), its workload ingress (default `https://workload.tarhche.com`), which streams are opened on (`docs/streams.md`), and its website (`web`, default `https://tarhche.com`), whose pages the desktop app opens (an article on the website, an edit page of the web dashboard): of a context that names none, it links to nothing. The API answers in the language `X-Language-Code` names (`--language`; English unless told otherwise). Listings answer `{"items": [...], "pagination": {"total_pages", "current_page"}}` and take `?page=`. A refusal is `400 {"errors": {"field": "message"}}`; a workload failure is `{"code", "message"}`. Workload resources are answered in their kind's manifest shape, `{kind, metadata, spec, status}`. One's own things are under `/api/dashboard/my/...`, anybody's (what an administrator manages) under `/api/dashboard/...`.
 
 ## Conventions
 
