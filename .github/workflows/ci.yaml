@@ -258,13 +258,15 @@ jobs:
           version: ${{ steps.tools.outputs.goreleaser }}
           args: check
 
-      # Everything a tag would release, the images among it (one per
-      # platform, loaded rather than pushed), and nothing published.
+      # Everything a tag would release but its images, and nothing
+      # published: a snapshot loads one platform's image at a time, which
+      # cannot carry the index annotations a release's multi-platform image
+      # does, and the Docker image job builds the image for every platform.
       - name: goreleaser release --snapshot
         uses: goreleaser/goreleaser-action@v7
         with:
           version: ${{ steps.tools.outputs.goreleaser }}
-          args: release --snapshot --clean
+          args: release --snapshot --clean --skip=docker
 
       - uses: actions/upload-artifact@v7
         with:

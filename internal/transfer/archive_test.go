@@ -431,6 +431,7 @@ func TestUnpackEntries(t *testing.T) {
 		t.Parallel()
 
 		out := t.TempDir()
+		t.Cleanup(func() { _ = os.Chmod(filepath.Join(out, "ssl", "locked"), 0o700) })
 		then := time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
 		data := archiveOf(t,
 			entry{name: "ssl/", kind: tar.TypeDir, mode: 0o750, modTime: then},
