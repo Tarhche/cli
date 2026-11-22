@@ -84,6 +84,19 @@ func New(base string, options ...Option) (*Client, error) {
 	return c, nil
 }
 
+// WithTimeout is a copy of the client whose requests are bounded by timeout
+// rather than by the client's own, and by nothing when it is zero: for what
+// the API answers only once it is done, such as an image pulled.
+func (c *Client) WithTimeout(timeout time.Duration) *Client {
+	h := *c.http
+	h.Timeout = timeout
+
+	copied := *c
+	copied.http = &h
+
+	return &copied
+}
+
 // BaseURL is where the API is.
 func (c *Client) BaseURL() *url.URL {
 	u := *c.base

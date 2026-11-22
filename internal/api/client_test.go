@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,6 +93,26 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, "agent", c.userAgent)
 		assert.Equal(t, "fa", c.language)
 	})
+}
+
+func TestClientWithTimeout(t *testing.T) {
+	t.Parallel()
+
+	source := &tokens{current: "token"}
+	h := &http.Client{Timeout: time.Minute}
+
+	c, err := New("https://backend.example", WithTokens(source), WithHTTPClient(h), WithUserAgent("agent"), WithLanguage("fa"))
+	require.NoError(t, err)
+
+	patient := c.WithTimeout(15 * time.Minute)
+
+	assert.Equal(t, 15*time.Minute, patient.http.Timeout)
+	assert.Equal(t, time.Minute, c.http.Timeout, "the client it was copied from is left as it was")
+	assert.Same(t, source, patient.Tokens())
+	assert.Equal(t, "agent", patient.userAgent)
+	assert.Equal(t, "fa", patient.language)
+	assert.Equal(t, c.BaseURL(), patient.BaseURL())
+	assert.Zero(t, c.WithTimeout(0).http.Timeout)
 }
 
 func TestClientURL(t *testing.T) {

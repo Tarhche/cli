@@ -1,17 +1,16 @@
-// Package workload is the workload as the CLI reaches into it: which VM or
-// container a name means, so that a command, a terminal or a forwarded port
-// can be opened in it.
+// Package workload is the workload as the CLI reaches it: a client of the
+// API's routes for VMs and what lives in Docker VMs (containers, images,
+// networks, volumes and stacks) and the snapshots of their disks, both one's
+// own and anybody's, and which VM or container a name means, so that a
+// command, a terminal or a forwarded port can be opened in it.
 package workload
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"github.com/Tarhche/cli/internal/api"
 )
-
-// ErrAmbiguous is a reference that names more than one thing.
-var ErrAmbiguous = errors.New("ambiguous reference")
 
 // VM is a VM as the CLI reaches into it.
 type VM struct {
@@ -50,17 +49,44 @@ type Resolver interface {
 	Container(ctx context.Context, reference string) (Container, error)
 }
 
-// NewResolver is a resolver asking the API through client.
+// NewResolver is a resolver of one's own VMs and containers, asking the API
+// through client.
 func NewResolver(client *api.Client) Resolver {
-	return unresolved{}
+	return NewClient(client, Mine).Resolver()
 }
 
-type unresolved struct{}
-
-func (unresolved) VM(context.Context, string) (VM, error) {
-	return VM{}, errors.New("workload: resolving a vm is not implemented yet")
+// Resolver is a resolver of the VMs and the containers of the client's
+// audience.
+func (c *Client) Resolver() Resolver {
+	return resolver{client: c}
 }
 
-func (unresolved) Container(context.Context, string) (Container, error) {
-	return Container{}, errors.New("workload: resolving a container is not implemented yet")
+type resolver struct {
+	client *Client
+}
+
+// VM is the VM reference names: its uuid, its slug or its name.
+func (r resolver) VM(ctx context.Context, reference string) (VM, error) {
+	vm, err := r.client.FindVM(ctx, reference)
+	if err != nil {
+		return VM{}, err
+	}
+
+	return vm.Reach(), nil
+}
+
+// Container is the container reference names, its uuid, its Docker id, its
+// name or the beginning of its Docker id, and the VM it lives in.
+func (r resolver) Container(ctx context.Context, reference string) (Container, error) {
+	container, err := r.client.FindContainer(ctx, "", reference)
+	if err != nil {
+		return Container{}, err
+	}
+
+	vm, err := r.client.VM(ctx, container.VMUUID)
+	if err != nil {
+		return Container{}, fmt.Errorf("the vm of container %s: %w", reference, err)
+	}
+
+	return container.Reach(vm.Reach()), nil
 }
