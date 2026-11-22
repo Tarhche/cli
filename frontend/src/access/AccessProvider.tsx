@@ -1,9 +1,10 @@
-import {Button, Center, Loader, Stack} from "@mantine/core";
+import {Button, Center, Group, Loader, Stack} from "@mantine/core";
 import {type ReactNode, useCallback, useEffect, useState} from "react";
 import {type Failure, failureOf, isCancelled} from "../api/failure";
 import {Resources, Workloads} from "../api/services";
 import {useSignedOut} from "../api/signedOut";
 import {FailureAlert} from "../components/FailureAlert";
+import {ContextMenu} from "../session/ContextMenu";
 import {useSession} from "../session/session";
 import {type Access, AccessContext, sameAccess} from "./access";
 
@@ -60,9 +61,12 @@ export function AccessProvider({children}: {children: ReactNode}) {
         {failure ? (
           <Stack maw={440} w="100%">
             <FailureAlert failure={failure} title="What you may do could not be read" />
-            <Button variant="light" onClick={retry}>
-              Try again
-            </Button>
+            <Group justify="space-between">
+              <ContextMenu />
+              <Button variant="light" onClick={retry}>
+                Try again
+              </Button>
+            </Group>
           </Stack>
         ) : (
           <Loader />

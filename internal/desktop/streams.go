@@ -82,6 +82,8 @@ func (s *Streams) Open(ctx context.Context, cli *command.Cli, request TerminalRe
 	return terminal, nil
 }
 
+// open opens a terminal as Open does, a stream's refusal as the ingress
+// answered it.
 func (s *Streams) open(ctx context.Context, cli *command.Cli, request TerminalRequest) (Terminal, error) {
 	dialer, resolver, err := reachOf(ctx, cli)
 	if err != nil {
@@ -138,6 +140,8 @@ func (s *Streams) Forward(ctx context.Context, cli *command.Cli, request Forward
 	return forward, nil
 }
 
+// forward forwards a port as Forward does, a stream's refusal as the
+// ingress answered it.
 func (s *Streams) forward(ctx context.Context, cli *command.Cli, request ForwardRequest) (PortForward, error) {
 	dialer, resolver, err := reachOf(ctx, cli)
 	if err != nil {
