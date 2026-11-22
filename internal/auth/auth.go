@@ -72,9 +72,10 @@ type Manager struct {
 	// speaks is read off.
 	env func(string) string
 
-	lock    sync.Mutex
-	held    map[string]chan struct{}
-	configs sync.Mutex
+	lock     sync.Mutex
+	held     map[string]chan struct{}
+	sessions map[string]credentials.Credentials
+	configs  sync.Mutex
 }
 
 // Option configures a manager.
@@ -145,6 +146,8 @@ func (m *Manager) Logout(ctx context.Context, contextName string) error {
 		return err
 	}
 
+	m.forget(contextName)
+
 	if readErr == nil {
 		m.endSession(ctx, contextName, kept)
 	}
@@ -188,6 +191,37 @@ func (m *Manager) hold(ctx context.Context, contextName string) (func(), error) 
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// remembered is a context's session as it was last read or kept.
+func (m *Manager) remembered(contextName string) (credentials.Credentials, bool) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	kept, found := m.sessions[contextName]
+
+	return kept, found
+}
+
+// remember notes what a context's session was read or kept as, so that it
+// is not read again while its token lasts.
+func (m *Manager) remember(contextName string, kept credentials.Credentials) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	if m.sessions == nil {
+		m.sessions = make(map[string]credentials.Credentials)
+	}
+
+	m.sessions[contextName] = kept
+}
+
+// forget forgets what a context's session was last read or kept as.
+func (m *Manager) forget(contextName string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	delete(m.sessions, contextName)
 }
 
 // endSession ends a session on its estate, with its own token: a session

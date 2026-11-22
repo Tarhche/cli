@@ -68,11 +68,19 @@ func (m *Manager) LoginWithPassword(ctx context.Context, contextName, identity, 
 		return errNoToken
 	}
 
-	return m.store.Set(contextName, credentials.Credentials{
+	session := credentials.Credentials{
 		Method:       credentials.MethodPassword,
 		AccessToken:  answer.AccessToken,
 		RefreshToken: answer.RefreshToken,
-	})
+	}
+
+	if err := m.store.Set(contextName, session); err != nil {
+		return err
+	}
+
+	m.remember(contextName, session)
+
+	return nil
 }
 
 // renewPassword renews a session signed in to with a password, at the API's

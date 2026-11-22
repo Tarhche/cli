@@ -60,6 +60,90 @@ func TestTokenSource(t *testing.T) {
 		assert.Zero(t, e.called("POST /api/auth/token/refresh"))
 	})
 
+	t.Run("a session is read once while its token lasts", func(t *testing.T) {
+		t.Parallel()
+
+		e := newEstate(t)
+		kept := passwordSession(e, time.Minute)
+		store := mock.NewStore(map[string]credentials.Credentials{"test": kept})
+		h := newHarness(t, e, store)
+
+		for range 3 {
+			got, err := h.TokenSource("test").Token(context.Background())
+			require.NoError(t, err)
+			assert.Equal(t, kept.AccessToken, got)
+		}
+
+		assert.Equal(t, 1, store.Gets())
+	})
+
+	t.Run("a session another process renewed is read again before it is renewed", func(t *testing.T) {
+		t.Parallel()
+
+		e := newEstate(t)
+		kept := passwordSession(e, time.Minute)
+		store := mock.NewStore(map[string]credentials.Credentials{"test": kept})
+		h := newHarness(t, e, store)
+
+		_, err := h.TokenSource("test").Token(context.Background())
+		require.NoError(t, err)
+
+		elsewhere := passwordSession(e, time.Minute)
+		require.NoError(t, store.Set("test", elsewhere))
+
+		got, err := h.TokenSource("test").Renew(context.Background(), kept.AccessToken)
+
+		require.NoError(t, err)
+		assert.Equal(t, elsewhere.AccessToken, got)
+		assert.Zero(t, e.called("POST /api/auth/token/refresh"))
+	})
+
+	t.Run("a session another process logged out of is not logged in", func(t *testing.T) {
+		t.Parallel()
+
+		e := newEstate(t)
+		kept := passwordSession(e, time.Minute)
+		store := mock.NewStore(map[string]credentials.Credentials{"test": kept})
+		h := newHarness(t, e, store)
+
+		_, err := h.TokenSource("test").Token(context.Background())
+		require.NoError(t, err)
+
+		require.NoError(t, store.Delete("test"))
+
+		_, err = h.TokenSource("test").Renew(context.Background(), kept.AccessToken)
+
+		assert.ErrorIs(t, err, ErrNotLoggedIn)
+	})
+
+	t.Run("a session logged in to, renewed or logged out of here is what is handed over", func(t *testing.T) {
+		t.Parallel()
+
+		e := newEstate(t)
+		store := mock.NewStore(nil)
+		h := newHarness(t, e, store)
+
+		require.NoError(t, h.LoginWithPassword(context.Background(), "test", "jane", "secret"))
+
+		got, err := h.TokenSource("test").Token(context.Background())
+		require.NoError(t, err)
+		assert.Zero(t, store.Gets(), "what was just kept is not read back")
+		assert.Equal(t, h.stored(t).AccessToken, got)
+
+		renewed, err := h.TokenSource("test").Renew(context.Background(), got)
+		require.NoError(t, err)
+		assert.NotEqual(t, got, renewed)
+
+		again, err := h.TokenSource("test").Token(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, renewed, again)
+
+		require.NoError(t, h.Logout(context.Background(), "test"))
+
+		_, err = h.TokenSource("test").Token(context.Background())
+		assert.ErrorIs(t, err, ErrNotLoggedIn)
+	})
+
 	t.Run("a token about to run out is renewed first, at the API for a password session", func(t *testing.T) {
 		t.Parallel()
 

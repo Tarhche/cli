@@ -21,6 +21,7 @@ type Store struct {
 
 	lock     sync.Mutex
 	kept     map[string]credentials.Credentials
+	getCalls int
 	setCalls int
 }
 
@@ -42,6 +43,8 @@ func (s *Store) Get(context string) (credentials.Credentials, error) {
 
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	s.getCalls++
 
 	kept, found := s.kept[context]
 	if !found {
@@ -78,6 +81,14 @@ func (s *Store) Delete(context string) error {
 	delete(s.kept, context)
 
 	return nil
+}
+
+// Gets is how many times credentials were read.
+func (s *Store) Gets() int {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	return s.getCalls
 }
 
 // Sets is how many times credentials were kept.

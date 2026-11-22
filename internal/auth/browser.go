@@ -104,6 +104,8 @@ func (m *Manager) loginWithBrowser(ctx context.Context, current config.Context) 
 		return credentials.Credentials{}, err
 	}
 
+	m.remember(current.Name, session)
+
 	return session, nil
 }
 

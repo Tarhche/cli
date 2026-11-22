@@ -52,8 +52,9 @@ func (s *tokenSource) Renew(ctx context.Context, rejected string) (string, error
 
 // token is the access token of a context's session: the one kept, when
 // usable says it may be used, and a renewed one when not. The session is
-// read again once nothing else holds it, since another process, or another
-// request of this one, may have renewed it meanwhile.
+// remembered once it is read, and read again, once nothing else holds it,
+// only before it is renewed: another process may have renewed it, or logged
+// out of it, meanwhile.
 func (m *Manager) token(ctx context.Context, contextName string, usable func(credentials.Credentials) bool) (string, error) {
 	release, err := m.hold(ctx, contextName)
 	if err != nil {
@@ -62,12 +63,20 @@ func (m *Manager) token(ctx context.Context, contextName string, usable func(cre
 
 	defer release()
 
+	if kept, found := m.remembered(contextName); found && usable(kept) {
+		return kept.AccessToken, nil
+	}
+
 	kept, err := m.store.Get(contextName)
 	if errors.Is(err, credentials.ErrNotFound) {
+		m.forget(contextName)
+
 		return m.loginAgain(ctx, contextName, false)
 	} else if err != nil {
 		return "", err
 	}
+
+	m.remember(contextName, kept)
 
 	if usable(kept) {
 		return kept.AccessToken, nil
@@ -84,6 +93,8 @@ func (m *Manager) token(ctx context.Context, contextName string, usable func(cre
 			return "", err
 		}
 
+		m.forget(contextName)
+
 		return m.loginAgain(ctx, contextName, true)
 	} else if err != nil {
 		return "", fmt.Errorf("renewing the session of %q: %w", contextName, err)
@@ -92,6 +103,8 @@ func (m *Manager) token(ctx context.Context, contextName string, usable func(cre
 	if err := m.store.Set(contextName, session); err != nil {
 		return "", err
 	}
+
+	m.remember(contextName, session)
 
 	return session.AccessToken, nil
 }
