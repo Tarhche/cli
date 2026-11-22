@@ -6,6 +6,7 @@ toolchain go1.27.4
 
 require (
 	github.com/danceable/console v1.4.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.12.1
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/term v0.48.0
