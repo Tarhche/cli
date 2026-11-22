@@ -11,6 +11,7 @@ package desktop
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"io"
 	"io/fs"
@@ -19,7 +20,6 @@ import (
 	"runtime"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/wailsapp/wails/v3/pkg/icons"
 
 	"github.com/Tarhche/cli/frontend"
 	"github.com/Tarhche/cli/internal/auth"
@@ -34,6 +34,20 @@ const (
 
 	windowWidth  = 1200
 	windowHeight = 800
+)
+
+// The app's icons: its own, and the tray's, a glyph that is black, which
+// macOS tints as it tints every template icon, and one that is white for a
+// tray that is dark elsewhere.
+var (
+	//go:embed icons/app.png
+	appIcon []byte
+
+	//go:embed icons/tray.png
+	trayIcon []byte
+
+	//go:embed icons/tray-dark.png
+	trayDarkIcon []byte
 )
 
 // ErrNoDisplay is a machine the desktop app cannot open a window on.
@@ -77,6 +91,7 @@ func Run(ctx context.Context, cli *command.Cli) error {
 	app := application.New(application.Options{
 		Name:                        name,
 		Description:                 "Tarhche on the desktop",
+		Icon:                        appIcon,
 		Assets:                      application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
 		Mac:                         application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 		MarshalError:                MarshalError,
@@ -157,13 +172,13 @@ func newTray(app *application.App, window *application.WebviewWindow) {
 	tray.SetMenu(menu)
 
 	if runtime.GOOS == "darwin" {
-		tray.SetTemplateIcon(icons.SystrayMacTemplate)
+		tray.SetTemplateIcon(trayIcon)
 
 		return
 	}
 
-	tray.SetIcon(icons.SystrayLight)
-	tray.SetDarkModeIcon(icons.SystrayDark)
+	tray.SetIcon(trayIcon)
+	tray.SetDarkModeIcon(trayDarkIcon)
 }
 
 // dialogs ask for paths on the host in the operating system's own dialogs.
