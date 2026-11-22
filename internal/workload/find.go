@@ -247,7 +247,48 @@ func (c *Client) FindVM(ctx context.Context, reference string) (VMManifest, erro
 		return VMManifest{}, err
 	}
 
+	return MatchVM(vms, reference)
+}
+
+// MatchVM is the VM of vms reference names: its uuid, its slug or its name.
+func MatchVM(vms []VMManifest, reference string) (VMManifest, error) {
 	return vmFinder.find(reference, vms)
+}
+
+// MatchContainer is the container of containers reference names: its uuid,
+// its Docker id, its name, or the beginning of its Docker id.
+func MatchContainer(containers []ContainerManifest, reference string) (ContainerManifest, error) {
+	return containerFinder.find(reference, containers)
+}
+
+// MatchImage is the image of images reference names: its uuid, its id, one
+// of its references, or the beginning of its id.
+func MatchImage(images []Placed[ImageManifest], reference string) (Placed[ImageManifest], error) {
+	return imageFinder.find(reference, images)
+}
+
+// MatchNetwork is the network of networks reference names: its uuid, its id,
+// its name, or the beginning of its id.
+func MatchNetwork(networks []Placed[NetworkManifest], reference string) (Placed[NetworkManifest], error) {
+	return networkFinder.find(reference, networks)
+}
+
+// MatchVolume is the volume of volumes reference names: its uuid or its
+// name.
+func MatchVolume(volumes []Placed[VolumeManifest], reference string) (Placed[VolumeManifest], error) {
+	return volumeFinder.find(reference, volumes)
+}
+
+// MatchStack is the stack of stacks reference names: its uuid, its slug or
+// its name.
+func MatchStack(stacks []StackManifest, reference string) (StackManifest, error) {
+	return stackFinder.find(reference, stacks)
+}
+
+// MatchSnapshot is the snapshot of snapshots reference names: its uuid or
+// its name.
+func MatchSnapshot(snapshots []SnapshotManifest, reference string) (SnapshotManifest, error) {
+	return snapshotFinder.find(reference, snapshots)
 }
 
 // FindContainer is the container reference names: its uuid, its Docker id,
@@ -259,7 +300,7 @@ func (c *Client) FindContainer(ctx context.Context, vmUUID string, reference str
 		return ContainerManifest{}, err
 	}
 
-	return containerFinder.find(reference, containers)
+	return MatchContainer(containers, reference)
 }
 
 // FindImage is the image reference names in one of vms: its uuid, its id,
@@ -270,7 +311,7 @@ func (c *Client) FindImage(ctx context.Context, vms []VMManifest, reference stri
 		return Placed[ImageManifest]{}, err
 	}
 
-	return imageFinder.find(reference, images)
+	return MatchImage(images, reference)
 }
 
 // FindNetwork is the network reference names in one of vms: its uuid, its
@@ -281,7 +322,7 @@ func (c *Client) FindNetwork(ctx context.Context, vms []VMManifest, reference st
 		return Placed[NetworkManifest]{}, err
 	}
 
-	return networkFinder.find(reference, networks)
+	return MatchNetwork(networks, reference)
 }
 
 // FindVolume is the volume reference names in one of vms: its uuid or its
@@ -292,7 +333,7 @@ func (c *Client) FindVolume(ctx context.Context, vms []VMManifest, reference str
 		return Placed[VolumeManifest]{}, err
 	}
 
-	return volumeFinder.find(reference, volumes)
+	return MatchVolume(volumes, reference)
 }
 
 // FindStack is the stack reference names: its uuid, its slug or its name.
@@ -309,7 +350,7 @@ func (c *Client) FindStack(ctx context.Context, reference string) (StackManifest
 		return StackManifest{}, err
 	}
 
-	return stackFinder.find(reference, stacks)
+	return MatchStack(stacks, reference)
 }
 
 // FindSnapshot is the snapshot reference names: its uuid or its name.
@@ -326,7 +367,7 @@ func (c *Client) FindSnapshot(ctx context.Context, reference string) (SnapshotMa
 		return SnapshotManifest{}, err
 	}
 
-	return snapshotFinder.find(reference, snapshots)
+	return MatchSnapshot(snapshots, reference)
 }
 
 // ImagesIn are the images every one of vms holds.
