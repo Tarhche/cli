@@ -2,8 +2,6 @@ COMPOSE ?= docker compose
 RUN ?= $(COMPOSE) run --rm develop
 
 TAGS := purego
-PACKAGES := $$(go list -tags $(TAGS) ./... | grep -v /node_modules/)
-PACKAGE_DIRS := $$(go list -tags $(TAGS) -f "{{.Dir}}" ./... | grep -v /node_modules/)
 VERSION ?= $(or $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//'),dev)
 LDFLAGS := -s -w -X github.com/Tarhche/cli/internal/version.Version=$(VERSION)
 
@@ -24,13 +22,13 @@ deps: ## downloads the Go modules and installs the frontend's packages
 	$(RUN) sh -c 'go mod download && npm --prefix frontend ci'
 
 test: ## runs the Go tests, with the race detector, as CI does
-	$(RUN) sh -c 'go test -race -cover -tags $(TAGS) $(PACKAGES)'
+	$(RUN) go test -race -cover -tags $(TAGS) ./...
 
 cover: ## writes coverage.out and prints the coverage of every function
-	$(RUN) sh -c 'go test -tags $(TAGS) -coverprofile=coverage.out $(PACKAGES) && go tool cover -func=coverage.out'
+	$(RUN) sh -c 'go test -tags $(TAGS) -coverprofile=coverage.out ./... && go tool cover -func=coverage.out'
 
-lint: ## lints the Go code, as .golangci.yaml says, every package but node_modules'
-	$(RUN) sh -c 'golangci-lint run $(PACKAGE_DIRS)'
+lint: ## lints the Go code, as .golangci.yaml says
+	$(RUN) golangci-lint run ./...
 
 generate: ## regenerates the frontend's bindings to the desktop services
 	$(RUN) sh -c 'wails3 generate bindings -ts -d frontend/bindings -clean ./internal/desktop/...'

@@ -46,8 +46,7 @@ jobs:
 
       - name: go vet
         run: |
-          mapfile -t packages < <(go list -tags purego ./... | grep -v /node_modules/)
-          go vet -tags purego "${packages[@]}"
+          go vet -tags purego ./...
 
   test:
     name: Go test
@@ -64,8 +63,7 @@ jobs:
 
       - name: go test
         run: |
-          mapfile -t packages < <(go list -tags purego ./... | grep -v /node_modules/)
-          go test -race -cover -tags purego -coverprofile=coverage.out "${packages[@]}"
+          go test -race -cover -tags purego -coverprofile=coverage.out ./...
 
       - name: Coverage summary
         run: |
