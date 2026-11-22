@@ -73,16 +73,34 @@ func TestExec(t *testing.T) {
 		assert.JSONEq(t, `{"command":["sh"],"tty":true,"rows":24,"cols":80,"env":["A=b"],"working_dir":"/"}`, requests[1].Payload)
 	})
 
-	t.Run("a command is required", func(t *testing.T) {
+	t.Run("a command is required, and its first word", func(t *testing.T) {
 		t.Parallel()
 
 		ingress := &streamtest.Ingress{}
 		d := serve(t, ingress)
 
 		_, err := d.Exec(context.Background(), "0190", ExecOptions{})
-
 		assert.ErrorIs(t, err, ErrNoCommand)
+
+		_, err = d.Exec(context.Background(), "0190", ExecOptions{Command: []string{"", "x"}})
+		assert.ErrorIs(t, err, ErrNoCommand)
+
 		assert.Empty(t, ingress.Requests())
+	})
+
+	t.Run("a command killed by a signal exited with -1, which is no error", func(t *testing.T) {
+		t.Parallel()
+
+		d := serve(t, &streamtest.Ingress{Exec: func(e *streamtest.Exec) { _ = e.Exit(-1) }})
+
+		session, err := d.Exec(context.Background(), "0190", ExecOptions{Command: []string{"sleep", "9"}})
+		require.NoError(t, err)
+
+		code, err := session.Wait()
+
+		require.NoError(t, err)
+		assert.Equal(t, -1, code)
+		require.NoError(t, session.Close())
 	})
 
 	t.Run("a refused command is the refusal", func(t *testing.T) {

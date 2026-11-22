@@ -83,7 +83,7 @@ type Exec struct {
 
 // Exec runs a command in the VM uuid.
 func (d *Dialer) Exec(ctx context.Context, vm string, options ExecOptions) (*Exec, error) {
-	if len(options.Command) == 0 {
+	if len(options.Command) == 0 || len(options.Command[0]) == 0 {
 		return nil, ErrNoCommand
 	}
 
@@ -205,9 +205,9 @@ func (e *Exec) fail(err error) error {
 }
 
 // Wait reads what is left of the command's output, discarding it, until it
-// exits, and is the status it exited with. A command that could not be
-// waited for, or whose stream ended before saying how it exited, is an
-// error.
+// exits, and is the status it exited with: -1 for one killed by a signal. A
+// command that could not be waited for, or whose stream ended before saying
+// how it exited, is an error.
 func (e *Exec) Wait() (int, error) {
 	if _, err := io.Copy(io.Discard, e); err != nil {
 		return -1, err

@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -28,6 +29,10 @@ type Error struct {
 
 	// Message is what the ingress said otherwise.
 	Message string
+
+	// RetryAfter is how long the ingress said to wait before asking again,
+	// as its Retry-After header said it.
+	RetryAfter string
 }
 
 // Error says what the refusal means and what the ingress said of it.
@@ -50,7 +55,9 @@ func (e *Error) reason() string {
 	case http.StatusNotFound:
 		return "it is not there, or not yours"
 	case http.StatusServiceUnavailable:
-		return "it cannot be reached now; is it running?"
+		return "it cannot be reached now"
+	case http.StatusTooManyRequests:
+		return "too many streams were opened from here; " + e.retry()
 	}
 
 	if text := http.StatusText(e.StatusCode); len(text) > 0 {
@@ -60,6 +67,20 @@ func (e *Error) reason() string {
 	return fmt.Sprintf("the ingress answered %d", e.StatusCode)
 }
 
+// retry says when to ask again, as the ingress said it: in seconds, or at
+// a time.
+func (e *Error) retry() string {
+	if len(e.RetryAfter) == 0 {
+		return "try again shortly"
+	}
+
+	if _, err := strconv.Atoi(e.RetryAfter); err == nil {
+		return "try again in " + e.RetryAfter + " seconds"
+	}
+
+	return "try again after " + e.RetryAfter
+}
+
 func (e *Error) said() string {
 	if len(e.Fields) == 0 {
 		return e.Message
@@ -67,10 +88,20 @@ func (e *Error) said() string {
 
 	said := make([]string, 0, len(e.Fields))
 	for _, field := range slices.Sorted(maps.Keys(e.Fields)) {
-		said = append(said, field+": "+e.Fields[field])
+		said = append(said, field+": "+words(e.Fields[field]))
 	}
 
 	return strings.Join(said, "; ")
+}
+
+// words is a refusal's code, "required_field", as the words it is made of,
+// and anything else as it is.
+func words(reason string) string {
+	if strings.ContainsAny(reason, " \t") {
+		return reason
+	}
+
+	return strings.ReplaceAll(reason, "_", " ")
 }
 
 // IsNotFound reports whether err is a stream refused for a workload that
@@ -83,6 +114,12 @@ func IsNotFound(err error) bool {
 // is there but cannot be reached now: one that is not running.
 func IsUnavailable(err error) bool {
 	return hasStatus(err, http.StatusServiceUnavailable)
+}
+
+// IsTooManyRequests reports whether err is a stream refused because too many
+// were opened from here: every connection a forward carries is one.
+func IsTooManyRequests(err error) bool {
+	return hasStatus(err, http.StatusTooManyRequests)
 }
 
 func hasStatus(err error, status int) bool {
@@ -98,7 +135,7 @@ func refusal(name string, response *http.Response, err error) error {
 		return fmt.Errorf("cannot open %s: %w", name, err)
 	}
 
-	e := &Error{Stream: name, StatusCode: response.StatusCode}
+	e := &Error{Stream: name, StatusCode: response.StatusCode, RetryAfter: response.Header.Get("Retry-After")}
 
 	if response.Body == nil {
 		return e

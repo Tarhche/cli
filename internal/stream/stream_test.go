@@ -285,9 +285,10 @@ func TestDialerOpen(t *testing.T) {
 			says    string
 		}{
 			{status: http.StatusNotFound, body: "no such vm", check: IsNotFound, message: "no such vm", says: "cannot open vms/0190/attach: it is not there, or not yours (no such vm)"},
-			{status: http.StatusServiceUnavailable, body: "vm is not running", check: IsUnavailable, message: "vm is not running", says: "cannot open vms/0190/attach: it cannot be reached now; is it running? (vm is not running)"},
-			{status: http.StatusBadRequest, body: `{"errors":{"port":"is not published","command":"is required"}}`, fields: map[string]string{"port": "is not published", "command": "is required"}, says: "cannot open vms/0190/attach: the ingress refused what it was asked (command: is required; port: is not published)"},
-			{status: http.StatusBadRequest, body: "the payload is not json", message: "the payload is not json", says: "cannot open vms/0190/attach: the ingress refused what it was asked (the payload is not json)"},
+			{status: http.StatusServiceUnavailable, body: "not reachable: the vm is not running", check: IsUnavailable, message: "not reachable: the vm is not running", says: "cannot open vms/0190/attach: it cannot be reached now (not reachable: the vm is not running)"},
+			{status: http.StatusBadRequest, body: `{"errors":{"port":"invalid_port","command":"required_field","env":"is not valid"}}`, fields: map[string]string{"port": "invalid_port", "command": "required_field", "env": "is not valid"}, says: "cannot open vms/0190/attach: the ingress refused what it was asked (command: required field; env: is not valid; port: invalid port)"},
+			{status: http.StatusBadRequest, body: "invalid payload: the action is asked with nothing", message: "invalid payload: the action is asked with nothing", says: "cannot open vms/0190/attach: the ingress refused what it was asked (invalid payload: the action is asked with nothing)"},
+			{status: http.StatusTooManyRequests, body: "", check: IsTooManyRequests, says: "cannot open vms/0190/attach: too many streams were opened from here; try again shortly"},
 			{status: http.StatusBadGateway, body: "", says: "cannot open vms/0190/attach: the ingress answered 502 Bad Gateway"},
 			{status: 599, body: "odd", message: "odd", says: "cannot open vms/0190/attach: the ingress answered 599 (odd)"},
 		}
@@ -323,6 +324,13 @@ func TestError(t *testing.T) {
 		assert.Equal(t, "cannot open vms/u/exec: it is not there, or not yours", (&Error{Stream: "vms/u/exec", StatusCode: http.StatusNotFound}).Error())
 	})
 
+	t.Run("a refusal for too many streams says when to ask again", func(t *testing.T) {
+		t.Parallel()
+
+		assert.Equal(t, "cannot open vms/u/forward: too many streams were opened from here; try again in 12 seconds", (&Error{Stream: "vms/u/forward", StatusCode: http.StatusTooManyRequests, RetryAfter: "12"}).Error())
+		assert.Equal(t, "cannot open vms/u/forward: too many streams were opened from here; try again after Wed, 21 Oct 2026 07:28:00 GMT", (&Error{Stream: "vms/u/forward", StatusCode: http.StatusTooManyRequests, RetryAfter: "Wed, 21 Oct 2026 07:28:00 GMT"}).Error())
+	})
+
 	t.Run("only refusals of their statuses are not found and unavailable", func(t *testing.T) {
 		t.Parallel()
 
@@ -330,6 +338,7 @@ func TestError(t *testing.T) {
 		assert.False(t, IsNotFound(&Error{StatusCode: http.StatusServiceUnavailable}))
 		assert.False(t, IsUnavailable(&Error{StatusCode: http.StatusNotFound}))
 		assert.True(t, IsUnavailable(&Error{StatusCode: http.StatusServiceUnavailable}))
+		assert.False(t, IsTooManyRequests(&Error{StatusCode: http.StatusServiceUnavailable}))
 	})
 }
 
@@ -346,6 +355,14 @@ func TestRefusal(t *testing.T) {
 		err := refusal("vms/u/attach", &http.Response{StatusCode: http.StatusNotFound}, errors.New("bad handshake"))
 
 		assert.Equal(t, &Error{Stream: "vms/u/attach", StatusCode: http.StatusNotFound}, err)
+	})
+
+	t.Run("how long to wait is what the answer's Retry-After says", func(t *testing.T) {
+		t.Parallel()
+
+		err := refusal("vms/u/forward", &http.Response{StatusCode: http.StatusTooManyRequests, Header: http.Header{"Retry-After": {"30"}}}, errors.New("bad handshake"))
+
+		assert.Equal(t, &Error{Stream: "vms/u/forward", StatusCode: http.StatusTooManyRequests, RetryAfter: "30"}, err)
 	})
 
 	t.Run("a body that cannot be read is left out", func(t *testing.T) {
