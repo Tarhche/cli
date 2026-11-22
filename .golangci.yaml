@@ -1,0 +1,95 @@
+# golangci-lint v2: make lint in the develop container, and CI's lint job,
+# both on the version the Dockerfile's golangci-lint stage names.
+version: "2"
+
+run:
+  build-tags:
+    - purego
+  modules-download-mode: readonly
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - copyloopvar
+    - errorlint
+    - gosec
+    - misspell
+    - modernize
+    - nilerr
+    - noctx
+    - nolintlint
+    - paralleltest
+    - revive
+    - testifylint
+    - unconvert
+    - usestdlibvars
+    - usetesting
+  settings:
+    misspell:
+      ignore-rules:
+        # the api's own field, which an article's language versions are listed in
+        - corrolated
+    gosec:
+      excludes:
+        # integer conversions, nearly always of sizes and counts already bounded
+        - G115
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      enable-default-rules: true
+      rules:
+        # a method satisfying an interface takes what the interface gives it
+        - name: unused-parameter
+          disabled: true
+    testifylint:
+      disable:
+        # output is compared as it is written, its spacing and escaping among it
+        - encoded-compare
+        # assert goes on to the checks after a failed one, which is often wanted
+        - require-error
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - noctx
+      - path: internal/credentials/
+        text: G117
+        linters:
+          - gosec
+      # the doubles of the API, the ingress and the commands, which tests alone import
+      - path: internal/(command/commandtest|stream/streamtest|workload/workloadtest)/
+        linters:
+          - gosec
+          - noctx
+      # a copy makes its parent directories as docker's does, and every
+      # entry's path is checked to stay where it is extracted before it is
+      - path: internal/transfer/archive\.go
+        text: G301|G305
+        linters:
+          - gosec
+    paths:
+      - frontend/node_modules
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/Tarhche/cli
+  exclusions:
+    generated: lax
+    paths:
+      - frontend/node_modules
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -1,0 +1,148 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+#
+# What a v* tag releases (.github/workflows/release.yaml): a binary for every
+# platform, one for every Mac, archives and their checksums, the GitHub
+# release and the multi-platform image. CI checks this file and builds a
+# snapshot of it on every change; make release-check and make snapshot do
+# the same in the develop container.
+version: 2
+
+project_name: tarhche
+
+before:
+  hooks:
+    - npm --prefix frontend ci
+    - npm --prefix frontend run build
+
+builds:
+  - id: tarhche
+    main: ./cmd/tarhche
+    binary: tarhche
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    tags:
+      - purego
+      - production
+    ldflags:
+      - -s -w -X github.com/Tarhche/cli/internal/version.Version={{ .Version }}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: "386"
+      - goos: darwin
+        goarch: arm
+      - goos: windows
+        goarch: arm
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+  # The CLI alone, for the image: a binary that never loads a web view is
+  # static, which scratch needs.
+  - id: image
+    main: ./cmd/tarhche
+    binary: tarhche
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    tags:
+      - nodesktop
+    ldflags:
+      - -s -w -X github.com/Tarhche/cli/internal/version.Version={{ .Version }}
+    goos:
+      - linux
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "7"
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+# Beside the binaries for each architecture, not instead of them.
+universal_binaries:
+  - ids:
+      - tarhche
+    name_template: tarhche
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - ids:
+      - tarhche
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ if eq .Arch "all" }}universal{{ else }}{{ .Arch }}{{ end }}{{ with .Arm }}v{{ . }}{{ end }}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^Merge "
+  groups:
+    - title: Features
+      regexp: "^Feat:"
+      order: 0
+    - title: Fixes
+      regexp: "^Fix:"
+      order: 1
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: Tarhche
+    name: cli
+  prerelease: auto
+
+# Built from the Dockerfile's release stage, which copies the image build's
+# binary for each platform; a prerelease is not the latest.
+dockers_v2:
+  - ids:
+      - image
+    images:
+      - ghcr.io/tarhche/cli
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+      - linux/386
+      - linux/arm/v7
+    flags:
+      - --target=release
+    labels:
+      org.opencontainers.image.title: tarhche
+      org.opencontainers.image.description: The Tarhche CLI
+      org.opencontainers.image.url: https://github.com/Tarhche/cli
+      org.opencontainers.image.source: https://github.com/Tarhche/cli
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .Date }}"
+    annotations:
+      index,manifest:org.opencontainers.image.description: The Tarhche CLI
+      index,manifest:org.opencontainers.image.source: https://github.com/Tarhche/cli
