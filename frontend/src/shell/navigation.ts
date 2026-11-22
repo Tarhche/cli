@@ -21,8 +21,9 @@ export type View =
   | {page: "container"; vm: string; id: string}
   | {page: "create-vm"; snapshot?: string}
   | {page: "run-container"; vm?: string}
+  | {page: "stack"; uuid: string}
   | {page: "deploy-stack"; vm?: string}
-  | {page: "resource"; name: string};
+  | {page: "resource"; name: string; audience?: "mine" | "everyone"; filters?: Record<string, string>};
 
 /** The pages of the workload, in the order the navbar offers them. */
 export const WORKLOAD_PAGES: {page: WorkloadPage; label: string}[] = [
@@ -68,6 +69,8 @@ export function allows(access: Access, view: View): boolean {
       return abilities.containers.show;
     case "run-container":
       return abilities.containers.create;
+    case "stack":
+      return abilities.stacks.show;
     case "deploy-stack":
       return abilities.stacks.create;
     case "resource":
@@ -130,6 +133,7 @@ export function pageOf(view: View): string {
     case "container":
     case "run-container":
       return "containers";
+    case "stack":
     case "deploy-stack":
       return "stacks";
     case "resource":

@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"text/template"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -232,6 +233,68 @@ func TestDefinitionAudiences(t *testing.T) {
 			assert.Equal(t, test.want, test.d.Audiences())
 		})
 	}
+}
+
+func TestDefinitionAppAudiences(t *testing.T) {
+	t.Parallel()
+
+	both := Paths{List: "/all"}
+	mine := Paths{List: "/my"}
+
+	tests := []struct {
+		name string
+		d    Definition
+		want []Audience
+	}{
+		{name: "every one it is served to", d: Definition{Everyone: both, Mine: mine}, want: []Audience{AudienceMine, AudienceEveryone}},
+		{name: "those the app lists", d: Definition{Everyone: both, Mine: mine, App: App{Audiences: []Audience{AudienceEveryone}}}, want: []Audience{AudienceEveryone}},
+		{name: "none it is not served to", d: Definition{Mine: mine, App: App{Audiences: []Audience{AudienceEveryone}}}},
+		{name: "none when the app has no page of it", d: Definition{Everyone: both, App: App{Hidden: true}}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, test.want, test.d.AppAudiences())
+		})
+	}
+}
+
+func TestDefinitionAppTable(t *testing.T) {
+	t.Parallel()
+
+	t.Run("its own", func(t *testing.T) {
+		t.Parallel()
+
+		assert.Equal(t, "{{.name}}", Definition{Table: "{{.uuid}}\t{{.name}}", App: App{Table: "{{.name}}"}}.AppTable())
+	})
+
+	t.Run("the CLI's when it has none", func(t *testing.T) {
+		t.Parallel()
+
+		assert.Equal(t, "{{.uuid}}", Definition{Table: "{{.uuid}}"}.AppTable())
+	})
+}
+
+func TestLinkOfferedTo(t *testing.T) {
+	t.Parallel()
+
+	t.Run("every audience when it names none", func(t *testing.T) {
+		t.Parallel()
+
+		assert.True(t, Link{}.OfferedTo(AudienceMine))
+		assert.True(t, Link{}.OfferedTo(AudienceEveryone))
+	})
+
+	t.Run("those it names", func(t *testing.T) {
+		t.Parallel()
+
+		link := Link{Audiences: []Audience{AudienceEveryone}}
+
+		assert.False(t, link.OfferedTo(AudienceMine))
+		assert.True(t, link.OfferedTo(AudienceEveryone))
+	})
 }
 
 func TestDefinitionServes(t *testing.T) {
@@ -572,8 +635,139 @@ func TestAll(t *testing.T) {
 			for field := range d.Headers {
 				assert.Contains(t, strings.Split(defaults, "\t"), strings.ToUpper(strings.NewReplacer("_", " ", "-", " ").Replace(field)), "the header of %s names a column", field)
 			}
+
+			shownInApp(t, d)
 		})
 	}
+}
+
+// appPath is where a link of the website or the API leads: a path.
+var appPath = regexp.MustCompile(`^/[^\s<>]*$`)
+
+// shownInApp checks what the desktop app makes of d: its table written over
+// what each listing answers with no uuid in a cell, its links leading where
+// they say for each row, offered only where they can be, its actions and
+// its protection templates that are read.
+func shownInApp(t *testing.T, d Definition) {
+	t.Helper()
+
+	if d.App.Hidden {
+		assert.Empty(t, d.AppAudiences())
+
+		return
+	}
+
+	assert.NotEmpty(t, d.AppAudiences(), "a page lists something")
+
+	if len(d.App.New.Name) > 0 || len(d.App.New.Path) > 0 {
+		assert.NotEmpty(t, d.App.New.Name)
+		assert.True(t, strings.HasPrefix(d.App.New.Path, "/dashboard/"), d.App.New.Path)
+		assert.True(t, d.Serves(OperationCreate), "%s is offered where it is created", d.App.New.Name)
+	}
+
+	links := make([]*template.Template, len(d.App.Links))
+
+	for i, link := range d.App.Links {
+		assert.NotEmpty(t, link.Name)
+		assert.Contains(t, []LinkKind{LinkView, LinkEdit, LinkList, LinkPublic}, link.Kind)
+		assert.Contains(t, []Site{SiteWeb, SiteAPI, SiteApp}, link.Site)
+
+		for _, audience := range link.Audiences {
+			assert.Contains(t, d.AppAudiences(), audience)
+		}
+
+		for _, audience := range d.AppAudiences() {
+			if !link.OfferedTo(audience) {
+				continue
+			}
+
+			for _, op := range link.Requires {
+				assert.NotEmpty(t, d.PathsOf(audience).Route(op), "%s needs what %s of %s serves", link.Name, audience, d.Plural)
+			}
+
+			twins := 0
+			for _, other := range d.App.Links {
+				if other.Name == link.Name && other.OfferedTo(audience) {
+					twins++
+				}
+			}
+
+			assert.Equal(t, 1, twins, "%s is offered once to %s", link.Name, audience)
+		}
+
+		if link.Site == SiteApp {
+			target, found := Lookup(link.Resource)
+			require.True(t, found, link.Resource)
+			assert.True(t, slices.ContainsFunc(target.FiltersOf(AudienceEveryone), func(f Filter) bool { return f.Name == link.Filter }), "%s takes %s", target.Plural, link.Filter)
+		}
+
+		var err error
+		links[i], err = formatter.Parse(link.Path)
+		require.NoError(t, err)
+	}
+
+	for _, action := range d.Actions {
+		if len(action.Confirm) > 0 {
+			assert.NotEmpty(t, action.Title, "what is asked first is offered")
+		}
+
+		_, err := formatter.Parse(action.When)
+		require.NoError(t, err)
+	}
+
+	protected, err := formatter.Parse(d.App.Protected)
+	require.NoError(t, err)
+
+	for _, audience := range d.AppAudiences() {
+		rows := d.Rows(decode(t, listed[d.Name][audience]))
+
+		var out bytes.Buffer
+		require.NoError(t, formatter.Write(&out, rows, formatter.Options{Table: d.AppTable(), Headers: d.Headers}))
+		assert.NotContains(t, out.String(), "<no value>")
+		assert.NotContains(t, out.String(), "<nil>")
+
+		lines := strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
+		for i, row := range rows {
+			for cell := range strings.SplitSeq(lines[i+1], "   ") {
+				assert.NotContains(t, uuidsOf(row), strings.TrimSpace(cell), "the app shows no uuid of %s", d.Plural)
+			}
+
+			for j, link := range d.App.Links {
+				if !link.OfferedTo(audience) {
+					continue
+				}
+
+				var written bytes.Buffer
+				require.NoError(t, links[j].Execute(&written, row))
+
+				if path := written.String(); len(path) > 0 && link.Site != SiteApp {
+					assert.Regexp(t, appPath, path, "%s of %s", link.Name, d.Plural)
+				}
+			}
+
+			var said bytes.Buffer
+			require.NoError(t, protected.Execute(&said, row))
+		}
+	}
+}
+
+// uuidsOf are the values of a row's uuids: its fields named uuid, or after
+// one.
+func uuidsOf(row any) []string {
+	object, isObject := row.(map[string]any)
+	if !isObject {
+		return nil
+	}
+
+	var uuids []string
+
+	for field, value := range object {
+		if said, isString := value.(string); isString && len(said) > 0 && (field == "uuid" || strings.HasSuffix(field, "_uuid")) {
+			uuids = append(uuids, said)
+		}
+	}
+
+	return uuids
 }
 
 // listedAs checks that the table of d is written over the items the listing

@@ -1,40 +1,68 @@
 import {ActionIcon, Button, EmptyState, Group, Loader, Menu, Pagination, SegmentedControl, Table, Text} from "@mantine/core";
+import {modals} from "@mantine/modals";
 import {notifications} from "@mantine/notifications";
-import {IconBraces, IconChevronLeft, IconChevronRight, IconDots, IconFileText, IconPencil, IconPlayerPlay, IconPlus, IconTrash} from "@tabler/icons-react";
-import {useState} from "react";
-import {type ResourceAction, type ResourceDefinition, Resources, type Row} from "../api/services";
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconDots,
+  IconExternalLink,
+  IconEye,
+  IconFileText,
+  IconListCheck,
+  IconPencil,
+  IconPlayerPlay,
+  IconPlus,
+  type IconProps,
+  IconTrash,
+  IconWorld,
+} from "@tabler/icons-react";
+import {type ComponentType, useState} from "react";
+import {openURL} from "../api/browser";
+import {type ResourceAction, type ResourceDefinition, type ResourceLink, Resources, type Row} from "../api/services";
 import {useAct} from "../api/useAct";
 import {useQuery} from "../api/useQuery";
 import {DeleteModal} from "../components/DeleteModal";
 import {FailureAlert} from "../components/FailureAlert";
-import {JsonDrawer} from "../components/JsonDrawer";
 import {PageHeader} from "../components/PageHeader";
-import {ResourceEditor} from "./ResourceEditor";
+import {useNavigation} from "../shell/navigation";
 import {ResourceFilters} from "./ResourceFilters";
-import {actionsFor, type Audience, AUDIENCE_LABELS, audienceShown, audiencesOf, filtersFor, nameOf, routesFor, said} from "./resource";
+import {actionsFor, type Audience, AUDIENCE_LABELS, audienceShown, audiencesOf, filtersFor, linksFor, nameOf, routesFor, rowActions, rowLinks, said} from "./resource";
 
-/** What is being edited: something new, or a row. */
-type Editing = {row: Row | null};
+/** The icon each kind of link is offered with. */
+const LINK_ICONS: Record<string, ComponentType<IconProps>> = {
+  view: IconEye,
+  edit: IconPencil,
+  list: IconListCheck,
+  public: IconWorld,
+};
 
-/** What is shown as JSON: a row, or what an action answered. */
-type Shown = {title: string; value: unknown};
+type Props = {
+  definition: ResourceDefinition;
+
+  /** Whose things it opens on, while the session may list them. */
+  audience?: Audience;
+
+  /** What its listing opens narrowed by. */
+  filters?: Record<string, string>;
+};
 
 /**
  * A resource the dashboard manages, as its definition describes it for the
  * session: its listing, laid out as its table, of one's own things or
- * everybody's, as far as the session may list them, and what it may ask of
- * each of its rows.
+ * everybody's, as far as the session may list them, and what the web
+ * dashboard offers to do with each row. What needs a form of the
+ * dashboard's own, making one, showing or changing it, opens that page of
+ * the website in the browser.
  */
-export function ResourcePage({definition}: {definition: ResourceDefinition}) {
+export function ResourcePage({definition, audience: openedOn, filters: narrowedBy = {}}: Props) {
   const act = useAct();
+  const {navigate} = useNavigation();
   const audiences = audiencesOf(definition);
-  const [chosen, setAudience] = useState<Audience>(audiences[0] ?? "everyone");
+  const [chosen, setAudience] = useState<Audience>(openedOn ?? audiences[0] ?? "everyone");
   const audience = audienceShown(audiences, chosen);
   const [page, setPage] = useState(1);
   const [cursors, setCursors] = useState<string[]>([""]);
-  const [filters, setFilters] = useState<Record<string, string>>({});
-  const [shown, setShown] = useState<Shown | null>(null);
-  const [editing, setEditing] = useState<Editing | null>(null);
+  const [filters, setFilters] = useState<Record<string, string>>(narrowedBy);
   const [deleting, setDeleting] = useState<Row | null>(null);
 
   const everyone = audience === "everyone";
@@ -45,6 +73,7 @@ export function ResourcePage({definition}: {definition: ResourceDefinition}) {
   );
   const rows = listing.data?.rows ?? [];
   const columns = listing.data?.columns ?? definition.columns ?? [];
+  const links = linksFor(definition, audience);
   const keyedActions = actionsFor(definition, audience, true);
   const resourceActions = actionsFor(definition, audience, false);
 
@@ -53,29 +82,35 @@ export function ResourcePage({definition}: {definition: ResourceDefinition}) {
     setCursors([""]);
   };
 
-  const inspect = (row: Row) => {
-    if (!routes.get || row.key.length === 0) {
-      setShown({title: nameOf(row.key, row.cells), value: row.item});
+  const ask = (action: ResourceAction, row: Row | null) => {
+    const run = () =>
+      void act(action.title, async () => {
+        await Resources.Action(definition.name, action.name, everyone, row?.key ?? []);
+        notifications.show({color: "teal", message: `${action.title}: done`});
+        listing.reload();
+      });
+
+    if (!action.confirm) {
+      run();
 
       return;
     }
 
-    void act(`Reading ${nameOf(row.key, row.cells)}`, async () => {
-      setShown({title: nameOf(row.key, row.cells), value: await Resources.Get(definition.name, everyone, row.key)});
+    modals.openConfirmModal({
+      title: action.title,
+      children: <Text size="sm">{action.confirm}</Text>,
+      labels: {confirm: action.title, cancel: "Cancel"},
+      onConfirm: run,
     });
   };
 
-  const ask = (action: ResourceAction, row: Row | null) =>
-    void act(action.description || action.name, async () => {
-      const answer = await Resources.Action(definition.name, action.name, everyone, row?.key ?? []);
-      if (answer !== null && answer !== undefined) {
-        setShown({title: action.description || action.name, value: answer});
-      } else {
-        notifications.show({color: "teal", message: `${action.description || action.name}: done`});
-      }
-
-      listing.reload();
-    });
+  const follow = (link: ResourceLink, to: string) => {
+    if (link.resource) {
+      navigate({page: "resource", name: link.resource, audience: "everyone", filters: {[link.filter]: to}});
+    } else {
+      openURL(to);
+    }
+  };
 
   return (
     <>
@@ -86,12 +121,12 @@ export function ResourcePage({definition}: {definition: ResourceDefinition}) {
           <>
             {resourceActions.map((action) => (
               <Button key={action.name} variant="default" leftSection={<IconPlayerPlay size={16} />} onClick={() => ask(action, null)}>
-                {action.description || action.name}
+                {action.title}
               </Button>
             ))}
-            {routes.create && (
-              <Button leftSection={<IconPlus size={16} />} onClick={() => setEditing({row: null})}>
-                Create
+            {definition.new?.url && (
+              <Button leftSection={<IconPlus size={16} />} rightSection={<IconExternalLink size={14} />} onClick={() => openURL(definition.new.url)}>
+                {definition.new.name}
               </Button>
             )}
           </>
@@ -132,52 +167,66 @@ export function ResourcePage({definition}: {definition: ResourceDefinition}) {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {rows.map((row, index) => (
-                <Table.Tr key={row.key.length > 0 ? row.key.join("/") : index}>
-                  {row.cells.map((cell, i) => (
-                    <Table.Td key={i}>
-                      <Text size="sm" style={{overflowWrap: "anywhere"}}>
-                        {cell}
-                      </Text>
+              {rows.map((row, index) => {
+                const name = nameOf(row.key, row.cells);
+                const followed = rowLinks(links, row);
+                const asked = row.key.length > 0 ? rowActions(keyedActions, row) : [];
+                const deletes = routes.delete && row.key.length > 0 && !row.protected;
+
+                return (
+                  <Table.Tr key={row.key.length > 0 ? row.key.join("/") : index}>
+                    {row.cells.map((cell, i) => (
+                      <Table.Td key={i}>
+                        <Text size="sm" style={{overflowWrap: "anywhere"}}>
+                          {cell}
+                        </Text>
+                      </Table.Td>
+                    ))}
+                    <Table.Td>
+                      {(followed.length > 0 || asked.length > 0 || deletes) && (
+                        <Group justify="flex-end">
+                          <Menu position="bottom-end" withinPortal>
+                            <Menu.Target>
+                              <ActionIcon variant="subtle" color="gray" aria-label={`What to do with ${name}`}>
+                                <IconDots size={16} />
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                              {followed.map(({link, to}) => {
+                                const Icon = LINK_ICONS[link.kind] ?? IconEye;
+
+                                return (
+                                  <Menu.Item
+                                    key={link.name}
+                                    leftSection={<Icon size={14} />}
+                                    rightSection={link.resource ? undefined : <IconExternalLink size={12} aria-label="Opens in the browser" />}
+                                    onClick={() => follow(link, to)}
+                                  >
+                                    {link.name}
+                                  </Menu.Item>
+                                );
+                              })}
+                              {asked.map((action) => (
+                                <Menu.Item key={action.name} leftSection={<IconPlayerPlay size={14} />} onClick={() => ask(action, row)}>
+                                  {action.title}
+                                </Menu.Item>
+                              ))}
+                              {deletes && (
+                                <>
+                                  {(followed.length > 0 || asked.length > 0) && <Menu.Divider />}
+                                  <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => setDeleting(row)}>
+                                    Delete
+                                  </Menu.Item>
+                                </>
+                              )}
+                            </Menu.Dropdown>
+                          </Menu>
+                        </Group>
+                      )}
                     </Table.Td>
-                  ))}
-                  <Table.Td>
-                    <Group justify="flex-end">
-                      <Menu position="bottom-end" withinPortal>
-                        <Menu.Target>
-                          <ActionIcon variant="subtle" color="gray" aria-label={`What to do with ${nameOf(row.key, row.cells)}`}>
-                            <IconDots size={16} />
-                          </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                          <Menu.Item leftSection={<IconBraces size={14} />} onClick={() => inspect(row)}>
-                            Inspect
-                          </Menu.Item>
-                          {routes.update && row.key.length > 0 && (
-                            <Menu.Item leftSection={<IconPencil size={14} />} onClick={() => setEditing({row})}>
-                              Edit
-                            </Menu.Item>
-                          )}
-                          {row.key.length > 0 &&
-                            keyedActions.map((action) => (
-                              <Menu.Item key={action.name} leftSection={<IconPlayerPlay size={14} />} onClick={() => ask(action, row)}>
-                                {action.description || action.name}
-                              </Menu.Item>
-                            ))}
-                          {routes.delete && row.key.length > 0 && (
-                            <>
-                              <Menu.Divider />
-                              <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => setDeleting(row)}>
-                                Delete
-                              </Menu.Item>
-                            </>
-                          )}
-                        </Menu.Dropdown>
-                      </Menu>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
+                  </Table.Tr>
+                );
+              })}
             </Table.Tbody>
           </Table>
         </Table.ScrollContainer>
@@ -200,18 +249,6 @@ export function ResourcePage({definition}: {definition: ResourceDefinition}) {
           </Group>
         )
       )}
-      <JsonDrawer opened={shown !== null} onClose={() => setShown(null)} title={shown?.title ?? ""} value={shown?.value} />
-      <ResourceEditor
-        opened={editing !== null}
-        onClose={() => setEditing(null)}
-        title={editing?.row ? `Edit ${nameOf(editing.row.key, editing.row.cells)}` : `New ${definition.name.replace(/-/g, " ")}`}
-        read={editing?.row ? readerOf(definition, everyone, editing.row, routes.get) : undefined}
-        save={(json) => (editing?.row ? Resources.Update(definition.name, everyone, editing.row.key, json) : Resources.Create(definition.name, everyone, json))}
-        onSaved={() => {
-          notifications.show({color: "teal", message: "Saved"});
-          listing.reload();
-        }}
-      />
       <DeleteModal
         opened={deleting !== null}
         onClose={() => setDeleting(null)}
@@ -222,13 +259,4 @@ export function ResourcePage({definition}: {definition: ResourceDefinition}) {
       />
     </>
   );
-}
-
-/** Reads a row as it is now, or answers it as it was listed where it cannot be read. */
-function readerOf(definition: ResourceDefinition, everyone: boolean, row: Row, readable: boolean): () => Promise<unknown> {
-  if (!readable) {
-    return () => Promise.resolve(row.item);
-  }
-
-  return () => Resources.Get(definition.name, everyone, row.key);
 }

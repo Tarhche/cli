@@ -72,5 +72,5 @@ func (c *listContextsCommand) run(context.Context) error {
 		items = append(items, viewOf(found, current))
 	}
 
-	return formatter.Write(c.cli.Out, items, formatter.Options{Format: c.format, Table: contextTable, Quiet: c.quiet, ID: "{{.Name}}"})
+	return formatter.Write(c.cli.Out, items, formatter.Options{Format: c.format, Table: contextTable, Quiet: c.quiet, ID: "{{.Name}}", Headers: map[string]string{"Web": "WEBSITE"}})
 }

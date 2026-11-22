@@ -3,7 +3,7 @@ import type {ContextInfo, Status} from "../api/services";
 import type {SessionState} from "../session/session";
 
 /** The context a test talks to. */
-export const testContext: ContextInfo = {name: "local", description: "", api: "http://localhost:8000", ingress: "http://localhost:8030", current: true};
+export const testContext: ContextInfo = {name: "local", description: "", api: "http://localhost:8000", ingress: "http://localhost:8030", web: "http://localhost:3000", current: true};
 
 /** A session as a test says it is: logged out unless it says otherwise. */
 export function session(state: Partial<SessionState> = {}): SessionState {

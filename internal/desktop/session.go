@@ -45,6 +45,10 @@ type ContextInfo struct {
 	API         string `json:"api"`
 	Ingress     string `json:"ingress"`
 
+	// Web is the estate's website, which the app opens pages of: none links
+	// to nothing.
+	Web string `json:"web"`
+
 	// Current says it is the one the app talks to.
 	Current bool `json:"current"`
 }
@@ -55,6 +59,7 @@ type NewContext struct {
 	Description string `json:"description"`
 	API         string `json:"api"`
 	Ingress     string `json:"ingress"`
+	Web         string `json:"web"`
 }
 
 // Status is the session the app has in the context it talks to, and, when
@@ -143,7 +148,7 @@ func (s *Session) Use(name string) error {
 
 // Create creates a context, refusing what is wrong with it field by field.
 func (s *Session) Create(c NewContext) error {
-	created := config.Context{Name: c.Name, Description: c.Description, API: c.API, Ingress: c.Ingress}
+	created := config.Context{Name: c.Name, Description: c.Description, API: c.API, Ingress: c.Ingress, Web: c.Web}
 
 	return s.workspace.Change(func(cfg *config.File, _ string) (string, error) {
 		if fields := contextFields(cfg, created); len(fields) > 0 {
@@ -338,12 +343,13 @@ func refusalReason(err error) string {
 }
 
 func contextInfo(c config.Context, current string) ContextInfo {
-	return ContextInfo{Name: c.Name, Description: c.Description, API: c.API, Ingress: c.Ingress, Current: c.Name == current}
+	return ContextInfo{Name: c.Name, Description: c.Description, API: c.API, Ingress: c.Ingress, Web: c.Web, Current: c.Name == current}
 }
 
 // contextFields says what is wrong with each field of a context to create,
 // by the configuration's own rules: a name that is taken, or that it does
-// not take, and URLs it does not take.
+// not take, and URLs it does not take: its API's, its ingress's and its
+// website's.
 func contextFields(cfg *config.File, c config.Context) map[string]string {
 	fields := make(map[string]string)
 
@@ -359,6 +365,10 @@ func contextFields(cfg *config.File, c config.Context) map[string]string {
 
 	if err := (config.Context{Name: config.DefaultContextName, API: config.DefaultAPI, Ingress: c.Ingress}).Validate(); err != nil {
 		fields["ingress"] = reason(err, "its ingress ")
+	}
+
+	if err := (config.Context{Name: config.DefaultContextName, API: config.DefaultAPI, Web: c.Web}).Validate(); err != nil {
+		fields["web"] = reason(err, "its website ")
 	}
 
 	return fields

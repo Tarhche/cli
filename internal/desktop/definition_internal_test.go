@@ -13,6 +13,7 @@ import (
 
 	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/api"
+	"github.com/Tarhche/cli/internal/config"
 	"github.com/Tarhche/cli/internal/resource"
 )
 
@@ -176,4 +177,40 @@ func TestDefinitionHelpers(t *testing.T) {
 		assert.Error(t, brokenErr)
 	})
 
+	t.Run("a header is said as a sentence begins", func(t *testing.T) {
+		t.Parallel()
+
+		assert.Equal(t, "Passing score", sentence("PASSING SCORE"))
+		assert.Equal(t, "Ändert", sentence("ÄNDERT"))
+		assert.Empty(t, sentence(""))
+	})
+
+	t.Run("a link leads to its site, or to the app's page it names", func(t *testing.T) {
+		t.Parallel()
+
+		s := sitesOf(config.Context{API: "https://api.example/", Web: "https://web.example"})
+
+		assert.Equal(t, "https://web.example/en", s.address(resource.SiteWeb, "/en"))
+		assert.Equal(t, "https://api.example/files/f", s.address(resource.SiteAPI, "/files/f"))
+		assert.Equal(t, "x-1", s.address(resource.SiteApp, "x-1"))
+		assert.True(t, s.reaches(resource.SiteApp))
+		assert.False(t, sitesOf(config.Context{API: "https://api.example"}).reaches(resource.SiteWeb))
+	})
+
+	t.Run("routes allow what they all allow", func(t *testing.T) {
+		t.Parallel()
+
+		routes := Routes{Get: true, Update: true}
+
+		assert.True(t, routes.allows(nil))
+		assert.True(t, routes.allows([]operation{operationGet, operationUpdate}))
+		assert.False(t, routes.allows([]operation{operationGet, operationDelete}))
+	})
+
+	t.Run("a listing is of everybody's or of one's own", func(t *testing.T) {
+		t.Parallel()
+
+		assert.Equal(t, resource.AudienceEveryone, audienceOf(true))
+		assert.Equal(t, resource.AudienceMine, audienceOf(false))
+	})
 }

@@ -7,10 +7,10 @@ import {useAct} from "../../api/useAct";
 import {useQuery} from "../../api/useQuery";
 import {DeleteModal} from "../../components/DeleteModal";
 import {FailureAlert} from "../../components/FailureAlert";
-import {JsonDrawer} from "../../components/JsonDrawer";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {useNavigation} from "../../shell/navigation";
+import {confirmRestart, confirmStop} from "../confirm";
 import {ago, stateColor} from "../format";
 import {POLL} from "../listing";
 import type {Page, Stack} from "../types";
@@ -22,7 +22,6 @@ export function StacksPage() {
   const act = useAct();
   const {stacks: may} = useAbilities();
   const [page, setPage] = useState(1);
-  const [inspected, setInspected] = useState<Stack | null>(null);
   const [deleted, setDeleted] = useState<Stack | null>(null);
   const stacks = useQuery(`stacks:${page}`, () => Workloads.Stacks(page) as Promise<Page<Stack>>, {interval: POLL});
   const items = stacks.data?.items ?? [];
@@ -50,7 +49,7 @@ export function StacksPage() {
       )}
       {items.length > 0 && (
         <Table.ScrollContainer minWidth={720}>
-          <Table verticalSpacing="sm">
+          <Table highlightOnHover verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Name</Table.Th>
@@ -67,7 +66,7 @@ export function StacksPage() {
                 const name = stack.metadata.name ?? uuid;
 
                 return (
-                  <Table.Tr key={uuid}>
+                  <Table.Tr key={uuid} style={may.show ? {cursor: "pointer"} : undefined} onClick={may.show ? () => navigate({page: "stack", uuid}) : undefined}>
                     <Table.Td>
                       <Text size="sm" fw={500}>
                         {name}
@@ -100,9 +99,8 @@ export function StacksPage() {
                       <WorkloadActions
                         state={stack.status.state}
                         onStart={may.start ? () => command(`Starting ${name}`, () => Workloads.StartStack(uuid)) : undefined}
-                        onStop={may.stop ? () => command(`Stopping ${name}`, () => Workloads.StopStack(uuid)) : undefined}
-                        onRestart={may.restart ? () => command(`Restarting ${name}`, () => Workloads.RestartStack(uuid)) : undefined}
-                        onInspect={() => setInspected(stack)}
+                        onStop={may.stop ? () => confirmStop("stack", name, () => command(`Stopping ${name}`, () => Workloads.StopStack(uuid))) : undefined}
+                        onRestart={may.restart ? () => confirmRestart("stack", name, () => command(`Restarting ${name}`, () => Workloads.RestartStack(uuid))) : undefined}
                         onDelete={may.delete ? () => setDeleted(stack) : undefined}
                       />
                     </Table.Td>
@@ -118,7 +116,6 @@ export function StacksPage() {
           <Pagination total={pages} value={page} onChange={setPage} />
         </Group>
       )}
-      <JsonDrawer opened={inspected !== null} onClose={() => setInspected(null)} title={inspected?.metadata.name ?? "Stack"} value={inspected} />
       <DeleteModal
         opened={deleted !== null}
         onClose={() => setDeleted(null)}

@@ -8,7 +8,6 @@ import {useQuery} from "../../api/useQuery";
 import {useRun} from "../../api/useRun";
 import {DeleteModal} from "../../components/DeleteModal";
 import {FailureAlert} from "../../components/FailureAlert";
-import {JsonDrawer} from "../../components/JsonDrawer";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {ago, bytes} from "../format";
@@ -22,7 +21,6 @@ export function ImagesPage() {
   const {images: may} = useAbilities();
   const [vm, setVM] = useState<string | null>(null);
   const [reference, setReference] = useState("");
-  const [inspected, setInspected] = useState<Image | null>(null);
   const [deleted, setDeleted] = useState<Image | null>(null);
   const images = useQuery(`images:${vm}`, () => Workloads.Images(vm ?? "") as Promise<Items<Image>>, {interval: POLL, enabled: vm !== null});
   const pulling = useRun(async () => {
@@ -105,7 +103,7 @@ export function ImagesPage() {
                         <Text size="sm">{ago(image.status.created_at)}</Text>
                       </Table.Td>
                       <Table.Td>
-                        <WorkloadActions onInspect={() => setInspected(image)} onDelete={may.delete ? () => setDeleted(image) : undefined} />
+                        <WorkloadActions onDelete={may.delete ? () => setDeleted(image) : undefined} />
                       </Table.Td>
                     </Table.Tr>
                   ))}
@@ -115,7 +113,6 @@ export function ImagesPage() {
           )}
         </>
       )}
-      <JsonDrawer opened={inspected !== null} onClose={() => setInspected(null)} title={inspected?.spec.reference ?? "Image"} value={inspected} />
       <DeleteModal
         opened={deleted !== null}
         onClose={() => setDeleted(null)}

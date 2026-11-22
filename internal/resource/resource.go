@@ -93,9 +93,21 @@ func (p Paths) served() bool {
 // that a resource can be asked: a contact message marked read, say. It
 // takes nothing but the key of what it is asked of, if its path names one.
 type Action struct {
-	// Name is the command and button it is offered as: "read".
+	// Name is the command it is offered as: "read".
 	Name        string
 	Description string
+
+	// Title is what the desktop app offers it as: "Mark as read". The app
+	// offers none that has no title, which is the CLI's alone.
+	Title string
+
+	// Confirm is what the app asks before it asks the API, nothing for
+	// nothing.
+	Confirm string
+
+	// When is a template over a row that writes "true" of the rows the app
+	// offers it for; every row when empty.
+	When string
 
 	Method string
 	// Path names the key fields in braces, as Paths.Get does.
@@ -115,6 +127,110 @@ func (a Action) Audience() Audience {
 	}
 
 	return AudienceEveryone
+}
+
+// Site is where a link leads.
+type Site string
+
+const (
+	// SiteWeb is the estate's website: its public pages and its web
+	// dashboard.
+	SiteWeb Site = "web"
+
+	// SiteAPI is what the API serves itself, as the files it keeps.
+	SiteAPI Site = "api"
+
+	// SiteApp is another page of the desktop app: everybody's listing of a
+	// resource, narrowed by one of its filters.
+	SiteApp Site = "app"
+)
+
+// LinkKind is what a link does, which the app shows it by.
+type LinkKind string
+
+const (
+	// LinkView shows what a row is.
+	LinkView LinkKind = "view"
+
+	// LinkEdit changes it.
+	LinkEdit LinkKind = "edit"
+
+	// LinkList lists what belongs to it.
+	LinkList LinkKind = "list"
+
+	// LinkPublic is its public page, beside the one that shows it.
+	LinkPublic LinkKind = "public"
+)
+
+// Link is a page a row of a resource is shown or changed on beside the
+// app's listing of it: a page of the estate's website, something its API
+// serves, or a page of the app. The desktop app offers its links as the web
+// dashboard's listing offers them, a page of the website opened in the
+// browser.
+type Link struct {
+	// Name is what it is offered as: "Edit article".
+	Name string
+	Kind LinkKind
+	Site Site
+
+	// Path is a template over a row of where it leads: a path on its site,
+	// or, on the app's, the value of Filter. A row it writes nothing of has
+	// no such page.
+	Path string
+
+	// Resource is the resource whose listing a link of the app opens, and
+	// Filter the filter Path writes the value of.
+	Resource string
+	Filter   string
+
+	// Requires are what the session has to be allowed of the audience it is
+	// offered in, as the web dashboard asks before it offers a page: an
+	// edit page needs reading and changing. None is a page anybody opens.
+	Requires []Operation
+
+	// Audiences are the listings it is offered in; none is every one.
+	Audiences []Audience
+}
+
+// OfferedTo reports whether it is offered in the listing of an audience.
+func (l Link) OfferedTo(audience Audience) bool {
+	return len(l.Audiences) == 0 || slices.Contains(l.Audiences, audience)
+}
+
+// New is the page of the web dashboard one of a resource is made on.
+type New struct {
+	// Name is what it is offered as: "New article".
+	Name string
+
+	// Path is where it is on the website.
+	Path string
+}
+
+// App is how the desktop app shows a resource where that is not what the
+// CLI does with it: what a person reads, and where they go to do what the
+// app does not, rather than what a command is given.
+type App struct {
+	// Hidden says the app has no page of it.
+	Hidden bool
+
+	// Audiences are whose things its page lists, of those it is served to;
+	// every one when none.
+	Audiences []Audience
+
+	// Table is its page's table, over a row as Table is, Table when empty:
+	// no uuid, as a person tells rows apart by what they say.
+	Table string
+
+	// New is where one is made, nowhere when it has no name.
+	New New
+
+	// Links are where a row is shown or changed, in the order they are
+	// offered, before its actions and its delete.
+	Links []Link
+
+	// Protected is a template over a row that writes "true" of one that is
+	// not deleted: the default role.
+	Protected string
 }
 
 // Filter is a query parameter a listing takes to narrow what it lists.
@@ -182,6 +298,9 @@ type Definition struct {
 	// ID is the template of what identifies a row, as its key is given to a
 	// command; the key fields joined by slashes when empty.
 	ID string
+
+	// App is how the desktop app shows it.
+	App App
 }
 
 // Path is path with the key fields in braces replaced by key, in order.
@@ -232,6 +351,33 @@ func (d Definition) Audiences() []Audience {
 	}
 
 	return audiences
+}
+
+// AppAudiences are the audiences the desktop app lists it to, of those it
+// is served to: none when the app has no page of it.
+func (d Definition) AppAudiences() []Audience {
+	if d.App.Hidden {
+		return nil
+	}
+
+	var audiences []Audience
+
+	for _, audience := range d.Audiences() {
+		if len(d.App.Audiences) == 0 || slices.Contains(d.App.Audiences, audience) {
+			audiences = append(audiences, audience)
+		}
+	}
+
+	return audiences
+}
+
+// AppTable is the desktop app's table of a listing: its own, else Table.
+func (d Definition) AppTable() string {
+	if len(d.App.Table) > 0 {
+		return d.App.Table
+	}
+
+	return d.Table
 }
 
 // Serves reports whether op is served to any audience.

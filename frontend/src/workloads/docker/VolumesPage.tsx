@@ -8,7 +8,6 @@ import {useQuery} from "../../api/useQuery";
 import {useRun} from "../../api/useRun";
 import {DeleteModal, type Dependents} from "../../components/DeleteModal";
 import {FailureAlert} from "../../components/FailureAlert";
-import {JsonDrawer} from "../../components/JsonDrawer";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {ago} from "../format";
@@ -27,7 +26,6 @@ export function VolumesPage() {
   const {volumes: may} = useAbilities();
   const [vm, setVM] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [inspected, setInspected] = useState<Volume | null>(null);
   const [deleted, setDeleted] = useState<Volume | null>(null);
   const volumes = useQuery(`volumes:${vm}`, () => Workloads.Volumes(vm ?? "") as Promise<Items<Volume>>, {interval: POLL, enabled: vm !== null});
   const creating = useRun(async () => {
@@ -102,7 +100,7 @@ export function VolumesPage() {
                         <Text size="sm">{ago(volume.status.created_at)}</Text>
                       </Table.Td>
                       <Table.Td>
-                        <WorkloadActions onInspect={() => setInspected(volume)} onDelete={may.delete ? () => setDeleted(volume) : undefined} />
+                        <WorkloadActions onDelete={may.delete ? () => setDeleted(volume) : undefined} />
                       </Table.Td>
                     </Table.Tr>
                   ))}
@@ -112,7 +110,6 @@ export function VolumesPage() {
           )}
         </>
       )}
-      <JsonDrawer opened={inspected !== null} onClose={() => setInspected(null)} title={inspected ? nameOf(inspected) : "Volume"} value={inspected} />
       <DeleteModal
         opened={deleted !== null}
         onClose={() => setDeleted(null)}

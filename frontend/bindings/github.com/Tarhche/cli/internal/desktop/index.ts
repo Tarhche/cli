@@ -38,6 +38,8 @@ export {
     ResourceAction,
     ResourceDefinition,
     ResourceFilter,
+    ResourceLink,
+    ResourceNew,
     Routes,
     Row,
     StackRequest,

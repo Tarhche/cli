@@ -25,7 +25,9 @@ const noValue = "<no value>"
 // pages are built from whatever definitions the session's permissions
 // allow. Whose things are asked for is the frontend's to say: one's own,
 // unless everybody's are asked for or one's own are not served, as the
-// commands do.
+// commands do. What needs a form of the web dashboard's, making something
+// or changing it, is a link to that page of the context's website, as is
+// what a row is shown as on it.
 type Resources struct {
 	workspace   *Workspace
 	definitions func() []resource.Definition
@@ -69,6 +71,43 @@ type ResourceDefinition struct {
 
 	// Columns are the headers of its listing's table.
 	Columns []string `json:"columns"`
+
+	// New is where one is made, on the web dashboard: nothing when the
+	// session may make none, or its context names no website.
+	New ResourceNew `json:"new"`
+
+	// Links are where a row is shown or changed beside its listing, in the
+	// order they are offered.
+	Links []ResourceLink `json:"links"`
+}
+
+// ResourceNew is the page of the web dashboard one of a resource is made
+// on.
+type ResourceNew struct {
+	// Name is what it is offered as: "New article".
+	Name string `json:"name"`
+	URL  string `json:"url"`
+}
+
+// ResourceLink is a page a row of a resource is shown or changed on: one of
+// the context's website or API, which a row's link is the address of, or
+// one of the app, which a row's link is the value of a filter of.
+type ResourceLink struct {
+	// Name is what it is offered as: "Edit article".
+	Name string `json:"name"`
+
+	// Kind is what it does: view, edit, list or public.
+	Kind string `json:"kind"`
+
+	// Resource is, for a page of the app, the resource whose everybody's
+	// listing it opens, and Filter the filter that listing is narrowed by;
+	// both empty for a page of a site.
+	Resource string `json:"resource"`
+	Filter   string `json:"filter"`
+
+	// Audiences are the listings the session is offered it in: mine,
+	// everyone.
+	Audiences []string `json:"audiences"`
 }
 
 // Routes say what the session may ask an audience of a resource: what is
@@ -85,6 +124,12 @@ type Routes struct {
 type ResourceAction struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+
+	// Title is what it is offered as: "Mark as read".
+	Title string `json:"title"`
+
+	// Confirm is what is asked before it is, nothing for nothing.
+	Confirm string `json:"confirm"`
 
 	// Mine says it is asked of one's own, else of everybody's.
 	Mine bool `json:"mine"`
@@ -150,6 +195,18 @@ type Row struct {
 
 	// Item is the row as the API answered it.
 	Item json.RawMessage `json:"item"`
+
+	// Links are where its definition's links lead for it, by name: an
+	// address, or, for a page of the app, the value of its filter. A link
+	// it has none of is not offered for it.
+	Links map[string]string `json:"links"`
+
+	// Actions are the names of its definition's actions of one thing that
+	// are offered for it.
+	Actions []string `json:"actions"`
+
+	// Protected says it is not deleted: the default role.
+	Protected bool `json:"protected"`
 }
 
 // Definitions are the kinds of resource the session may list, in the order
@@ -161,15 +218,20 @@ func (r *Resources) Definitions(ctx context.Context) ([]ResourceDefinition, erro
 		return nil, err
 	}
 
+	c, err := r.workspace.Context()
+	if err != nil {
+		return nil, err
+	}
+
 	described := []ResourceDefinition{}
 
 	for _, d := range r.definitions() {
-		if offered := describe(d, granted); len(offered.Audiences) > 0 {
+		if offered := describe(d, granted, sitesOf(c)); len(offered.Audiences) > 0 {
 			described = append(described, offered)
 		}
 	}
 
-	return described, nil
+	return withPagesListed(described), nil
 }
 
 // List reads a page of a resource's listing.
@@ -184,7 +246,12 @@ func (r *Resources) List(ctx context.Context, name string, everyone bool, query 
 		return Listing{}, unserved(d, "listed")
 	}
 
-	cells, err := cellsOf(d)
+	layout, err := layoutOf(d, audienceOf(everyone))
+	if err != nil {
+		return Listing{}, err
+	}
+
+	c, err := r.workspace.Context()
 	if err != nil {
 		return Listing{}, err
 	}
@@ -204,7 +271,7 @@ func (r *Resources) List(ctx context.Context, name string, everyone bool, query 
 	listing.Rows = make([]Row, 0, len(rows))
 
 	for _, row := range rows {
-		laidOut, err := rowOf(d, cells, row)
+		laidOut, err := layout.row(d, sitesOf(c), row)
 		if err != nil {
 			return Listing{}, err
 		}
@@ -212,71 +279,7 @@ func (r *Resources) List(ctx context.Context, name string, everyone bool, query 
 		listing.Rows = append(listing.Rows, laidOut)
 	}
 
-	return listing, nil
-}
-
-// Get reads one of a resource, by its key.
-func (r *Resources) Get(ctx context.Context, name string, everyone bool, key []string) (json.RawMessage, error) {
-	d, err := r.lookup(name)
-	if err != nil {
-		return nil, err
-	}
-
-	path := routeOf(d, operationGet, everyone)
-	if len(path) == 0 {
-		return nil, unserved(d, "read")
-	}
-
-	return r.send(ctx, methods[operationGet], d.Path(path, key), nil)
-}
-
-// Create creates one of a resource from body, its JSON object.
-func (r *Resources) Create(ctx context.Context, name string, everyone bool, body string) (json.RawMessage, error) {
-	d, err := r.lookup(name)
-	if err != nil {
-		return nil, err
-	}
-
-	path := routeOf(d, operationCreate, everyone)
-	if len(path) == 0 {
-		return nil, unserved(d, "created")
-	}
-
-	object, err := decodeObject(body)
-	if err != nil {
-		return nil, err
-	}
-
-	return r.send(ctx, methods[operationCreate], path, withDefaults(object, d.Defaults))
-}
-
-// Update changes one of a resource to body, its JSON object: the one key
-// names, or, given no key, the one body says.
-func (r *Resources) Update(ctx context.Context, name string, everyone bool, key []string, body string) (json.RawMessage, error) {
-	d, err := r.lookup(name)
-	if err != nil {
-		return nil, err
-	}
-
-	path := routeOf(d, operationUpdate, everyone)
-	if len(path) == 0 {
-		return nil, unserved(d, "changed")
-	}
-
-	object, err := decodeObject(body)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(key) == 0 {
-		if key, err = keyFromBody(d, object); err != nil {
-			return nil, err
-		}
-	}
-
-	maps.Copy(object, d.BodyKey(path, key))
-
-	return r.send(ctx, methods[operationUpdate], d.Path(path, key), withDefaults(object, d.Defaults))
+	return withoutEmptyColumns(listing), nil
 }
 
 // Delete deletes one of a resource, by its key.
@@ -390,12 +393,22 @@ func read(ctx context.Context, client *api.Client, path, cursor string, query Li
 }
 
 // describe is a resource as the frontend builds its pages from it, for a
-// session granted what granted says.
-func describe(d resource.Definition, granted access.Granted) ResourceDefinition {
-	actions := make([]ResourceAction, len(d.Actions))
-	for i, a := range d.Actions {
-		actions[i] = ResourceAction{Name: a.Name, Description: a.Description, Mine: a.Mine, Keyed: keyed(d, a), Allowed: granted.Allows(methodOf(a), a.Path)}
+// session granted what granted says, in a context whose sites are sites:
+// the actions the app offers, and the links it can follow.
+func describe(d resource.Definition, granted access.Granted, sites sites) ResourceDefinition {
+	actions := []ResourceAction{}
+
+	for _, a := range d.Actions {
+		if len(a.Title) > 0 {
+			actions = append(actions, ResourceAction{
+				Name: a.Name, Description: a.Description, Title: a.Title, Confirm: a.Confirm,
+				Mine: a.Mine, Keyed: keyed(d, a), Allowed: granted.Allows(methodOf(a), a.Path),
+			})
+		}
 	}
+
+	audiences := audiencesOf(d, granted)
+	mine, everyone := routesOf(d, false, granted), routesOf(d, true, granted)
 
 	return ResourceDefinition{
 		Name:        d.Name,
@@ -404,13 +417,15 @@ func describe(d resource.Definition, granted access.Granted) ResourceDefinition 
 		Description: d.Description,
 		Section:     d.Section,
 		Key:         append([]string{}, d.Key...),
-		Audiences:   audiencesOf(d, granted),
-		Mine:        routesOf(d, false, granted),
-		Everyone:    routesOf(d, true, granted),
+		Audiences:   audiences,
+		Mine:        mine,
+		Everyone:    everyone,
 		Actions:     actions,
 		Filters:     filtersOf(d),
 		Cursor:      len(d.Cursor) > 0,
 		Columns:     headersOf(d),
+		New:         newOf(d, mine.Create || everyone.Create, sites),
+		Links:       linksOf(d, audiences, granted, sites),
 	}
 }
 
@@ -433,10 +448,10 @@ func routesOf(d resource.Definition, everyone bool, granted access.Granted) Rout
 	}
 }
 
-// table is a resource's table, one template per column separated by tabs:
-// its definition's, else its key.
+// table is a resource's table in the app, one template per column separated
+// by tabs: its definition's, else its key.
 func table(d resource.Definition) string {
-	format := strings.ReplaceAll(d.Table, `\t`, "\t")
+	format := strings.ReplaceAll(d.AppTable(), `\t`, "\t")
 	if len(strings.TrimSpace(format)) > 0 {
 		return format
 	}
@@ -449,9 +464,27 @@ func table(d resource.Definition) string {
 	return strings.Join(columns, "\t")
 }
 
-// headersOf are the headers of a resource's table.
+// headersOf are the headers of a resource's table, as a sentence begins:
+// "Passing score".
 func headersOf(d resource.Definition) []string {
-	return strings.Split(formatter.Header(table(d), d.Headers), "\t")
+	headers := strings.Split(formatter.Header(table(d), d.Headers), "\t")
+
+	for i, header := range headers {
+		headers[i] = sentence(header)
+	}
+
+	return headers
+}
+
+// sentence is a header in capitals as a sentence begins: its first letter
+// a capital, the rest small.
+func sentence(header string) string {
+	lower := []rune(strings.ToLower(header))
+	if len(lower) == 0 {
+		return header
+	}
+
+	return strings.ToUpper(string(lower[:1])) + string(lower[1:])
 }
 
 // cell writes one column of a listing's rows.
@@ -467,43 +500,6 @@ func (c cell) write(row any) (string, error) {
 	}
 
 	return strings.ReplaceAll(written.String(), noValue, ""), nil
-}
-
-func cellsOf(d resource.Definition) ([]cell, error) {
-	formats := strings.Split(table(d), "\t")
-	cells := make([]cell, len(formats))
-
-	for i, format := range formats {
-		parsed, err := formatter.Parse(format)
-		if err != nil {
-			return nil, err
-		}
-
-		cells[i] = cell{template: parsed}
-	}
-
-	return cells, nil
-}
-
-// rowOf is a row of a listing as it is laid out: its key, which a row that
-// says none has none of, its cells, and itself, which, read from JSON, is
-// always written as JSON again.
-func rowOf(d resource.Definition, cells []cell, row any) (Row, error) {
-	key, err := d.KeyOf(row)
-	if err != nil {
-		key = []string{}
-	}
-
-	item, _ := json.Marshal(row)
-	laidOut := Row{Key: key, Cells: make([]string, len(cells)), Item: item}
-
-	for i, c := range cells {
-		if laidOut.Cells[i], err = c.write(row); err != nil {
-			return Row{}, err
-		}
-	}
-
-	return laidOut, nil
 }
 
 // answered is what the API answered, none when it answered nothing.

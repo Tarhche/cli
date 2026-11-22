@@ -1,5 +1,5 @@
-import {ActionIcon, Button, Group, Loader, Menu, Tabs, Tooltip} from "@mantine/core";
-import {IconBraces, IconCamera, IconDots, IconHistory, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTrash} from "@tabler/icons-react";
+import {ActionIcon, Button, Group, Loader, Menu, Tabs} from "@mantine/core";
+import {IconCamera, IconDots, IconHistory, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTrash} from "@tabler/icons-react";
 import {useState} from "react";
 import {useAbilities} from "../../access/access";
 import {Workloads} from "../../api/services";
@@ -7,7 +7,6 @@ import {useAct} from "../../api/useAct";
 import {useQuery} from "../../api/useQuery";
 import {DeleteModal, type Dependents} from "../../components/DeleteModal";
 import {FailureAlert} from "../../components/FailureAlert";
-import {JsonDrawer} from "../../components/JsonDrawer";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {useNavigation} from "../../shell/navigation";
@@ -16,6 +15,7 @@ import {LogsPanel} from "../detail/LogsPanel";
 import {PortsPanel} from "../detail/PortsPanel";
 import {VMStatsPanel} from "../detail/StatsPanels";
 import {TerminalPanel} from "../detail/TerminalPanel";
+import {confirmRestart, confirmStop} from "../confirm";
 import {canStart, canStop} from "../format";
 import {POLL} from "../listing";
 import type {Logs, VM} from "../types";
@@ -38,7 +38,7 @@ export function VMPage({uuid}: {uuid: string}) {
   const vm = useQuery(`vm:${uuid}`, () => Workloads.VM(uuid) as Promise<VM>, {interval: POLL});
   const [tab, setTab] = useState<Tab>("overview");
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>(["overview"]));
-  const [dialog, setDialog] = useState<"inspect" | "delete" | "snapshot" | "restore" | null>(null);
+  const [dialog, setDialog] = useState<"delete" | "snapshot" | "restore" | null>(null);
   const shown = vm.data;
 
   if (shown === undefined) {
@@ -62,7 +62,8 @@ export function VMPage({uuid}: {uuid: string}) {
     ports: may.forward || (shown.docker === true && may.exec),
   };
   const current = offered[tab] ? tab : "overview";
-  const offersMore = abilities.snapshots.create || may.restore || may.delete;
+  const offersSnapshots = abilities.snapshots.create || may.restore;
+  const offersMore = offersSnapshots || may.delete;
   const command = (title: string, run: () => Promise<unknown>) => void act(title, run).then(vm.reload);
   const open = (next: string | null) => {
     const chosen = (next ?? "overview") as Tab;
@@ -85,16 +86,16 @@ export function VMPage({uuid}: {uuid: string}) {
               </Button>
             )}
             {may.stop && canStop(state) && (
-              <Button size="xs" variant="light" color="orange" leftSection={<IconPlayerStop size={14} />} onClick={() => command(`Stopping ${name}`, () => Workloads.StopVM(uuid))}>
+              <Button size="xs" variant="light" color="orange" leftSection={<IconPlayerStop size={14} />} onClick={() => confirmStop("vm", name, () => command(`Stopping ${name}`, () => Workloads.StopVM(uuid)))}>
                 Stop
               </Button>
             )}
             {may.restart && canStop(state) && (
-              <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={() => command(`Restarting ${name}`, () => Workloads.RestartVM(uuid))}>
+              <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={() => confirmRestart("vm", name, () => command(`Restarting ${name}`, () => Workloads.RestartVM(uuid)))}>
                 Restart
               </Button>
             )}
-            {offersMore ? (
+            {offersMore && (
               <Menu position="bottom-end" withinPortal>
                 <Menu.Target>
                   <ActionIcon variant="default" size="md" aria-label="More">
@@ -112,25 +113,14 @@ export function VMPage({uuid}: {uuid: string}) {
                       Restore a snapshot
                     </Menu.Item>
                   )}
-                  <Menu.Item leftSection={<IconBraces size={14} />} onClick={() => setDialog("inspect")}>
-                    Inspect
-                  </Menu.Item>
+                  {offersSnapshots && may.delete && <Menu.Divider />}
                   {may.delete && (
-                    <>
-                      <Menu.Divider />
-                      <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => setDialog("delete")}>
-                        Delete
-                      </Menu.Item>
-                    </>
+                    <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => setDialog("delete")}>
+                      Delete
+                    </Menu.Item>
                   )}
                 </Menu.Dropdown>
               </Menu>
-            ) : (
-              <Tooltip label="Inspect">
-                <ActionIcon variant="default" size="md" aria-label="Inspect" onClick={() => setDialog("inspect")}>
-                  <IconBraces size={16} />
-                </ActionIcon>
-              </Tooltip>
             )}
           </Group>
         }
@@ -166,7 +156,6 @@ export function VMPage({uuid}: {uuid: string}) {
           )}
         </Tabs.Panel>
       </Tabs>
-      <JsonDrawer opened={dialog === "inspect"} onClose={() => setDialog(null)} title={name} value={shown} />
       <TakeSnapshotModal opened={dialog === "snapshot"} onClose={() => setDialog(null)} vm={{uuid, name}} />
       <RestoreSnapshotModal opened={dialog === "restore"} onClose={() => setDialog(null)} vm={{uuid, name}} />
       <DeleteModal

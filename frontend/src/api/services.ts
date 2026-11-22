@@ -31,6 +31,8 @@ export type {
   ResourceAction,
   ResourceDefinition,
   ResourceFilter,
+  ResourceLink,
+  ResourceNew,
   Routes,
   Row,
   StackRequest,

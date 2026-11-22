@@ -1,5 +1,5 @@
 import {ActionIcon, Group, Tooltip} from "@mantine/core";
-import {IconBraces, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTrash} from "@tabler/icons-react";
+import {IconPlayerPlay, IconPlayerStop, IconRefresh, IconTrash} from "@tabler/icons-react";
 import type {MouseEvent} from "react";
 import {canStart, canStop} from "./format";
 
@@ -8,7 +8,6 @@ type Props = {
   onStart?: () => void;
   onStop?: () => void;
   onRestart?: () => void;
-  onInspect?: () => void;
   onDelete?: () => void;
 };
 
@@ -20,7 +19,7 @@ function stopping(action: () => void) {
 }
 
 /** What a row of a workload's listing offers to do to it. */
-export function WorkloadActions({state, onStart, onStop, onRestart, onInspect, onDelete}: Props) {
+export function WorkloadActions({state, onStart, onStop, onRestart, onDelete}: Props) {
   return (
     <Group gap={4} justify="flex-end" wrap="nowrap">
       {onStart && canStart(state) && (
@@ -41,13 +40,6 @@ export function WorkloadActions({state, onStart, onStop, onRestart, onInspect, o
         <Tooltip label="Restart">
           <ActionIcon variant="subtle" aria-label="Restart" onClick={stopping(onRestart)}>
             <IconRefresh size={16} />
-          </ActionIcon>
-        </Tooltip>
-      )}
-      {onInspect && (
-        <Tooltip label="Inspect">
-          <ActionIcon variant="subtle" color="gray" aria-label="Inspect" onClick={stopping(onInspect)}>
-            <IconBraces size={16} />
           </ActionIcon>
         </Tooltip>
       )}

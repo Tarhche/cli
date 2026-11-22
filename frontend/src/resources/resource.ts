@@ -1,4 +1,4 @@
-import type {ResourceAction, ResourceDefinition, ResourceFilter, Routes} from "../api/services";
+import type {ResourceAction, ResourceDefinition, ResourceFilter, ResourceLink, Routes, Row} from "../api/services";
 
 /** Whose things a page shows: one's own, or everybody's. */
 export type Audience = "mine" | "everyone";
@@ -39,6 +39,25 @@ export function actionsFor(definition: ResourceDefinition, audience: Audience, k
   return [...chosen.values()].filter((action) => action.keyed === keyed && action.allowed);
 }
 
+/** The links an audience of a resource is offered, in the order they are offered. */
+export function linksFor(definition: ResourceDefinition, audience: Audience): ResourceLink[] {
+  return (definition.links ?? []).filter((link) => (link.audiences ?? []).includes(audience));
+}
+
+/** Where the links offered lead for a row: those it has somewhere to go for, each with where. */
+export function rowLinks(links: ResourceLink[], row: Row): {link: ResourceLink; to: string}[] {
+  return links.flatMap((link) => {
+    const to = row.links?.[link.name];
+
+    return to ? [{link, to}] : [];
+  });
+}
+
+/** The actions offered of one thing that are offered for a row. */
+export function rowActions(actions: ResourceAction[], row: Row): ResourceAction[] {
+  return actions.filter((action) => (row.actions ?? []).includes(action.name));
+}
+
 /** The audience a page shows: the one chosen while it may still be listed, else the first that may. */
 export function audienceShown(audiences: Audience[], chosen: Audience): Audience {
   return audiences.includes(chosen) ? chosen : (audiences[0] ?? chosen);
@@ -49,14 +68,9 @@ export function filtersFor(definition: ResourceDefinition, audience: Audience): 
   return (definition.filters ?? []).filter((filter) => (filter.audiences ?? []).length === 0 || filter.audiences.includes(audience));
 }
 
-/** What a row is called where it is named: its key, or its first cell. */
+/** What a row is called where it is named: the first thing it says, or its key. */
 export function nameOf(key: string[], cells: string[]): string {
-  return key.length > 0 ? key.join("/") : (cells[0] ?? "");
-}
-
-/** Something as JSON, indented to be read and changed. */
-export function pretty(value: unknown): string {
-  return JSON.stringify(value ?? {}, null, 2);
+  return cells.find((cell) => cell.trim() !== "") ?? key.join("/");
 }
 
 /** Filters as a listing is narrowed by them: those that say nothing left out. */

@@ -21,6 +21,7 @@ func TestVersionCommand(t *testing.T) {
 		t.Parallel()
 
 		h := commandtest.New(t, nil)
+		withWebsite(t, h, "https://www.example")
 
 		require.Equal(t, console.ExitSuccess, h.Run(newVersionCommand(h.Cli)), h.Err.String())
 
@@ -34,6 +35,7 @@ func TestVersionCommand(t *testing.T) {
 			fmt.Sprintf("%-20s%s", " Name:", "test"),
 			fmt.Sprintf("%-20s%s", " API:", h.Server.URL),
 			fmt.Sprintf("%-20s%s", " Ingress:", h.Server.URL),
+			fmt.Sprintf("%-20s%s", " Website:", "https://www.example"),
 		}
 
 		want := ""
@@ -48,6 +50,7 @@ func TestVersionCommand(t *testing.T) {
 		t.Parallel()
 
 		h := commandtest.New(t, nil)
+		withWebsite(t, h, "https://www.example")
 
 		require.Equal(t, console.ExitSuccess, h.Run(newVersionCommand(h.Cli), "--format", "json"))
 
@@ -55,7 +58,7 @@ func TestVersionCommand(t *testing.T) {
 		require.NoError(t, json.Unmarshal(h.Out.Bytes(), &shown))
 		assert.Equal(t, versionInfo{
 			Client:  clientInfo{Version: version.Version, GoVersion: runtime.Version(), Os: runtime.GOOS, Arch: runtime.GOARCH},
-			Context: contextInfo{Name: "test", API: h.Server.URL, Ingress: h.Server.URL},
+			Context: contextInfo{Name: "test", API: h.Server.URL, Ingress: h.Server.URL, Web: "https://www.example"},
 		}, shown)
 	})
 

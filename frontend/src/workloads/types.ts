@@ -4,6 +4,12 @@
  * own field names, and beside it what the blog knows of it.
  */
 
+/** What names one resource of the workload, of a kind. */
+export type Reference = {
+  kind: string;
+  uuid: string;
+};
+
 /** What every resource has, whatever its kind. */
 export type Metadata = {
   uuid?: string;
@@ -11,6 +17,12 @@ export type Metadata = {
   slug?: string;
   owner_uuid?: string;
   labels?: Record<string, string>;
+
+  /** What owns it: it goes with the last of them. */
+  owners?: Reference[];
+
+  /** What it uses and does not own, the resource it lives in among them. */
+  refs?: Reference[];
   node?: string;
 
   /** How long it is kept, in nanoseconds; none keeps it until it is deleted. */

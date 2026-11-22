@@ -2,6 +2,7 @@ import {AppShell, Burger, Button, EmptyState, Group, Text, ThemeIcon} from "@man
 import {useDisclosure} from "@mantine/hooks";
 import {IconBox, IconLock} from "@tabler/icons-react";
 import {type Access, useAccess} from "../access/access";
+import {SessionsPage} from "../account/SessionsPage";
 import {ResourcePage} from "../resources/ResourcePage";
 import {ContextMenu} from "../session/ContextMenu";
 import {UserMenu} from "../session/UserMenu";
@@ -14,6 +15,7 @@ import {VolumesPage} from "../workloads/docker/VolumesPage";
 import {ForwardsPage} from "../workloads/forwards/ForwardsPage";
 import {SnapshotsPage} from "../workloads/snapshots/SnapshotsPage";
 import {DeployStackPage} from "../workloads/stacks/DeployStackPage";
+import {StackPage} from "../workloads/stacks/StackPage";
 import {StacksPage} from "../workloads/stacks/StacksPage";
 import {CreateVMPage} from "../workloads/vms/CreateVMPage";
 import {VMPage} from "../workloads/vms/VMPage";
@@ -92,6 +94,8 @@ function Page({view, access, navigate}: {view: View; access: Access; navigate: (
       return <NetworksPage />;
     case "stacks":
       return <StacksPage />;
+    case "stack":
+      return <StackPage key={view.uuid} uuid={view.uuid} />;
     case "deploy-stack":
       return <DeployStackPage vm={view.vm} />;
     case "snapshots":
@@ -99,9 +103,13 @@ function Page({view, access, navigate}: {view: View; access: Access; navigate: (
     case "forwards":
       return <ForwardsPage />;
     case "resource": {
+      if (view.name === "session") {
+        return <SessionsPage />;
+      }
+
       const definition = access.definitions.find((d) => d.name === view.name);
 
-      return definition ? <ResourcePage key={definition.name} definition={definition} /> : null;
+      return definition ? <ResourcePage key={JSON.stringify(view)} definition={definition} audience={view.audience} filters={view.filters} /> : null;
     }
   }
 }

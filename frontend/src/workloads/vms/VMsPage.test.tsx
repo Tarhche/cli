@@ -1,4 +1,4 @@
-import {screen, waitFor} from "@testing-library/react";
+import {screen, waitFor, within} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 import {Workloads} from "../../api/services";
@@ -42,7 +42,7 @@ describe("VMsPage", () => {
     expect(screen.getByText("docker", {selector: ".mantine-Badge-label"})).toBeInTheDocument();
   });
 
-  it("starts a VM that is stopped, and stops one that runs", async () => {
+  it("starts a VM that is stopped at once, and stops one that runs once that is confirmed", async () => {
     vi.mocked(Workloads.StartVM).mockResolvedValue(undefined as never);
     vi.mocked(Workloads.StopVM).mockResolvedValue(undefined as never);
     render(
@@ -55,10 +55,36 @@ describe("VMsPage", () => {
     await screen.findByText("box");
 
     await userEvent.click(screen.getByRole("button", {name: "Start"}));
+    expect(Workloads.StartVM).toHaveBeenCalledWith("v-1");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
     await userEvent.click(screen.getByRole("button", {name: "Stop"}));
+    const question = await screen.findByRole("dialog");
+    expect(within(question).getByText('Stop "docker"? Everything running in it stops with it.')).toBeInTheDocument();
+    expect(Workloads.StopVM).not.toHaveBeenCalled();
+
+    await userEvent.click(within(question).getByRole("button", {name: "Stop"}));
 
     await waitFor(() => expect(Workloads.StopVM).toHaveBeenCalledWith("v-2"));
-    expect(Workloads.StartVM).toHaveBeenCalledWith("v-1");
+  });
+
+  it("restarts nothing when the question is turned down", async () => {
+    render(
+      <WithAccess>
+        <NavigationProvider>
+          <VMsPage />
+        </NavigationProvider>
+      </WithAccess>,
+    );
+    await screen.findByText("box");
+
+    await userEvent.click(screen.getByRole("button", {name: "Restart"}));
+    const question = await screen.findByRole("dialog");
+    expect(within(question).getByText('Restart "docker"? Everything running in it is stopped and started again.')).toBeInTheDocument();
+    await userEvent.click(within(question).getByRole("button", {name: "Cancel"}));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(Workloads.RestartVM).not.toHaveBeenCalled();
   });
 
   it("offers only what the session may do with its VMs", async () => {
@@ -76,7 +102,7 @@ describe("VMsPage", () => {
     expect(screen.getByRole("button", {name: "Stop"})).toBeInTheDocument();
     expect(screen.queryByRole("button", {name: "Restart"})).not.toBeInTheDocument();
     expect(screen.queryByRole("button", {name: "Delete"})).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", {name: "Inspect"})).toHaveLength(2);
+    expect(screen.queryByRole("button", {name: "Inspect"})).not.toBeInTheDocument();
   });
 
   it("says when there are none", async () => {

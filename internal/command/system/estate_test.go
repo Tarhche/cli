@@ -193,6 +193,17 @@ func newHarness(t *testing.T, handler http.Handler, store credentials.Store, opt
 	return h
 }
 
+// withWebsite names web as the website of the harness's context, "test".
+func withWebsite(t *testing.T, h *commandtest.Harness, web string) {
+	t.Helper()
+
+	current, err := h.Config.Context("test")
+	require.NoError(t, err)
+
+	current.Web = web
+	require.NoError(t, h.Config.SetContext(current))
+}
+
 // unsavable is a configuration that cannot be saved, since its directory
 // cannot be made, with a context "test" at api.
 func unsavable(t *testing.T, api string) *config.File {

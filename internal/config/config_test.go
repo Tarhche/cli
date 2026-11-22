@@ -294,6 +294,7 @@ func TestContextValidate(t *testing.T) {
 	}{
 		{name: "an http api", context: Context{Name: "local", API: "http://localhost:8000"}, valid: true},
 		{name: "an https api and ingress", context: Context{Name: "a.b+c_d-e", API: "https://backend.example", Ingress: "https://workload.example"}, valid: true},
+		{name: "a website", context: Context{Name: "x", API: "https://backend.example", Web: "https://www.example"}, valid: true},
 		{name: "an empty name", context: Context{API: "https://backend.example"}},
 		{name: "a name starting with a dash", context: Context{Name: "-x", API: "https://backend.example"}},
 		{name: "a name with a slash", context: Context{Name: "a/b", API: "https://backend.example"}},
@@ -302,6 +303,8 @@ func TestContextValidate(t *testing.T) {
 		{name: "an api of another scheme", context: Context{Name: "x", API: "ftp://backend.example"}},
 		{name: "an api that is no url", context: Context{Name: "x", API: "http://%zz"}},
 		{name: "a relative ingress", context: Context{Name: "x", API: "https://backend.example", Ingress: "workload"}},
+		{name: "a relative website", context: Context{Name: "x", API: "https://backend.example", Web: "www"}},
+		{name: "a website of another scheme", context: Context{Name: "x", API: "https://backend.example", Web: "ftp://www.example"}},
 	}
 
 	for _, c := range cases {
@@ -327,5 +330,6 @@ func TestDefaultContext(t *testing.T) {
 	assert.Equal(t, DefaultContextName, c.Name)
 	assert.Equal(t, DefaultAPI, c.API)
 	assert.Equal(t, DefaultIngress, c.Ingress)
+	assert.Equal(t, DefaultWeb, c.Web)
 	assert.NoError(t, c.Validate())
 }

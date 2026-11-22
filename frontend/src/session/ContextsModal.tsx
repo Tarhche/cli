@@ -8,9 +8,9 @@ import {FailureAlert} from "../components/FailureAlert";
 import {useSession} from "./session";
 
 /** The fields of a context, which what is refused of it is said beside. */
-const CONTEXT_FIELDS = ["name", "description", "api", "ingress"];
+const CONTEXT_FIELDS = ["name", "description", "api", "ingress", "web"];
 
-const blank = {name: "", description: "", api: "https://", ingress: ""};
+const blank = {name: "", description: "", api: "https://", ingress: "", web: ""};
 
 /** Lists the contexts the app can talk to, uses, creates and removes them. */
 export function ContextsModal({opened, onClose}: {opened: boolean; onClose: () => void}) {
@@ -39,15 +39,16 @@ export function ContextsModal({opened, onClose}: {opened: boolean; onClose: () =
     <Modal opened={opened} onClose={onClose} title="Contexts" size="xl">
       <Stack>
         <Text size="sm" c="dimmed">
-          A context is an estate of Tarhche the app and the commands talk to: its API, and its workload ingress.
+          A context is an estate of Tarhche the app and the commands talk to: its API, its workload ingress, and its website, whose pages the app opens.
         </Text>
-        <Table.ScrollContainer minWidth={560}>
+        <Table.ScrollContainer minWidth={720}>
           <Table verticalSpacing="xs">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Name</Table.Th>
                 <Table.Th>API</Table.Th>
                 <Table.Th>Ingress</Table.Th>
+                <Table.Th>Website</Table.Th>
                 <Table.Th />
               </Table.Tr>
             </Table.Thead>
@@ -76,6 +77,9 @@ export function ContextsModal({opened, onClose}: {opened: boolean; onClose: () =
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm">{context.ingress}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">{context.web}</Text>
                   </Table.Td>
                   <Table.Td>
                     <Group gap="xs" justify="flex-end" wrap="nowrap">
@@ -110,6 +114,14 @@ export function ContextsModal({opened, onClose}: {opened: boolean; onClose: () =
                 error={laidOut.fields.ingress}
               />
             </Group>
+            <TextInput
+              label="Website"
+              description="The app opens its pages: an article, an edit page of the web dashboard. With none, it links to nothing."
+              placeholder="https://example.com"
+              value={created.web}
+              onChange={(e) => setCreated({...created, web: e.currentTarget.value})}
+              error={laidOut.fields.web}
+            />
             <Group justify="flex-end">
               <Button type="submit" loading={creation.pending}>
                 Create

@@ -1,4 +1,4 @@
-import {Button, EmptyState, Group, Loader, Paper, Switch, Table, Text, TextInput} from "@mantine/core";
+import {Badge, Button, EmptyState, Group, Loader, Paper, Switch, Table, Text, TextInput} from "@mantine/core";
 import {IconNetwork, IconPlus} from "@tabler/icons-react";
 import {type FormEvent, useState} from "react";
 import {useAbilities} from "../../access/access";
@@ -8,7 +8,6 @@ import {useQuery} from "../../api/useQuery";
 import {useRun} from "../../api/useRun";
 import {DeleteModal, type Dependents} from "../../components/DeleteModal";
 import {FailureAlert} from "../../components/FailureAlert";
-import {JsonDrawer} from "../../components/JsonDrawer";
 import {PageHeader} from "../../components/PageHeader";
 import {StateBadge} from "../../components/StateBadge";
 import {ago} from "../format";
@@ -17,9 +16,17 @@ import type {DockerNetwork, Items} from "../types";
 import {WorkloadActions} from "../WorkloadActions";
 import {DockerVMSelect} from "./DockerVMSelect";
 
+/** The networks docker makes for itself, which are not anybody's to remove. */
+const PREDEFINED = new Set(["bridge", "host", "none"]);
+
 /** What identifies a network in its Docker VM: its uuid, else its name. */
 function idOf(network: DockerNetwork): string {
   return network.metadata.uuid || network.status.id || network.spec.name;
+}
+
+/** What a network is called in its Docker VM. */
+function nameOf(network: DockerNetwork): string {
+  return network.spec.name || network.status.name || network.metadata.name || "";
 }
 
 /** The docker networks of one of one's Docker VMs, and what the session may do with them. */
@@ -28,7 +35,6 @@ export function NetworksPage() {
   const [vm, setVM] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [internal, setInternal] = useState(false);
-  const [inspected, setInspected] = useState<DockerNetwork | null>(null);
   const [deleted, setDeleted] = useState<DockerNetwork | null>(null);
   const networks = useQuery(`networks:${vm}`, () => Workloads.Networks(vm ?? "") as Promise<Items<DockerNetwork>>, {interval: POLL, enabled: vm !== null});
   const creating = useRun(async () => {
@@ -81,45 +87,55 @@ export function NetworksPage() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {items.map((network) => (
-                    <Table.Tr key={idOf(network)}>
-                      <Table.Td>
-                        <Text size="sm" fw={500}>
-                          {network.spec.name || network.status.name}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                          {network.status.internal || network.spec.internal ? "internal" : ""}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <StateBadge state={network.status.state} reason={network.status.failure?.message ?? network.status.reason} />
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{network.status.driver || network.spec.driver || "bridge"}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{(network.status.containers ?? []).length}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{ago(network.status.created_at)}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <WorkloadActions onInspect={() => setInspected(network)} onDelete={may.delete ? () => setDeleted(network) : undefined} />
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
+                  {items.map((network) => {
+                    const predefined = PREDEFINED.has(nameOf(network));
+
+                    return (
+                      <Table.Tr key={idOf(network)}>
+                        <Table.Td>
+                          <Group gap="xs">
+                            <Text size="sm" fw={500}>
+                              {nameOf(network)}
+                            </Text>
+                            {predefined && (
+                              <Badge size="xs" variant="outline" color="gray">
+                                Docker's own
+                              </Badge>
+                            )}
+                          </Group>
+                          <Text size="xs" c="dimmed">
+                            {network.status.internal || network.spec.internal ? "internal" : ""}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <StateBadge state={network.status.state} reason={network.status.failure?.message ?? network.status.reason} />
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{network.status.driver || network.spec.driver || "bridge"}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{(network.status.containers ?? []).length}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{ago(network.status.created_at)}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <WorkloadActions onDelete={may.delete && !predefined ? () => setDeleted(network) : undefined} />
+                        </Table.Td>
+                      </Table.Tr>
+                    );
+                  })}
                 </Table.Tbody>
               </Table>
             </Table.ScrollContainer>
           )}
         </>
       )}
-      <JsonDrawer opened={inspected !== null} onClose={() => setInspected(null)} title={inspected?.spec.name ?? "Network"} value={inspected} />
       <DeleteModal
         opened={deleted !== null}
         onClose={() => setDeleted(null)}
         title="Delete network"
-        name={deleted?.spec.name ?? ""}
+        name={deleted ? nameOf(deleted) : ""}
         dependents={() => Workloads.NetworkDependents(vm ?? "", deleted ? idOf(deleted) : "") as Promise<Dependents>}
         onDelete={({cascade}) => Workloads.DeleteNetwork(vm ?? "", deleted ? idOf(deleted) : "", cascade)}
         onDeleted={networks.reload}

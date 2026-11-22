@@ -120,10 +120,10 @@ tarhche login -u you@example.com --password-stdin < pw   # or with a password
 tarhche info                                             # who you are, and where
 ```
 
-A context names an estate: its API and its workload ingress. The `default` context is Tarhche itself (`https://backend.tarhche.com`). Each context keeps its own session.
+A context names an estate: its API, its workload ingress and its website. The `default` context is Tarhche itself (`https://backend.tarhche.com`, its website `https://tarhche.com`). Each context keeps its own session. The desktop app opens the website's pages, an article on the website or an edit page of the web dashboard, and links to nothing of a context that names no website.
 
 ```sh
-tarhche context create --api https://api.example.com --ingress https://workload.example.com staging
+tarhche context create --api https://api.example.com --ingress https://workload.example.com --web https://example.com staging
 tarhche context use staging
 tarhche context ls
 tarhche --context default article ls     # one command against another context

@@ -34,7 +34,7 @@ func withContexts(t *testing.T, store credentials.Store, seen *visits) *commandt
 	t.Helper()
 
 	h := newHarness(t, estate(seen, nil), store)
-	require.NoError(t, h.Config.SetContext(config.Context{Name: "other", Description: "Another", API: h.Server.URL, Ingress: "https://workload.other.example", OAuthClient: &config.OAuthClient{ID: "client-7", RedirectURI: "http://127.0.0.1:4321/callback"}}))
+	require.NoError(t, h.Config.SetContext(config.Context{Name: "other", Description: "Another", API: h.Server.URL, Ingress: "https://workload.other.example", Web: "https://www.other.example", OAuthClient: &config.OAuthClient{ID: "client-7", RedirectURI: "http://127.0.0.1:4321/callback"}}))
 	require.NoError(t, h.Config.SetContext(config.Context{Name: "spare", API: "https://spare.example"}))
 	require.NoError(t, h.Config.Save())
 
@@ -53,9 +53,9 @@ func TestListContextsCommand(t *testing.T) {
 
 		rows := strings.Split(strings.TrimSpace(h.Out.String()), "\n")
 		require.Len(t, rows, 5)
-		assert.Equal(t, []string{"NAME", "DESCRIPTION", "API", "INGRESS"}, strings.Fields(rows[0]))
-		assert.Equal(t, []string{"default", "Tarhche", config.DefaultAPI, config.DefaultIngress}, strings.Fields(rows[1]))
-		assert.Equal(t, []string{"other", "Another", h.Server.URL, "https://workload.other.example"}, strings.Fields(rows[2]))
+		assert.Equal(t, []string{"NAME", "DESCRIPTION", "API", "INGRESS", "WEBSITE"}, strings.Fields(rows[0]))
+		assert.Equal(t, []string{"default", "Tarhche", config.DefaultAPI, config.DefaultIngress, config.DefaultWeb}, strings.Fields(rows[1]))
+		assert.Equal(t, []string{"other", "Another", h.Server.URL, "https://workload.other.example", "https://www.other.example"}, strings.Fields(rows[2]))
 		assert.Equal(t, []string{"spare", "https://spare.example"}, strings.Fields(rows[3]))
 		assert.Equal(t, []string{"test", "*", h.Server.URL, h.Server.URL}, strings.Fields(rows[4]))
 	})
@@ -122,14 +122,14 @@ func TestCreateContextCommand(t *testing.T) {
 
 		h := commandtest.New(t, nil)
 
-		require.Equal(t, console.ExitSuccess, h.Run(newCreateContextCommand(h.Cli), "--api", "https://prod.example", "--ingress", "https://workload.prod.example", "--description", "Production", "prod"), h.Err.String())
+		require.Equal(t, console.ExitSuccess, h.Run(newCreateContextCommand(h.Cli), "--api", "https://prod.example", "--ingress", "https://workload.prod.example", "--web", "https://www.prod.example", "--description", "Production", "prod"), h.Err.String())
 
 		assert.Equal(t, "prod\n", h.Out.String())
 		assert.Equal(t, "Successfully created context \"prod\"\n", h.Err.String())
 
 		created, err := saved(t, h).Context("prod")
 		require.NoError(t, err)
-		assert.Equal(t, config.Context{Name: "prod", Description: "Production", API: "https://prod.example", Ingress: "https://workload.prod.example"}, created)
+		assert.Equal(t, config.Context{Name: "prod", Description: "Production", API: "https://prod.example", Ingress: "https://workload.prod.example", Web: "https://www.prod.example"}, created)
 	})
 
 	for _, name := range []string{"test", config.DefaultContextName} {
@@ -146,7 +146,7 @@ func TestCreateContextCommand(t *testing.T) {
 	t.Run("fails for a context that cannot be kept as it is", func(t *testing.T) {
 		t.Parallel()
 
-		for _, args := range [][]string{{"--api", "https://prod.example", "bad/name"}, {"--api", "not a url", "prod"}, {"--api", "https://prod.example", "--ingress", "ftp://x", "prod"}} {
+		for _, args := range [][]string{{"--api", "https://prod.example", "bad/name"}, {"--api", "not a url", "prod"}, {"--api", "https://prod.example", "--ingress", "ftp://x", "prod"}, {"--api", "https://prod.example", "--web", "www", "prod"}} {
 			h := commandtest.New(t, nil)
 
 			assert.Equal(t, console.ExitFailure, h.Run(newCreateContextCommand(h.Cli), args...), args)
@@ -206,14 +206,14 @@ func TestUpdateContextCommand(t *testing.T) {
 		store := mock.NewStore(map[string]credentials.Credentials{"other": signedIn(credentials.MethodOAuth)})
 		h := withContexts(t, store, nil)
 
-		require.Equal(t, console.ExitSuccess, h.Run(newUpdateContextCommand(h.Cli), "--description", "", "--ingress", "https://workload.example", "--api", h.Server.URL, "other"), h.Err.String())
+		require.Equal(t, console.ExitSuccess, h.Run(newUpdateContextCommand(h.Cli), "--description", "", "--ingress", "https://workload.example", "--web", "https://www.example", "--api", h.Server.URL, "other"), h.Err.String())
 
 		assert.Equal(t, "other\n", h.Out.String())
 		assert.Equal(t, "Successfully updated context \"other\"\n", h.Err.String())
 
 		updated, err := saved(t, h).Context("other")
 		require.NoError(t, err)
-		assert.Equal(t, config.Context{Name: "other", API: h.Server.URL, Ingress: "https://workload.example", OAuthClient: &config.OAuthClient{ID: "client-7", RedirectURI: "http://127.0.0.1:4321/callback"}}, updated)
+		assert.Equal(t, config.Context{Name: "other", API: h.Server.URL, Ingress: "https://workload.example", Web: "https://www.example", OAuthClient: &config.OAuthClient{ID: "client-7", RedirectURI: "http://127.0.0.1:4321/callback"}}, updated)
 
 		_, err = store.Get("other")
 		assert.NoError(t, err, "the session stays")
@@ -230,7 +230,7 @@ func TestUpdateContextCommand(t *testing.T) {
 
 		updated, err := saved(t, h).Context("other")
 		require.NoError(t, err)
-		assert.Equal(t, config.Context{Name: "other", Description: "Another", API: "https://moved.example", Ingress: "https://workload.other.example"}, updated)
+		assert.Equal(t, config.Context{Name: "other", Description: "Another", API: "https://moved.example", Ingress: "https://workload.other.example", Web: "https://www.other.example"}, updated)
 
 		_, err = store.Get("other")
 		assert.ErrorIs(t, err, credentials.ErrNotFound)
@@ -264,6 +264,18 @@ func TestUpdateContextCommand(t *testing.T) {
 
 		_, err = store.Get("other")
 		assert.NoError(t, err)
+	})
+
+	t.Run("fails for a website that is no http url, and changes nothing", func(t *testing.T) {
+		t.Parallel()
+
+		h := withContexts(t, emptyStore(), nil)
+
+		assert.Equal(t, console.ExitFailure, h.Run(newUpdateContextCommand(h.Cli), "--web", "ftp://www.example", "other"))
+
+		unchanged, err := saved(t, h).Context("other")
+		require.NoError(t, err)
+		assert.Equal(t, "https://www.other.example", unchanged.Web)
 	})
 
 	t.Run("fails for a session that cannot be forgotten, and changes nothing", func(t *testing.T) {
@@ -574,10 +586,10 @@ func TestInspectContextsCommand(t *testing.T) {
 		require.NoError(t, json.Unmarshal(h.Out.Bytes(), &inspected))
 		assert.Equal(t, []inspectedContext{
 			{
-				Name: "other", Description: "Another", API: h.Server.URL, Ingress: "https://workload.other.example",
+				Name: "other", Description: "Another", API: h.Server.URL, Ingress: "https://workload.other.example", Web: "https://www.other.example",
 				OAuthClient: &oauthClientView{ID: "client-7", RedirectURI: "http://127.0.0.1:4321/callback"},
 			},
-			{Name: config.DefaultContextName, Description: "Tarhche", API: config.DefaultAPI, Ingress: config.DefaultIngress},
+			{Name: config.DefaultContextName, Description: "Tarhche", API: config.DefaultAPI, Ingress: config.DefaultIngress, Web: config.DefaultWeb},
 		}, inspected)
 	})
 
@@ -598,7 +610,7 @@ func TestInspectContextsCommand(t *testing.T) {
 
 		assert.Equal(t, console.ExitFailure, h.Run(newInspectContextsCommand(h.Cli), "--format", "json", "missing", "spare"))
 
-		assert.Equal(t, `{"Name":"spare","Description":"","API":"https://spare.example","Ingress":"","Current":false}`+"\n", h.Out.String())
+		assert.Equal(t, `{"Name":"spare","Description":"","API":"https://spare.example","Ingress":"","Web":"","Current":false}`+"\n", h.Out.String())
 		assert.Equal(t, "Error: no such context: \"missing\"\n", h.Err.String())
 	})
 

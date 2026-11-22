@@ -55,7 +55,7 @@ func TestSession(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, []desktop.ContextInfo{
-			{Name: config.DefaultContextName, Description: "Tarhche", API: config.DefaultAPI, Ingress: config.DefaultIngress},
+			{Name: config.DefaultContextName, Description: "Tarhche", API: config.DefaultAPI, Ingress: config.DefaultIngress, Web: config.DefaultWeb},
 			{Name: testContext, API: test.API, Ingress: test.Ingress, Current: true},
 		}, contexts)
 	})
@@ -119,7 +119,7 @@ func TestSession(t *testing.T) {
 
 		session, w, _, cfg := newSession(t, nil)
 
-		err := session.Create(desktop.NewContext{Name: "local", Description: "mine", API: "http://localhost:8000", Ingress: "http://localhost:8030"})
+		err := session.Create(desktop.NewContext{Name: "local", Description: "mine", API: "http://localhost:8000", Ingress: "http://localhost:8030", Web: "http://localhost:3000"})
 		require.NoError(t, err)
 
 		saved, err := config.Load(cfg.Dir())
@@ -128,7 +128,7 @@ func TestSession(t *testing.T) {
 		local, err := saved.Context("local")
 		require.NoError(t, err)
 
-		assert.Equal(t, config.Context{Name: "local", Description: "mine", API: "http://localhost:8000", Ingress: "http://localhost:8030"}, local)
+		assert.Equal(t, config.Context{Name: "local", Description: "mine", API: "http://localhost:8000", Ingress: "http://localhost:8030", Web: "http://localhost:3000"}, local)
 		assert.Equal(t, testContext, contextOf(t, w))
 	})
 
@@ -137,14 +137,15 @@ func TestSession(t *testing.T) {
 
 		session, _, _, cfg := newSession(t, nil)
 
-		err := session.Create(desktop.NewContext{Name: "-bad", API: "nope", Ingress: "ftp://x"})
+		err := session.Create(desktop.NewContext{Name: "-bad", API: "nope", Ingress: "ftp://x", Web: "www"})
 
 		var invalid desktop.InvalidError
 		require.ErrorAs(t, err, &invalid)
-		assert.Equal(t, []string{"api", "ingress", "name"}, slices.Sorted(maps.Keys(invalid.Fields)))
+		assert.Equal(t, []string{"api", "ingress", "name", "web"}, slices.Sorted(maps.Keys(invalid.Fields)))
 		assert.Contains(t, invalid.Fields["name"], "is not a valid name")
 		assert.Equal(t, `"nope" is not an absolute http or https url`, invalid.Fields["api"])
 		assert.Equal(t, `"ftp://x" is not an absolute http or https url`, invalid.Fields["ingress"])
+		assert.Equal(t, `"www" is not an absolute http or https url`, invalid.Fields["web"])
 		assert.NoFileExists(t, cfg.Path())
 	})
 
