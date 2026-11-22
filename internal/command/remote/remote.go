@@ -3,7 +3,10 @@
 // and out (cp), and ports forwarded to the host (port-forward).
 //
 // A VM is reached directly; a container through its Docker VM, where the
-// commands run docker exec, docker attach, docker cp and nc for it.
+// commands run docker exec, docker attach, docker cp and nc for it. One's
+// own are reached by default, and anybody's with -A, under the permissions
+// to reach anybody's; a stream refused for the roles says which permission
+// it needs.
 package remote
 
 import (
@@ -12,6 +15,7 @@ import (
 
 	"github.com/danceable/console"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/command"
 	"github.com/Tarhche/cli/internal/portforward"
 	"github.com/Tarhche/cli/internal/reach"
@@ -20,11 +24,11 @@ import (
 )
 
 // remote is what the commands reaching into a workload share: the CLI, how
-// they find what a reference names, the local terminal they show a remote
-// one on, and the local environment -e reads.
+// they find what a reference names among whose workloads, the local
+// terminal they show a remote one on, and the local environment -e reads.
 type remote struct {
 	cli        *command.Cli
-	resolver   workload.Resolver
+	resolver   func(workload.Audience) workload.Resolver
 	terminal   terminal
 	lookupEnv  func(string) (string, bool)
 	forwarding []portforward.Option
@@ -33,9 +37,9 @@ type remote struct {
 // Option configures the commands.
 type Option func(*remote)
 
-// WithResolver finds what references name through resolver, instead of
-// asking the API.
-func WithResolver(resolver workload.Resolver) Option {
+// WithResolver finds what references name through what resolver gives for
+// whose workloads they are found among, instead of asking the API.
+func WithResolver(resolver func(workload.Audience) workload.Resolver) Option {
 	return func(r *remote) { r.resolver = resolver }
 }
 
@@ -75,10 +79,11 @@ func VMCommands(cli *command.Cli, options ...Option) []console.Command {
 	}
 }
 
-// resolve is the resolver references are found by.
-func (r *remote) resolve(ctx context.Context) (workload.Resolver, error) {
+// resolve is the resolver references are found by among the workloads of
+// audience: one's own, or anybody's.
+func (r *remote) resolve(ctx context.Context, audience workload.Audience) (workload.Resolver, error) {
 	if r.resolver != nil {
-		return r.resolver, nil
+		return r.resolver(audience), nil
 	}
 
 	client, err := r.cli.Client(ctx)
@@ -86,12 +91,12 @@ func (r *remote) resolve(ctx context.Context) (workload.Resolver, error) {
 		return nil, err
 	}
 
-	return workload.NewResolver(client), nil
+	return workload.NewClient(client, audience).Resolver(), nil
 }
 
-// vm is the VM reference names.
-func (r *remote) vm(ctx context.Context, reference string) (workload.VM, error) {
-	resolver, err := r.resolve(ctx)
+// vm is the VM reference names among the workloads of audience.
+func (r *remote) vm(ctx context.Context, audience workload.Audience, reference string) (workload.VM, error) {
+	resolver, err := r.resolve(ctx, audience)
 	if err != nil {
 		return workload.VM{}, err
 	}
@@ -99,9 +104,10 @@ func (r *remote) vm(ctx context.Context, reference string) (workload.VM, error) 
 	return resolver.VM(ctx, reference)
 }
 
-// container is the container reference names.
-func (r *remote) container(ctx context.Context, reference string) (workload.Container, error) {
-	resolver, err := r.resolve(ctx)
+// container is the container reference names among the workloads of
+// audience.
+func (r *remote) container(ctx context.Context, audience workload.Audience, reference string) (workload.Container, error) {
+	resolver, err := r.resolve(ctx, audience)
 	if err != nil {
 		return workload.Container{}, err
 	}
@@ -109,7 +115,9 @@ func (r *remote) container(ctx context.Context, reference string) (workload.Cont
 	return resolver.Container(ctx, reference)
 }
 
-// dialer opens streams on the current context's ingress, signed in.
-func (r *remote) dialer() (*stream.Dialer, error) {
-	return reach.Dialer(r.cli)
+// dialer opens streams on the current context's ingress, signed in, on the
+// VMs of audience: a stream refused for the roles is the permission it needs
+// on them, denied.
+func (r *remote) dialer(audience workload.Audience) (*stream.Dialer, error) {
+	return reach.Dialer(r.cli, stream.WithExplainer(access.NewStreamExplainer(audience)))
 }

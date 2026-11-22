@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/command"
 	"github.com/Tarhche/cli/internal/command/commandtest"
 	"github.com/Tarhche/cli/internal/config"
@@ -197,6 +198,34 @@ func TestVMPort(t *testing.T) {
 		assert.True(t, stream.IsUnavailable(err))
 		assert.Equal(t, []string{"forward"}, actions(ingress))
 	})
+
+	t.Run("a docker vm whose forward is forbidden is not relayed to: the permission to forward is missing", func(t *testing.T) {
+		t.Parallel()
+
+		var command []string
+		ingress := &streamtest.Ingress{
+			Exec: relaying(echoServer(t), &command),
+			Refuse: func(request streamtest.Request) (int, string) {
+				if request.Action == "forward" {
+					return http.StatusForbidden, "forbidden"
+				}
+
+				return 0, ""
+			},
+		}
+
+		dial, err := VMPort(dialerOf(t, ingress), dock, "dock", 8080)
+		require.NoError(t, err)
+
+		for range 2 {
+			_, err = dial(context.Background())
+
+			assert.True(t, stream.IsForbidden(err))
+		}
+
+		assert.Equal(t, []string{"forward", "forward"}, actions(ingress))
+		assert.Empty(t, command)
+	})
 }
 
 func TestContainerAddress(t *testing.T) {
@@ -294,6 +323,25 @@ func TestDialer(t *testing.T) {
 		require.NoError(t, dialer.Runner(machine.UUID).Run(context.Background(), []string{"true"}, nil, io.Discard))
 		assert.Equal(t, []string{"bearer", streamtest.Token}, ingress.Requests()[0].Protocols)
 		assert.Contains(t, ingress.Requests()[0].UserAgent, "tarhche-cli/")
+	})
+
+	t.Run("configured by the options given: a stream refused for the roles is explained", func(t *testing.T) {
+		t.Parallel()
+
+		ingress := &streamtest.Ingress{Refuse: func(streamtest.Request) (int, string) { return http.StatusForbidden, "forbidden" }}
+		server := httptest.NewServer(ingress)
+		t.Cleanup(server.Close)
+
+		h := commandtest.New(t, nil)
+		h.Cli.Globals.Ingress = server.URL
+
+		dialer, err := Dialer(h.Cli, stream.WithExplainer(access.NewStreamExplainer(workload.Mine)))
+		require.NoError(t, err)
+
+		_, err = dialer.Attach(context.Background(), stream.KindVMs, machine.UUID)
+
+		require.EqualError(t, err, `permission denied: this needs the "self.workload.vms.attach" permission, which none of your roles gives you`)
+		assert.Contains(t, ingress.Requests()[0].UserAgent, "tarhche-cli/", "introduced as the cli all the same")
 	})
 
 	t.Run("a context that names no ingress", func(t *testing.T) {

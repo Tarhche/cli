@@ -18,6 +18,7 @@ type attachContainerCommand struct {
 	detachKeys string
 	noStdin    bool
 	sigProxy   bool
+	allUsers   bool
 }
 
 var _ console.Command = (*attachContainerCommand)(nil)
@@ -44,6 +45,7 @@ func (c *attachContainerCommand) Configure(flags *console.FlagSet) {
 	console.Var(flags, &c.detachKeys, console.Long("detach-keys"), "Override the key sequence for detaching a container")
 	console.Var(flags, &c.noStdin, console.Long("no-stdin"), "Do not attach STDIN")
 	console.Var(flags, &c.sigProxy, console.Long("sig-proxy"), "Proxy all received signals to the process", console.Default(true))
+	defineAllUsers(flags, &c.allUsers, "container")
 }
 
 func (c *attachContainerCommand) Run(ctx context.Context) console.ExitStatus {
@@ -55,7 +57,9 @@ func (c *attachContainerCommand) run(ctx context.Context) error {
 		return err
 	}
 
-	container, err := c.remote.container(ctx, c.flags.Arg(0))
+	audience := audienceOf(c.allUsers)
+
+	container, err := c.remote.container(ctx, audience, c.flags.Arg(0))
 	if err != nil {
 		return err
 	}
@@ -77,5 +81,5 @@ func (c *attachContainerCommand) run(ctx context.Context) error {
 	docker = append(docker, container.DockerID)
 	tty := !c.noStdin && c.remote.terminal.IsTerminal(c.remote.cli.In)
 
-	return c.remote.exec(ctx, container.VM.UUID, stream.ExecOptions{Command: docker, TTY: tty, Stderr: c.remote.cli.Err}, !c.noStdin)
+	return c.remote.exec(ctx, audience, container.VM.UUID, stream.ExecOptions{Command: docker, TTY: tty, Stderr: c.remote.cli.Err}, !c.noStdin)
 }

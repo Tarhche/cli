@@ -27,7 +27,7 @@ type forward struct {
 // Forward opens a connection to port of the VM uuid, one of the ports it
 // publishes.
 func (d *Dialer) Forward(ctx context.Context, vm string, port uint) (*Conn, error) {
-	s, err := d.open(ctx, KindVMs, vm, "forward", forward{Port: port})
+	s, err := d.open(ctx, KindVMs, vm, ActionForward, forward{Port: port})
 	if err != nil {
 		return nil, err
 	}

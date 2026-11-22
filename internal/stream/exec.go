@@ -100,7 +100,7 @@ func (d *Dialer) Exec(ctx context.Context, vm string, options ExecOptions) (*Exe
 		payload.Rows, payload.Cols = options.Rows, options.Cols
 	}
 
-	s, err := d.open(ctx, KindVMs, vm, "exec", payload)
+	s, err := d.open(ctx, KindVMs, vm, ActionExec, payload)
 	if err != nil {
 		return nil, err
 	}

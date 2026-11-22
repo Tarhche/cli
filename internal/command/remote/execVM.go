@@ -8,6 +8,7 @@ import (
 
 	"github.com/Tarhche/cli/internal/command"
 	"github.com/Tarhche/cli/internal/stream"
+	"github.com/Tarhche/cli/internal/workload"
 )
 
 // errNotTTY is a terminal asked for with input that is not one.
@@ -22,6 +23,7 @@ type execVMCommand struct {
 	tty         bool
 	env         list
 	workdir     string
+	allUsers    bool
 }
 
 var _ console.Command = (*execVMCommand)(nil)
@@ -49,6 +51,7 @@ func (c *execVMCommand) Configure(flags *console.FlagSet) {
 	console.Var(flags, &c.tty, console.Long("tty"), "Allocate a pseudo-TTY", console.Short("t"))
 	flags.Var(&c.env, console.Long("env"), "Set environment variables", console.Short("e"))
 	console.Var(flags, &c.workdir, console.Long("workdir"), "Working directory inside the VM", console.Short("w"))
+	defineAllUsers(flags, &c.allUsers, "VM")
 }
 
 func (c *execVMCommand) Run(ctx context.Context) console.ExitStatus {
@@ -69,20 +72,23 @@ func (c *execVMCommand) run(ctx context.Context) error {
 		return errNotTTY
 	}
 
-	vm, err := c.remote.vm(ctx, c.flags.Arg(0))
+	audience := audienceOf(c.allUsers)
+
+	vm, err := c.remote.vm(ctx, audience, c.flags.Arg(0))
 	if err != nil {
 		return err
 	}
 
 	options := stream.ExecOptions{Command: c.flags.Args()[1:], TTY: c.tty, Env: env, WorkingDir: c.workdir, Stderr: c.remote.cli.Err}
 
-	return c.remote.exec(ctx, vm.UUID, options, c.interactive)
+	return c.remote.exec(ctx, audience, vm.UUID, options, c.interactive)
 }
 
-// exec runs a command in the VM uuid, attached to the local terminal, its
-// input the local input when interactive says so, and is how it exited.
-func (r *remote) exec(ctx context.Context, vm string, options stream.ExecOptions, interactive bool) error {
-	dialer, err := r.dialer()
+// exec runs a command in the VM uuid, one of the VMs of audience, attached
+// to the local terminal, its input the local input when interactive says
+// so, and is how it exited.
+func (r *remote) exec(ctx context.Context, audience workload.Audience, vm string, options stream.ExecOptions, interactive bool) error {
+	dialer, err := r.dialer(audience)
 	if err != nil {
 		return err
 	}

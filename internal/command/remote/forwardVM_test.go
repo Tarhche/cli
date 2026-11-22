@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -100,7 +101,7 @@ func TestForwardVMCommand(t *testing.T) {
 
 		assert.Empty(t, roundTrip(t, port, "ping"))
 		assert.Eventually(t, func() bool {
-			return strings.Contains(f.errOut.String(), "-> 8080: vm machine does not publish port 8080, or its ingress is denied: cannot open vms/0190-machine/forward: it is not there, or not yours (no such stream)\n")
+			return strings.Contains(f.errOut.String(), "-> 8080: vm machine does not publish port 8080, or its ingress is denied: cannot open vms/0190-machine/forward: it is not there, or not yours to open (no such stream)\n")
 		}, 5*time.Second, time.Millisecond, f.errOut.String())
 		assert.Zero(t, f.stop())
 	})
@@ -118,6 +119,56 @@ func TestForwardVMCommand(t *testing.T) {
 			return strings.Contains(f.errOut.String(), "-> 8080: cannot open vms/0190-docker/forward: too many streams were opened from here; try again shortly\n")
 		}, 5*time.Second, time.Millisecond, f.errOut.String())
 		assert.Zero(t, f.stop())
+	})
+
+	t.Run("anybody's vm with -A, a port it publishes through the forward action", func(t *testing.T) {
+		t.Parallel()
+
+		echo := echoServer(t)
+		h := setup(t, &streamtest.Ingress{Forward: func(r *streamtest.Raw) { streamtest.Proxy(r, echo) }})
+
+		f := forward(t, h, newForwardVMCommand(h.remote), "-A", "theirs", "0:8080")
+		port := f.port(t)
+
+		assert.Equal(t, "ping", roundTrip(t, port, "ping"))
+		assert.Zero(t, f.stop(), f.errOut.String())
+
+		requests := h.ingress.Requests()
+		require.Len(t, requests, 1)
+		assert.Equal(t, theirs.UUID, requests[0].UUID)
+		assert.Equal(t, "forward", requests[0].Action)
+	})
+
+	t.Run("a stream refused for the roles says, for each connection, the permission it needs: forward for a port the vm publishes, exec for one relayed", func(t *testing.T) {
+		t.Parallel()
+
+		cases := []struct {
+			args       []string
+			remote     string
+			permission string
+		}{
+			{args: []string{"machine", "0:8080"}, remote: "8080", permission: "self.workload.vms.forward"},
+			{args: []string{"-A", "machine", "0:8080"}, remote: "8080", permission: "workload.vms.forward"},
+			{args: []string{"dock", "0:9090"}, remote: "9090", permission: "self.workload.vms.exec"},
+			{args: []string{"-A", "theirs", "0:9090"}, remote: "9090", permission: "workload.vms.exec"},
+		}
+
+		for _, c := range cases {
+			t.Run(strings.Join(c.args, " "), func(t *testing.T) {
+				t.Parallel()
+
+				h := setup(t, &streamtest.Ingress{Refuse: func(streamtest.Request) (int, string) { return http.StatusForbidden, "forbidden" }})
+
+				f := forward(t, h, newForwardVMCommand(h.remote), c.args...)
+				port := f.port(t)
+
+				assert.Empty(t, roundTrip(t, port, "ping"))
+				assert.Eventually(t, func() bool {
+					return strings.Contains(f.errOut.String(), "-> "+c.remote+`: permission denied: this needs the "`+c.permission+`" permission, which none of your roles gives you`+"\n")
+				}, 5*time.Second, time.Millisecond, f.errOut.String())
+				assert.Zero(t, f.stop())
+			})
+		}
 	})
 
 	t.Run("localhost is both loopback addresses, on one port", func(t *testing.T) {

@@ -23,7 +23,7 @@ type Terminal struct {
 // Attach opens a terminal on the resource uuid of kind, KindVMs or
 // KindTasks.
 func (d *Dialer) Attach(ctx context.Context, kind, uuid string) (*Terminal, error) {
-	s, err := d.open(ctx, kind, uuid, "attach", nil)
+	s, err := d.open(ctx, kind, uuid, ActionAttach, nil)
 	if err != nil {
 		return nil, err
 	}

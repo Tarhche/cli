@@ -18,6 +18,7 @@ type copyContainerCommand struct {
 	archive    bool
 	followLink bool
 	quiet      bool
+	allUsers   bool
 }
 
 var _ console.Command = (*copyContainerCommand)(nil)
@@ -44,6 +45,7 @@ func (c *copyContainerCommand) Configure(flags *console.FlagSet) {
 	console.Var(flags, &c.archive, console.Long("archive"), archiveUsage, console.Short("a"))
 	console.Var(flags, &c.followLink, console.Long("follow-link"), followLinkUsage, console.Short("L"))
 	console.Var(flags, &c.quiet, console.Long("quiet"), quietUsage, console.Short("q"))
+	defineAllUsers(flags, &c.allUsers, "container")
 }
 
 func (c *copyContainerCommand) Run(ctx context.Context) console.ExitStatus {
@@ -60,12 +62,14 @@ func (c *copyContainerCommand) run(ctx context.Context) error {
 		return err
 	}
 
-	container, err := c.remote.container(ctx, plan.reference)
+	audience := audienceOf(c.allUsers)
+
+	container, err := c.remote.container(ctx, audience, plan.reference)
 	if err != nil {
 		return err
 	}
 
-	dialer, err := c.remote.dialer()
+	dialer, err := c.remote.dialer(audience)
 	if err != nil {
 		return err
 	}

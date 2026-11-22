@@ -22,6 +22,11 @@ type Error struct {
 	// Stream is what was asked for, as "vms/<uuid>/exec".
 	Stream string
 
+	// Kind and Action are the kind and the action Stream names: "vms" and
+	// "exec".
+	Kind   string
+	Action string
+
 	StatusCode int
 
 	// Fields are the reasons a payload was refused, by field.
@@ -52,8 +57,10 @@ func (e *Error) reason() string {
 		return "the ingress refused what it was asked"
 	case http.StatusUnauthorized:
 		return "the session's token was refused"
+	case http.StatusForbidden:
+		return "your roles do not allow it"
 	case http.StatusNotFound:
-		return "it is not there, or not yours"
+		return "it is not there, or not yours to open"
 	case http.StatusServiceUnavailable:
 		return "it cannot be reached now"
 	case http.StatusTooManyRequests:
@@ -104,8 +111,15 @@ func words(reason string) string {
 	return strings.ReplaceAll(reason, "_", " ")
 }
 
+// IsForbidden reports whether err is a stream refused for the roles of
+// whoever asked: one's own workload, whose action needs a permission the
+// session's token does not give.
+func IsForbidden(err error) bool {
+	return hasStatus(err, http.StatusForbidden)
+}
+
 // IsNotFound reports whether err is a stream refused for a workload that
-// is not there, or not the asker's.
+// is not there, or somebody else's that the asker may not open it on.
 func IsNotFound(err error) bool {
 	return hasStatus(err, http.StatusNotFound)
 }
@@ -128,14 +142,17 @@ func hasStatus(err error, status int) bool {
 	return errors.As(err, &e) && e.StatusCode == status
 }
 
-// refusal is the error a stream that was not opened is: what the ingress
-// answered instead of upgrading, or why it could not be asked.
-func refusal(name string, response *http.Response, err error) error {
+// refusal is the error the stream action of the resource uuid of kind is
+// when it was not opened: what the ingress answered instead of upgrading,
+// or why it could not be asked.
+func refusal(kind, uuid, action string, response *http.Response, err error) error {
+	name := kind + "/" + uuid + "/" + action
+
 	if response == nil {
 		return fmt.Errorf("cannot open %s: %w", name, err)
 	}
 
-	e := &Error{Stream: name, StatusCode: response.StatusCode, RetryAfter: response.Header.Get("Retry-After")}
+	e := &Error{Stream: name, Kind: kind, Action: action, StatusCode: response.StatusCode, RetryAfter: response.Header.Get("Retry-After")}
 
 	if response.Body == nil {
 		return e

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"testing"
@@ -28,13 +29,32 @@ var (
 
 	// api is a container in dockerVM.
 	api = workload.Container{UUID: "0190-api", DockerID: "abc123", Name: "api", State: "running", VM: dockerVM}
+
+	// theirs is somebody else's Docker VM, which publishes 8080.
+	theirs = workload.VM{UUID: "0190-theirs", Name: "theirs", Slug: "theirs-x3", Docker: true, State: "running", Ports: []uint{8080}}
+
+	// cache is a container in theirs.
+	cache = workload.Container{UUID: "0190-cache", DockerID: "def456", Name: "cache", State: "running", VM: theirs}
 )
 
-// resolver finds machine, dockerVM and api by their names.
-type resolver struct{}
+// resolver finds machine, dockerVM and api by their names among one's own,
+// and theirs and cache as well among anybody's.
+type resolver struct {
+	audience workload.Audience
+}
 
-func (resolver) VM(_ context.Context, reference string) (workload.VM, error) {
-	for _, vm := range []workload.VM{machine, dockerVM} {
+// resolverOf is the resolver of audience's workloads.
+func resolverOf(audience workload.Audience) workload.Resolver {
+	return resolver{audience: audience}
+}
+
+func (r resolver) VM(_ context.Context, reference string) (workload.VM, error) {
+	vms := []workload.VM{machine, dockerVM}
+	if r.audience == workload.Everyone {
+		vms = append(vms, theirs)
+	}
+
+	for _, vm := range vms {
 		if vm.Name == reference {
 			return vm, nil
 		}
@@ -43,9 +63,16 @@ func (resolver) VM(_ context.Context, reference string) (workload.VM, error) {
 	return workload.VM{}, fmt.Errorf("no such vm: %s", reference)
 }
 
-func (resolver) Container(_ context.Context, reference string) (workload.Container, error) {
-	if reference == api.Name {
-		return api, nil
+func (r resolver) Container(_ context.Context, reference string) (workload.Container, error) {
+	containers := []workload.Container{api}
+	if r.audience == workload.Everyone {
+		containers = append(containers, cache)
+	}
+
+	for _, container := range containers {
+		if container.Name == reference {
+			return container, nil
+		}
 	}
 
 	return workload.Container{}, fmt.Errorf("no such container: %s", reference)
@@ -178,7 +205,7 @@ func harness(t *testing.T, ingress *streamtest.Ingress, input string) (*commandt
 	h.Cli.In = strings.NewReader(input)
 
 	terminal := newFakeTerminal()
-	r := newRemote(h.Cli, WithResolver(resolver{}))
+	r := newRemote(h.Cli, WithResolver(resolverOf))
 	r.terminal = terminal
 	r.lookupEnv = func(name string) (string, bool) {
 		if name == "HOME" {
@@ -249,31 +276,59 @@ func TestCommands(t *testing.T) {
 
 				assert.Zero(t, h.Run(c, "--help"))
 				assert.Contains(t, h.Out.String(), c.Description()+"\n\nUsage:\n\n  "+c.Usage()+"\n", c.Name())
+				assert.Contains(t, h.Out.String(), "-A, --all-users", c.Name())
 				assert.True(t, strings.HasPrefix(c.Usage(), usages[c.Name()]), c.Usage())
 			}
 		}
 	})
 
-	t.Run("a resolver given is the one references are found by", func(t *testing.T) {
+	t.Run("a resolver given is the one references are found by, for whose workloads they are among", func(t *testing.T) {
 		t.Parallel()
 
-		r := newRemote(command.NewCli(nil, nil, nil), WithResolver(resolver{}))
+		r := newRemote(command.NewCli(nil, nil, nil), WithResolver(resolverOf))
 
-		found, err := r.resolve(context.Background())
+		for _, audience := range []workload.Audience{workload.Mine, workload.Everyone} {
+			found, err := r.resolve(context.Background(), audience)
 
-		require.NoError(t, err)
-		assert.Equal(t, resolver{}, found)
+			require.NoError(t, err)
+			assert.Equal(t, resolver{audience: audience}, found)
+		}
 	})
 
-	t.Run("without one, references are found through the api", func(t *testing.T) {
+	t.Run("without one, references are found through the api: one's own routes, or the administrator's", func(t *testing.T) {
 		t.Parallel()
 
-		h := commandtest.New(t, nil)
+		const uuid = "01900000-0000-7000-8000-000000000001"
 
-		found, err := newRemote(h.Cli).resolve(context.Background())
+		routes := map[workload.Audience]string{
+			workload.Mine:     "/api/dashboard/my/workload/vms/" + uuid,
+			workload.Everyone: "/api/dashboard/workload/vms/" + uuid,
+		}
 
-		require.NoError(t, err)
-		assert.NotNil(t, found)
+		for audience, route := range routes {
+			var (
+				lock  sync.Mutex
+				asked []string
+			)
+
+			h := commandtest.New(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				lock.Lock()
+				asked = append(asked, r.URL.Path)
+				lock.Unlock()
+
+				http.NotFound(w, r)
+			}))
+
+			found, err := newRemote(h.Cli).resolve(context.Background(), audience)
+			require.NoError(t, err)
+
+			_, err = found.VM(context.Background(), uuid)
+			require.Error(t, err)
+
+			lock.Lock()
+			assert.Equal(t, route, asked[0], route)
+			lock.Unlock()
+		}
 	})
 
 	t.Run("a context that cannot be had is the error", func(t *testing.T) {
@@ -284,16 +339,16 @@ func TestCommands(t *testing.T) {
 
 		r := newRemote(cli)
 
-		_, err := r.resolve(context.Background())
+		_, err := r.resolve(context.Background(), workload.Mine)
 		assert.ErrorIs(t, err, config.ErrNoSuchContext)
 
-		_, err = r.vm(context.Background(), "machine")
+		_, err = r.vm(context.Background(), workload.Mine, "machine")
 		assert.ErrorIs(t, err, config.ErrNoSuchContext)
 
-		_, err = r.container(context.Background(), "api")
+		_, err = r.container(context.Background(), workload.Everyone, "api")
 		assert.ErrorIs(t, err, config.ErrNoSuchContext)
 
-		_, err = r.dialer()
+		_, err = r.dialer(workload.Mine)
 		assert.ErrorIs(t, err, config.ErrNoSuchContext)
 	})
 
@@ -307,7 +362,7 @@ func TestCommands(t *testing.T) {
 		cli := command.NewCli(nil, nil, nil, command.WithConfig(cfg))
 
 		_, tokensErr := cli.Tokens()
-		dialer, err := newRemote(cli).dialer()
+		dialer, err := newRemote(cli).dialer(workload.Mine)
 
 		if tokensErr != nil {
 			assert.EqualError(t, err, tokensErr.Error())
@@ -316,6 +371,101 @@ func TestCommands(t *testing.T) {
 			assert.NotNil(t, dialer)
 		}
 	})
+
+	t.Run("with -A a reference is found among anybody's, and its streams opened on it; without, among one's own", func(t *testing.T) {
+		t.Parallel()
+
+		cases := []struct {
+			command string
+			args    []string
+			stream  string
+			missing string
+		}{
+			{command: "vm attach", args: []string{"theirs"}, stream: "vms/0190-theirs/attach", missing: "no such vm: theirs"},
+			{command: "vm exec", args: []string{"theirs", "true"}, stream: "vms/0190-theirs/exec", missing: "no such vm: theirs"},
+			{command: "vm cp", args: []string{"theirs:/etc/hosts", "-"}, stream: "vms/0190-theirs/exec", missing: "no such vm: theirs"},
+			{command: "container attach", args: []string{"cache"}, stream: "vms/0190-theirs/exec", missing: "no such container: cache"},
+			{command: "container exec", args: []string{"cache", "true"}, stream: "vms/0190-theirs/exec", missing: "no such container: cache"},
+			{command: "container cp", args: []string{"cache:/etc/hosts", "-"}, stream: "vms/0190-theirs/exec", missing: "no such container: cache"},
+			{command: "container port-forward", args: []string{"cache", "80"}, stream: "vms/0190-theirs/exec", missing: "no such container: cache"},
+		}
+
+		for _, c := range cases {
+			t.Run(c.command, func(t *testing.T) {
+				t.Parallel()
+
+				unreachable := func() *streamtest.Ingress {
+					return &streamtest.Ingress{Refuse: func(streamtest.Request) (int, string) { return http.StatusServiceUnavailable, "not running" }}
+				}
+
+				h, commands := commandsOf(t, unreachable())
+				assert.Equal(t, 1, h.Run(commands[c.command], append([]string{"-A"}, c.args...)...))
+				assert.Contains(t, h.Err.String(), "cannot open "+c.stream+": it cannot be reached now (not running)\n")
+
+				h, commands = commandsOf(t, unreachable())
+				assert.Equal(t, 1, h.Run(commands[c.command], c.args...))
+				assert.Equal(t, "Error: "+c.missing+"\n", h.Err.String())
+			})
+		}
+	})
+
+	t.Run("a stream refused for the roles says the permission it needs: one's own vm's, or anybody's with -A", func(t *testing.T) {
+		t.Parallel()
+
+		cases := []struct {
+			command    string
+			args       []string
+			permission string
+			doing      string
+		}{
+			{command: "vm attach", args: []string{"machine"}, permission: "workload.vms.attach"},
+			{command: "vm exec", args: []string{"machine", "true"}, permission: "workload.vms.exec"},
+			{command: "vm cp", args: []string{"machine:/etc/hosts", "-"}, permission: "workload.vms.exec"},
+			{command: "container attach", args: []string{"api"}, permission: "workload.vms.exec"},
+			{command: "container exec", args: []string{"api", "true"}, permission: "workload.vms.exec"},
+			{command: "container cp", args: []string{"api:/etc/hosts", "-"}, permission: "workload.vms.exec"},
+			{command: "container port-forward", args: []string{"api", "80"}, permission: "workload.vms.exec", doing: "finding the address of container api: "},
+		}
+
+		forbidding := func() *streamtest.Ingress {
+			return &streamtest.Ingress{Refuse: func(streamtest.Request) (int, string) { return http.StatusForbidden, "forbidden" }}
+		}
+
+		for _, c := range cases {
+			t.Run(c.command, func(t *testing.T) {
+				t.Parallel()
+
+				h, commands := commandsOf(t, forbidding())
+				assert.Equal(t, 1, h.Run(commands[c.command], c.args...))
+				assert.Equal(t, "Error: "+c.doing+`permission denied: this needs the "self.`+c.permission+`" permission, which none of your roles gives you`+"\n", h.Err.String())
+
+				h, commands = commandsOf(t, forbidding())
+				assert.Equal(t, 1, h.Run(commands[c.command], append([]string{"-A"}, c.args...)...))
+				assert.Equal(t, "Error: "+c.doing+`permission denied: this needs the "`+c.permission+`" permission, which none of your roles gives you`+"\n", h.Err.String())
+			})
+		}
+	})
+}
+
+// commandsOf is a harness whose ingress is ingress, and the commands of a vm
+// and of a container run in it, by group and name ("vm exec"), which find
+// what resolverOf finds.
+func commandsOf(t *testing.T, ingress *streamtest.Ingress) (*commandtest.Harness, map[string]console.Command) {
+	t.Helper()
+
+	h := commandtest.New(t, ingress)
+	commands := make(map[string]console.Command)
+
+	for group, set := range map[string][]console.Command{
+		"vm":        VMCommands(h.Cli, WithResolver(resolverOf)),
+		"container": ContainerCommands(h.Cli, WithResolver(resolverOf)),
+	} {
+		for _, c := range set {
+			commands[group+" "+c.Name()] = c
+		}
+	}
+
+	return h, commands
 }
 
 func emptyConfig(t *testing.T) *config.File {

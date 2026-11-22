@@ -20,6 +20,7 @@ type execContainerCommand struct {
 	env         list
 	workdir     string
 	user        string
+	allUsers    bool
 }
 
 var _ console.Command = (*execContainerCommand)(nil)
@@ -48,6 +49,7 @@ func (c *execContainerCommand) Configure(flags *console.FlagSet) {
 	flags.Var(&c.env, console.Long("env"), "Set environment variables", console.Short("e"))
 	console.Var(flags, &c.workdir, console.Long("workdir"), "Working directory inside the container", console.Short("w"))
 	console.Var(flags, &c.user, console.Long("user"), `Username or UID (format: "<name|uid>[:<group|gid>]")`, console.Short("u"))
+	defineAllUsers(flags, &c.allUsers, "container")
 }
 
 func (c *execContainerCommand) Run(ctx context.Context) console.ExitStatus {
@@ -68,7 +70,9 @@ func (c *execContainerCommand) run(ctx context.Context) error {
 		return errNotTTY
 	}
 
-	container, err := c.remote.container(ctx, c.flags.Arg(0))
+	audience := audienceOf(c.allUsers)
+
+	container, err := c.remote.container(ctx, audience, c.flags.Arg(0))
 	if err != nil {
 		return err
 	}
@@ -97,5 +101,5 @@ func (c *execContainerCommand) run(ctx context.Context) error {
 
 	docker = append(append(docker, container.DockerID), c.flags.Args()[1:]...)
 
-	return c.remote.exec(ctx, container.VM.UUID, stream.ExecOptions{Command: docker, TTY: c.tty, Stderr: c.remote.cli.Err}, c.interactive)
+	return c.remote.exec(ctx, audience, container.VM.UUID, stream.ExecOptions{Command: docker, TTY: c.tty, Stderr: c.remote.cli.Err}, c.interactive)
 }

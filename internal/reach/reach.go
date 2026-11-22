@@ -48,8 +48,9 @@ func VMPort(dialer *stream.Dialer, vm workload.VM, reference string, port uint) 
 
 // vmPort is a port of a VM, reached through the forward action while the VM
 // publishes it. A Docker VM's port it does not publish, or that the forward
-// action is refused for (its ingress may be denied), is relayed by nc from
-// inside it from then on.
+// action is not found for (its ingress may be denied), is relayed by nc from
+// inside it from then on; one the forward is forbidden for is not, since
+// what is missing is the permission to forward it.
 type vmPort struct {
 	dialer    *stream.Dialer
 	vm        workload.VM
@@ -105,8 +106,10 @@ func ContainerPort(dialer *stream.Dialer, container workload.Container, address 
 }
 
 // Dialer is what streams are opened through in the context cli talks to: its
-// workload ingress, signed in with its session.
-func Dialer(cli *command.Cli) (*stream.Dialer, error) {
+// workload ingress, signed in with its session, configured by options as
+// well: how a stream refused for the roles of whoever asked is explained,
+// say.
+func Dialer(cli *command.Cli, options ...stream.Option) (*stream.Dialer, error) {
 	current, err := cli.Context()
 	if err != nil {
 		return nil, err
@@ -121,5 +124,5 @@ func Dialer(cli *command.Cli) (*stream.Dialer, error) {
 		return nil, err
 	}
 
-	return stream.NewDialer(current.Ingress, tokens, stream.WithUserAgent(version.UserAgent()))
+	return stream.NewDialer(current.Ingress, tokens, append([]stream.Option{stream.WithUserAgent(version.UserAgent())}, options...)...)
 }

@@ -1,13 +1,15 @@
 // Package access says what a session may do, as its estate decides it: the
-// permission each route of the API is asked under, the permissions a
-// session's token says its roles allow, and, when the API refuses a
-// request, why: a permission the roles do not give, one a role disallows
-// on that one resource, or an account that is blocked.
+// permission each route of the API is asked under, and each stream of a VM,
+// the permissions a session's token says its roles allow, and, when the API
+// or the ingress refuses a request, why: a permission the roles do not
+// give, one a role disallows on that one resource, or an account that is
+// blocked.
 //
 // What a token says is a hint, as it is to the web dashboard: the API
-// decides every request by the roles as they are when it is made. The
-// desktop app offers only what the hint allows; a command is never hidden,
-// and says why it was refused when it is.
+// decides every request by the roles as they are when it is made, though
+// the node holding a VM decides its streams by what the token says alone.
+// The desktop app offers only what the hint allows; a command is never
+// hidden, and says why it was refused when it is.
 package access
 
 import (
@@ -148,8 +150,9 @@ type DeniedError struct {
 	// token was handed over.
 	Here bool
 
-	// Refused is the API's answer.
-	Refused *api.Error
+	// Refused is the refusal: the API's answer (an *api.Error), or the
+	// ingress's to a stream (a *stream.Error).
+	Refused error
 }
 
 func (e *DeniedError) Error() string {
@@ -163,7 +166,7 @@ func (e *DeniedError) Error() string {
 	}
 }
 
-// Unwrap is the API's answer, so that a denial is still a refusal.
+// Unwrap is the refusal, so that a denial is still one.
 func (e *DeniedError) Unwrap() error {
 	return e.Refused
 }

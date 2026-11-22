@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Tarhche/cli/internal/api"
+	"github.com/Tarhche/cli/internal/stream"
+	"github.com/Tarhche/cli/internal/workload"
 )
 
 // tokenAllowing is an access token whose roles allow permissions.
@@ -54,6 +56,7 @@ func TestRequired(t *testing.T) {
 		{name: "a route the table does not know", method: http.MethodGet, path: "/api/home", required: Requirement{}},
 		{name: "a method the route is not served with", method: http.MethodPatch, path: "/api/dashboard/users", required: Requirement{}},
 		{name: "a parameter left empty", method: http.MethodDelete, path: "/api/dashboard/users/", required: Requirement{}},
+		{name: "a parameter left empty between two words", method: http.MethodGet, path: "/api/dashboard/users//sessions", required: Requirement{}},
 		{name: "a path longer than every route", method: http.MethodGet, path: "/api/dashboard/users/u1/sessions/s1/more", required: Requirement{}},
 	}
 
@@ -100,6 +103,22 @@ func TestGranted(t *testing.T) {
 		assert.True(t, granted.Allows(http.MethodGet, "/api/dashboard/profile"), "whoever is signed in")
 		assert.True(t, granted.Allows(http.MethodGet, "/api/home"), "nobody needs a session for it")
 	})
+
+	t.Run("a stream of one's own vm under its self permission or the anybody's, of anybody's under the anybody's alone", func(t *testing.T) {
+		t.Parallel()
+
+		owner := GrantedBy(tokenAllowing("self.workload.vms.exec"))
+		administrator := GrantedBy(tokenAllowing("workload.vms.exec"))
+		nobody := GrantedBy(tokenAllowing("self.workload.vms.attach", "workload.vms.forward"))
+
+		assert.True(t, owner.AllowsStream(stream.ActionExec, workload.Mine))
+		assert.False(t, owner.AllowsStream(stream.ActionExec, workload.Everyone))
+		assert.True(t, administrator.AllowsStream(stream.ActionExec, workload.Mine))
+		assert.True(t, administrator.AllowsStream(stream.ActionExec, workload.Everyone))
+		assert.False(t, nobody.AllowsStream(stream.ActionExec, workload.Mine))
+		assert.False(t, nobody.AllowsStream(stream.ActionExec, workload.Everyone))
+		assert.True(t, nobody.AllowsStream("logs", workload.Everyone), "an action of no vm's")
+	})
 }
 
 func TestDeniedError(t *testing.T) {
@@ -111,6 +130,14 @@ func TestDeniedError(t *testing.T) {
 	assert.EqualError(t, &DeniedError{Permission: "users.index", Here: true, Refused: refused}, `permission denied: your roles do not allow "users.index" on this`)
 	assert.EqualError(t, &DeniedError{Here: true, Refused: refused}, "permission denied: your roles do not allow this")
 	assert.True(t, api.IsForbidden(&DeniedError{Refused: refused}), "a denial is still a refusal")
+
+	streamRefused := &stream.Error{Stream: "vms/u/exec", Kind: stream.KindVMs, Action: stream.ActionExec, StatusCode: http.StatusForbidden}
+	denied := &DeniedError{Permission: "self.workload.vms.exec", Refused: streamRefused}
+
+	assert.EqualError(t, denied, `permission denied: this needs the "self.workload.vms.exec" permission, which none of your roles gives you`)
+	assert.True(t, stream.IsForbidden(denied), "a stream's denial is still the ingress's refusal")
+	assert.False(t, api.IsForbidden(denied))
+	assert.NoError(t, (&DeniedError{}).Unwrap(), "a denial with no refusal unwraps to nothing")
 }
 
 func TestBlockedError(t *testing.T) {

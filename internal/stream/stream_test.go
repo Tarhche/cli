@@ -3,6 +3,7 @@ package stream
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -48,6 +49,41 @@ func (s *tokens) Rejected() []string {
 	defer s.lock.Unlock()
 
 	return append([]string(nil), s.rejected...)
+}
+
+// explainerFunc is an Explainer that is a function.
+type explainerFunc func(ctx context.Context, refused *Error) error
+
+func (f explainerFunc) Explain(ctx context.Context, refused *Error) error {
+	return f(ctx, refused)
+}
+
+// errDenied is what a test's explainer says a refusal is.
+var errDenied = errors.New("denied")
+
+// explaining is an explainer saying every refusal is errDenied, and the
+// refusals it was asked about.
+func explaining() (Explainer, func() []*Error) {
+	var (
+		lock  sync.Mutex
+		asked []*Error
+	)
+
+	explainer := explainerFunc(func(_ context.Context, refused *Error) error {
+		lock.Lock()
+		defer lock.Unlock()
+
+		asked = append(asked, refused)
+
+		return errDenied
+	})
+
+	return explainer, func() []*Error {
+		lock.Lock()
+		defer lock.Unlock()
+
+		return append([]*Error(nil), asked...)
+	}
 }
 
 // serve is a dialer of a fake ingress serving ingress, signed with the token
@@ -100,11 +136,14 @@ func TestNewDialer(t *testing.T) {
 	t.Run("options configure it", func(t *testing.T) {
 		t.Parallel()
 
-		d, err := NewDialer("https://ingress.example", nil, WithUserAgent("tarhche-cli/test"), WithPingInterval(5))
+		explainer, _ := explaining()
+
+		d, err := NewDialer("https://ingress.example", nil, WithUserAgent("tarhche-cli/test"), WithPingInterval(5), WithExplainer(explainer))
 
 		require.NoError(t, err)
 		assert.Equal(t, "tarhche-cli/test", d.header.Get("User-Agent"))
 		assert.EqualValues(t, 5, d.ping)
+		assert.NotNil(t, d.explainer)
 	})
 }
 
@@ -284,7 +323,8 @@ func TestDialerOpen(t *testing.T) {
 			message string
 			says    string
 		}{
-			{status: http.StatusNotFound, body: "no such vm", check: IsNotFound, message: "no such vm", says: "cannot open vms/0190/attach: it is not there, or not yours (no such vm)"},
+			{status: http.StatusNotFound, body: "no such vm", check: IsNotFound, message: "no such vm", says: "cannot open vms/0190/attach: it is not there, or not yours to open (no such vm)"},
+			{status: http.StatusForbidden, body: "forbidden", check: IsForbidden, message: "forbidden", says: "cannot open vms/0190/attach: your roles do not allow it (forbidden)"},
 			{status: http.StatusServiceUnavailable, body: "not reachable: the vm is not running", check: IsUnavailable, message: "not reachable: the vm is not running", says: "cannot open vms/0190/attach: it cannot be reached now (not reachable: the vm is not running)"},
 			{status: http.StatusBadRequest, body: `{"errors":{"port":"invalid_port","command":"required_field","env":"is not valid"}}`, fields: map[string]string{"port": "invalid_port", "command": "required_field", "env": "is not valid"}, says: "cannot open vms/0190/attach: the ingress refused what it was asked (command: required field; env: is not valid; port: invalid port)"},
 			{status: http.StatusBadRequest, body: "invalid payload: the action is asked with nothing", message: "invalid payload: the action is asked with nothing", says: "cannot open vms/0190/attach: the ingress refused what it was asked (invalid payload: the action is asked with nothing)"},
@@ -303,6 +343,8 @@ func TestDialerOpen(t *testing.T) {
 			require.ErrorAs(t, err, &refused, c.says)
 			assert.Equal(t, c.status, refused.StatusCode)
 			assert.Equal(t, "vms/0190/attach", refused.Stream)
+			assert.Equal(t, KindVMs, refused.Kind)
+			assert.Equal(t, ActionAttach, refused.Action)
 			assert.Equal(t, c.fields, refused.Fields)
 			assert.Equal(t, c.message, refused.Message)
 			assert.Equal(t, c.says, err.Error())
@@ -311,6 +353,42 @@ func TestDialerOpen(t *testing.T) {
 				assert.True(t, c.check(err), c.says)
 			}
 		}
+	})
+
+	t.Run("a stream refused for the roles of whoever asked is what the explainer says", func(t *testing.T) {
+		t.Parallel()
+
+		explainer, asked := explaining()
+		ingress := &streamtest.Ingress{Refuse: func(streamtest.Request) (int, string) { return http.StatusForbidden, "forbidden" }}
+		d := serve(t, ingress, WithExplainer(explainer))
+
+		_, err := d.Exec(context.Background(), "0190", ExecOptions{Command: []string{"true"}})
+
+		require.ErrorIs(t, err, errDenied)
+		assert.Equal(t, []*Error{{Stream: "vms/0190/exec", Kind: KindVMs, Action: ActionExec, StatusCode: http.StatusForbidden, Message: "forbidden"}}, asked())
+	})
+
+	t.Run("any other refusal, or a stream that could not be asked for, is not explained", func(t *testing.T) {
+		t.Parallel()
+
+		explainer, asked := explaining()
+		ingress := &streamtest.Ingress{Refuse: func(streamtest.Request) (int, string) { return http.StatusNotFound, "no such vm" }}
+		d := serve(t, ingress, WithExplainer(explainer))
+
+		_, err := d.Forward(context.Background(), "0190", 8080)
+		assert.True(t, IsNotFound(err))
+
+		server := httptest.NewServer(http.NotFoundHandler())
+		server.Close()
+
+		unreachable, err := NewDialer(server.URL, &tokens{token: streamtest.Token}, WithExplainer(explainer))
+		require.NoError(t, err)
+
+		_, err = unreachable.Attach(context.Background(), KindVMs, "0190")
+		require.Error(t, err)
+		assert.NotErrorIs(t, err, errDenied)
+
+		assert.Empty(t, asked())
 	})
 }
 
@@ -321,7 +399,8 @@ func TestError(t *testing.T) {
 		t.Parallel()
 
 		assert.Equal(t, "cannot open vms/u/exec: the session's token was refused", (&Error{Stream: "vms/u/exec", StatusCode: http.StatusUnauthorized}).Error())
-		assert.Equal(t, "cannot open vms/u/exec: it is not there, or not yours", (&Error{Stream: "vms/u/exec", StatusCode: http.StatusNotFound}).Error())
+		assert.Equal(t, "cannot open vms/u/exec: your roles do not allow it", (&Error{Stream: "vms/u/exec", StatusCode: http.StatusForbidden}).Error())
+		assert.Equal(t, "cannot open vms/u/exec: it is not there, or not yours to open", (&Error{Stream: "vms/u/exec", StatusCode: http.StatusNotFound}).Error())
 	})
 
 	t.Run("a refusal for too many streams says when to ask again", func(t *testing.T) {
@@ -331,11 +410,14 @@ func TestError(t *testing.T) {
 		assert.Equal(t, "cannot open vms/u/forward: too many streams were opened from here; try again after Wed, 21 Oct 2026 07:28:00 GMT", (&Error{Stream: "vms/u/forward", StatusCode: http.StatusTooManyRequests, RetryAfter: "Wed, 21 Oct 2026 07:28:00 GMT"}).Error())
 	})
 
-	t.Run("only refusals of their statuses are not found and unavailable", func(t *testing.T) {
+	t.Run("only refusals of their statuses are not found, forbidden and unavailable", func(t *testing.T) {
 		t.Parallel()
 
 		assert.False(t, IsNotFound(errors.New("other")))
 		assert.False(t, IsNotFound(&Error{StatusCode: http.StatusServiceUnavailable}))
+		assert.False(t, IsNotFound(&Error{StatusCode: http.StatusForbidden}))
+		assert.False(t, IsForbidden(&Error{StatusCode: http.StatusNotFound}))
+		assert.True(t, IsForbidden(fmt.Errorf("wrapped: %w", &Error{StatusCode: http.StatusForbidden})))
 		assert.False(t, IsUnavailable(&Error{StatusCode: http.StatusNotFound}))
 		assert.True(t, IsUnavailable(&Error{StatusCode: http.StatusServiceUnavailable}))
 		assert.False(t, IsTooManyRequests(&Error{StatusCode: http.StatusServiceUnavailable}))
@@ -352,25 +434,25 @@ func TestRefusal(t *testing.T) {
 	t.Run("an answer without a body is its status alone", func(t *testing.T) {
 		t.Parallel()
 
-		err := refusal("vms/u/attach", &http.Response{StatusCode: http.StatusNotFound}, errors.New("bad handshake"))
+		err := refusal(KindVMs, "u", ActionAttach, &http.Response{StatusCode: http.StatusNotFound}, errors.New("bad handshake"))
 
-		assert.Equal(t, &Error{Stream: "vms/u/attach", StatusCode: http.StatusNotFound}, err)
+		assert.Equal(t, &Error{Stream: "vms/u/attach", Kind: KindVMs, Action: ActionAttach, StatusCode: http.StatusNotFound}, err)
 	})
 
 	t.Run("how long to wait is what the answer's Retry-After says", func(t *testing.T) {
 		t.Parallel()
 
-		err := refusal("vms/u/forward", &http.Response{StatusCode: http.StatusTooManyRequests, Header: http.Header{"Retry-After": {"30"}}}, errors.New("bad handshake"))
+		err := refusal(KindVMs, "u", ActionForward, &http.Response{StatusCode: http.StatusTooManyRequests, Header: http.Header{"Retry-After": {"30"}}}, errors.New("bad handshake"))
 
-		assert.Equal(t, &Error{Stream: "vms/u/forward", StatusCode: http.StatusTooManyRequests, RetryAfter: "30"}, err)
+		assert.Equal(t, &Error{Stream: "vms/u/forward", Kind: KindVMs, Action: ActionForward, StatusCode: http.StatusTooManyRequests, RetryAfter: "30"}, err)
 	})
 
 	t.Run("a body that cannot be read is left out", func(t *testing.T) {
 		t.Parallel()
 
-		err := refusal("vms/u/attach", &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(failingReader{})}, errors.New("bad handshake"))
+		err := refusal(KindVMs, "u", ActionAttach, &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(failingReader{})}, errors.New("bad handshake"))
 
-		assert.Equal(t, &Error{Stream: "vms/u/attach", StatusCode: http.StatusNotFound}, err)
+		assert.Equal(t, &Error{Stream: "vms/u/attach", Kind: KindVMs, Action: ActionAttach, StatusCode: http.StatusNotFound}, err)
 	})
 
 	t.Run("a long body is read up to its bound", func(t *testing.T) {
@@ -378,7 +460,7 @@ func TestRefusal(t *testing.T) {
 
 		body := strings.Repeat("x", 2*maxRefusal)
 
-		err := refusal("vms/u/attach", &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader(body))}, errors.New("bad handshake"))
+		err := refusal(KindVMs, "u", ActionAttach, &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader(body))}, errors.New("bad handshake"))
 
 		var refused *Error
 		require.ErrorAs(t, err, &refused)
@@ -438,7 +520,7 @@ func TestDialerOpenPayload(t *testing.T) {
 	d, err := NewDialer("http://127.0.0.1:1", &tokens{token: streamtest.Token})
 	require.NoError(t, err)
 
-	_, err = d.open(context.Background(), KindVMs, "0190", "exec", make(chan int))
+	_, err = d.open(context.Background(), KindVMs, "0190", ActionExec, make(chan int))
 
 	assert.Error(t, err)
 }

@@ -13,6 +13,8 @@ import (
 type attachVMCommand struct {
 	remote *remote
 	flags  *console.FlagSet
+
+	allUsers bool
 }
 
 var _ console.Command = (*attachVMCommand)(nil)
@@ -30,11 +32,13 @@ func (c *attachVMCommand) Description() string {
 }
 
 func (c *attachVMCommand) Usage() string {
-	return "attach VM"
+	return "attach [OPTIONS] VM"
 }
 
 func (c *attachVMCommand) Configure(flags *console.FlagSet) {
 	c.flags = flags
+
+	defineAllUsers(flags, &c.allUsers, "VM")
 }
 
 func (c *attachVMCommand) Run(ctx context.Context) console.ExitStatus {
@@ -46,12 +50,14 @@ func (c *attachVMCommand) run(ctx context.Context) error {
 		return err
 	}
 
-	vm, err := c.remote.vm(ctx, c.flags.Arg(0))
+	audience := audienceOf(c.allUsers)
+
+	vm, err := c.remote.vm(ctx, audience, c.flags.Arg(0))
 	if err != nil {
 		return err
 	}
 
-	dialer, err := c.remote.dialer()
+	dialer, err := c.remote.dialer(audience)
 	if err != nil {
 		return err
 	}

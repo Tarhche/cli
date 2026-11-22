@@ -135,7 +135,7 @@ func TestExecVMCommand(t *testing.T) {
 
 		h, r, _ = harness(t, &streamtest.Ingress{}, "")
 		assert.Equal(t, 1, h.Run(newExecVMCommand(r), "machine", "true"))
-		assert.Equal(t, "Error: cannot open vms/0190-machine/exec: it is not there, or not yours (no such stream)\n", h.Err.String())
+		assert.Equal(t, "Error: cannot open vms/0190-machine/exec: it is not there, or not yours to open (no such stream)\n", h.Err.String())
 
 		h, r, _ = harness(t, &streamtest.Ingress{}, "")
 		withoutIngress(t, h)

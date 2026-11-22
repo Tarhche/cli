@@ -7,6 +7,7 @@ package stream
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -25,6 +26,17 @@ const (
 
 	// KindTasks is the kind a code runner's task's streams are opened on.
 	KindTasks = "tasks"
+
+	// ActionAttach is a terminal: a shell in a VM, or a task's.
+	ActionAttach = "attach"
+
+	// ActionExec is a command run in a VM, which is also how its files are
+	// copied and how a Docker VM's containers and unpublished ports are
+	// reached.
+	ActionExec = "exec"
+
+	// ActionForward is a TCP connection to a port a VM publishes.
+	ActionForward = "forward"
 
 	// DefaultPingInterval is how often an open stream is pinged, so that
 	// nothing on the way closes it for being idle.
@@ -45,6 +57,13 @@ type Dialer struct {
 	header    http.Header
 	websocket websocket.Dialer
 	ping      time.Duration
+	explainer Explainer
+}
+
+// Explainer says why the ingress refused to open a stream for the roles of
+// whoever asked (403): the error a dial returns instead of the refusal.
+type Explainer interface {
+	Explain(ctx context.Context, refused *Error) error
 }
 
 // Option configures a Dialer.
@@ -53,6 +72,12 @@ type Option func(*Dialer)
 // WithUserAgent introduces the dialer as userAgent.
 func WithUserAgent(userAgent string) Option {
 	return func(d *Dialer) { d.header.Set("User-Agent", userAgent) }
+}
+
+// WithExplainer says why the ingress refused a stream for the roles of
+// whoever asked through explainer.
+func WithExplainer(explainer Explainer) Option {
+	return func(d *Dialer) { d.explainer = explainer }
 }
 
 // WithPingInterval pings an open stream every interval instead of every
@@ -100,8 +125,6 @@ func NewDialer(base string, tokens api.TokenSource, options ...Option) (*Dialer,
 // open opens the stream action of the resource uuid of kind, asked with
 // payload, which nil leaves out. A token the ingress refuses is renewed once.
 func (d *Dialer) open(ctx context.Context, kind, uuid, action string, payload any) (*socket, error) {
-	name := kind + "/" + uuid + "/" + action
-
 	target, err := d.url(kind, uuid, action, payload)
 	if err != nil {
 		return nil, err
@@ -125,12 +148,23 @@ func (d *Dialer) open(ctx context.Context, kind, uuid, action string, payload an
 	}
 
 	if err != nil {
-		return nil, refusal(name, response, err)
+		return nil, d.explain(ctx, refusal(kind, uuid, action, response, err))
 	}
 
 	_ = response.Body.Close()
 
 	return newSocket(conn, d.ping), nil
+}
+
+// explain is err, a stream refused for the roles of whoever asked, as the
+// dialer's explainer says it, and any other error as it is.
+func (d *Dialer) explain(ctx context.Context, err error) error {
+	refused, isRefused := errors.AsType[*Error](err)
+	if d.explainer == nil || !isRefused || refused.StatusCode != http.StatusForbidden {
+		return err
+	}
+
+	return d.explainer.Explain(ctx, refused)
 }
 
 // url is where the stream action of the resource uuid of kind is opened,

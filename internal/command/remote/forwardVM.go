@@ -17,7 +17,8 @@ type forwardVMCommand struct {
 	remote *remote
 	flags  *console.FlagSet
 
-	address string
+	address  string
+	allUsers bool
 }
 
 var _ console.Command = (*forwardVMCommand)(nil)
@@ -42,6 +43,7 @@ func (c *forwardVMCommand) Configure(flags *console.FlagSet) {
 	c.flags = flags
 
 	console.Var(flags, &c.address, console.Long("address"), addressUsage, console.Default(portforward.DefaultAddress))
+	defineAllUsers(flags, &c.allUsers, "VM")
 }
 
 func (c *forwardVMCommand) Run(ctx context.Context) console.ExitStatus {
@@ -64,13 +66,14 @@ func (c *forwardVMCommand) run(ctx context.Context) error {
 	}
 
 	reference := c.flags.Arg(0)
+	audience := audienceOf(c.allUsers)
 
-	vm, err := c.remote.vm(ctx, reference)
+	vm, err := c.remote.vm(ctx, audience, reference)
 	if err != nil {
 		return err
 	}
 
-	dialer, err := c.remote.dialer()
+	dialer, err := c.remote.dialer(audience)
 	if err != nil {
 		return err
 	}

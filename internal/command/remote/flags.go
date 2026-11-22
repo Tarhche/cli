@@ -4,13 +4,32 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/danceable/console"
+
 	"github.com/Tarhche/cli/internal/command"
+	"github.com/Tarhche/cli/internal/workload"
 )
 
 // endOfTransmission is what a terminal reads as the end of its input, typed
 // at the start of a line: what a terminal is sent once input that is not a
 // terminal ended.
 const endOfTransmission = 0x04
+
+// defineAllUsers defines -A/--all-users, which reaches into anybody's
+// workload of kind, a VM or a container, rather than one's own.
+func defineAllUsers(flags *console.FlagSet, allUsers *bool, kind string) {
+	console.Var(flags, allUsers, console.Long("all-users"), "Reach anybody's "+kind+" rather than one's own", console.Short("A"))
+}
+
+// audienceOf is whose workloads a reference is found among, and its streams
+// opened on: anybody's when -A says so, else one's own.
+func audienceOf(allUsers bool) workload.Audience {
+	if allUsers {
+		return workload.Everyone
+	}
+
+	return workload.Mine
+}
 
 // list is a flag that is given any number of times, each a value of its
 // own, as docker's -e is.

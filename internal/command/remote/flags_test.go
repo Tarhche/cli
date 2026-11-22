@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Tarhche/cli/internal/command"
+	"github.com/Tarhche/cli/internal/workload"
 )
 
 func TestList(t *testing.T) {
@@ -51,6 +52,13 @@ func TestEnvironment(t *testing.T) {
 			assert.EqualError(t, err, "invalid environment variable: "+variable)
 		}
 	})
+}
+
+func TestAudienceOf(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, workload.Mine, audienceOf(false))
+	assert.Equal(t, workload.Everyone, audienceOf(true))
 }
 
 func TestExitStatus(t *testing.T) {

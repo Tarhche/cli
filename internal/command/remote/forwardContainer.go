@@ -16,7 +16,8 @@ type forwardContainerCommand struct {
 	remote *remote
 	flags  *console.FlagSet
 
-	address string
+	address  string
+	allUsers bool
 }
 
 var _ console.Command = (*forwardContainerCommand)(nil)
@@ -41,6 +42,7 @@ func (c *forwardContainerCommand) Configure(flags *console.FlagSet) {
 	c.flags = flags
 
 	console.Var(flags, &c.address, console.Long("address"), addressUsage, console.Default(portforward.DefaultAddress))
+	defineAllUsers(flags, &c.allUsers, "container")
 }
 
 func (c *forwardContainerCommand) Run(ctx context.Context) console.ExitStatus {
@@ -63,13 +65,14 @@ func (c *forwardContainerCommand) run(ctx context.Context) error {
 	}
 
 	reference := c.flags.Arg(0)
+	audience := audienceOf(c.allUsers)
 
-	container, err := c.remote.container(ctx, reference)
+	container, err := c.remote.container(ctx, audience, reference)
 	if err != nil {
 		return err
 	}
 
-	dialer, err := c.remote.dialer()
+	dialer, err := c.remote.dialer(audience)
 	if err != nil {
 		return err
 	}
