@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest";
 import type {ResourceDefinition} from "../api/services";
-import {actionsFor, audienceShown, audiencesOf, filtersFor, nameOf, pretty, routesFor, said} from "./resource";
+import type {Row} from "../api/services";
+import {actionsFor, audienceShown, audiencesOf, filtersFor, linksFor, nameOf, routesFor, rowActions, rowLinks, said} from "./resource";
 
 const definition = {
   name: "audit-log",
@@ -64,15 +65,38 @@ describe("resources", () => {
     expect(filtersFor({...definition, filters: null} as unknown as ResourceDefinition, "mine")).toEqual([]);
   });
 
-  it("names a row by its key, or its first cell", () => {
-    expect(nameOf(["c-1", "en"], ["x"])).toBe("c-1/en");
-    expect(nameOf([], ["first"])).toBe("first");
+  it("names a row by the first thing it says, or its key", () => {
+    expect(nameOf(["c-1", "en"], ["", "Hello"])).toBe("Hello");
+    expect(nameOf(["c-1", "en"], [" "])).toBe("c-1/en");
     expect(nameOf([], [])).toBe("");
   });
 
-  it("writes JSON to be read, and leaves out filters that say nothing", () => {
-    expect(pretty({a: 1})).toBe('{\n  "a": 1\n}');
-    expect(pretty(null)).toBe("{}");
+  it("leaves out filters that say nothing", () => {
     expect(said({kind: "read", ip: " ", user_uuid: ""})).toEqual({kind: "read"});
+  });
+
+  it("offers the links of an audience, each a row has somewhere to go for", () => {
+    const linked = {
+      ...definition,
+      links: [
+        {name: "View", kind: "view", resource: "", filter: "", audiences: ["mine", "everyone"]},
+        {name: "Edit", kind: "edit", resource: "", filter: "", audiences: ["everyone"]},
+        {name: "Attempts", kind: "list", resource: "exam-attempt", filter: "exam_uuid", audiences: []},
+      ],
+    } as unknown as ResourceDefinition;
+    const row = {key: ["x"], cells: [], links: {Edit: "https://web.example/edit", Attempts: "x"}, actions: ["read"]} as unknown as Row;
+
+    expect(linksFor(linked, "mine").map((l) => l.name)).toEqual(["View"]);
+    expect(linksFor(linked, "everyone").map((l) => l.name)).toEqual(["View", "Edit"]);
+    expect(linksFor({...definition, links: null} as unknown as ResourceDefinition, "mine")).toEqual([]);
+    expect(rowLinks(linksFor(linked, "everyone"), row).map(({link, to}) => [link.name, to])).toEqual([["Edit", "https://web.example/edit"]]);
+    expect(rowLinks(linksFor(linked, "everyone"), {...row, links: null} as unknown as Row)).toEqual([]);
+  });
+
+  it("offers a row the actions that hold for it", () => {
+    const actions = actionsFor(definition, "everyone", true);
+
+    expect(rowActions(actions, {actions: ["read"]} as unknown as Row).map((a) => a.name)).toEqual(["read"]);
+    expect(rowActions(actions, {actions: null} as unknown as Row)).toEqual([]);
   });
 });

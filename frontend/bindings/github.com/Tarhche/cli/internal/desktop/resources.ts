@@ -7,7 +7,9 @@
  * pages are built from whatever definitions the session's permissions
  * allow. Whose things are asked for is the frontend's to say: one's own,
  * unless everybody's are asked for or one's own are not served, as the
- * commands do.
+ * commands do. What needs a form of the web dashboard's, making something
+ * or changing it, is a link to that page of the context's website, as is
+ * what a row is shown as on it.
  * @module
  */
 
@@ -32,13 +34,6 @@ export function Action(name: string, action: string, everyone: boolean, key: str
 }
 
 /**
- * Create creates one of a resource from body, its JSON object.
- */
-export function Create(name: string, everyone: boolean, body: string): $CancellablePromise<json$0.RawMessage> {
-    return $Call.ByID(1680370648, name, everyone, body);
-}
-
-/**
  * Definitions are the kinds of resource the session may list, in the order
  * they are shown, each with what its permissions allow of it: a hint of
  * what to offer, as the API decides every request.
@@ -57,27 +52,12 @@ export function Delete(name: string, everyone: boolean, key: string[]): $Cancell
 }
 
 /**
- * Get reads one of a resource, by its key.
- */
-export function Get(name: string, everyone: boolean, key: string[]): $CancellablePromise<json$0.RawMessage> {
-    return $Call.ByID(2007478392, name, everyone, key);
-}
-
-/**
  * List reads a page of a resource's listing.
  */
 export function List(name: string, everyone: boolean, query: $models.ListQuery): $CancellablePromise<$models.Listing> {
     return $Call.ByID(1781008852, name, everyone, query).then(($result: any) => {
         return $$createType2($result);
     });
-}
-
-/**
- * Update changes one of a resource to body, its JSON object: the one key
- * names, or, given no key, the one body says.
- */
-export function Update(name: string, everyone: boolean, key: string[], body: string): $CancellablePromise<json$0.RawMessage> {
-    return $Call.ByID(3361360781, name, everyone, key, body);
 }
 
 // Private type creation functions

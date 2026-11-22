@@ -101,7 +101,7 @@ function Page({view, access, navigate}: {view: View; access: Access; navigate: (
     case "resource": {
       const definition = access.definitions.find((d) => d.name === view.name);
 
-      return definition ? <ResourcePage key={definition.name} definition={definition} /> : null;
+      return definition ? <ResourcePage key={JSON.stringify(view)} definition={definition} audience={view.audience} filters={view.filters} /> : null;
     }
   }
 }

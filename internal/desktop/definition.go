@@ -49,12 +49,12 @@ func routeOf(d resource.Definition, op operation, everyone bool) string {
 	return path
 }
 
-// audiencesOf are the audiences of a resource a session granted what
-// granted says may list, one's own first.
+// audiencesOf are the audiences of a resource the app lists that a session
+// granted what granted says may list, one's own first.
 func audiencesOf(d resource.Definition, granted access.Granted) []string {
 	audiences := []string{}
 
-	for _, audience := range d.Audiences() {
+	for _, audience := range d.AppAudiences() {
 		if list := d.PathsOf(audience).List; len(list) > 0 && granted.Allows(methods[operationList], list) {
 			audiences = append(audiences, string(audience))
 		}
@@ -166,44 +166,6 @@ func decodeItems(raws []json.RawMessage) []any {
 	}
 
 	return items
-}
-
-// decodeObject is the JSON object body holds, refused field by field when
-// it is none: an array of one object, as inspect writes it, holds that
-// object.
-func decodeObject(body string) (map[string]any, error) {
-	value, err := decodeJSON([]byte(body))
-	if err != nil {
-		return nil, InvalidError{Fields: map[string]string{"json": "it is not valid JSON"}}
-	}
-
-	if array, isArray := value.([]any); isArray && len(array) == 1 {
-		value = array[0]
-	}
-
-	object, isObject := value.(map[string]any)
-	if !isObject {
-		return nil, InvalidError{Fields: map[string]string{"json": "it has to be an object"}}
-	}
-
-	return object, nil
-}
-
-// keyFromBody is the key a body says itself, which an update carries when
-// it is given none.
-func keyFromBody(d resource.Definition, body map[string]any) ([]string, error) {
-	key := make([]string, len(d.Key))
-
-	for i, field := range d.Key {
-		value, isString := body[field].(string)
-		if !isString || len(value) == 0 {
-			return nil, InvalidError{Fields: map[string]string{field: "say which " + d.Name + " it is: its " + field}}
-		}
-
-		key[i] = value
-	}
-
-	return key, nil
 }
 
 // cloned is fields, which may be nil, as a map of its own.

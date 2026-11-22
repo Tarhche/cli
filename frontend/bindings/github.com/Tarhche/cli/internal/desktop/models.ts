@@ -814,6 +814,16 @@ export class ResourceAction {
     "description": string;
 
     /**
+     * Title is what it is offered as: "Mark as read".
+     */
+    "title": string;
+
+    /**
+     * Confirm is what is asked before it is, nothing for nothing.
+     */
+    "confirm": string;
+
+    /**
      * Mine says it is asked of one's own, else of everybody's.
      */
     "mine": boolean;
@@ -836,6 +846,12 @@ export class ResourceAction {
         }
         if (!("description" in $$source)) {
             this["description"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("confirm" in $$source)) {
+            this["confirm"] = "";
         }
         if (!("mine" in $$source)) {
             this["mine"] = false;
@@ -905,6 +921,18 @@ export class ResourceDefinition {
      */
     "columns": string[];
 
+    /**
+     * New is where one is made, on the web dashboard: nothing when the
+     * session may make none, or its context names no website.
+     */
+    "new": ResourceNew;
+
+    /**
+     * Links are where a row is shown or changed beside its listing, in the
+     * order they are offered.
+     */
+    "links": ResourceLink[];
+
     /** Creates a new ResourceDefinition instance. */
     constructor($$source: Partial<ResourceDefinition> = {}) {
         if (!("name" in $$source)) {
@@ -946,6 +974,12 @@ export class ResourceDefinition {
         if (!("columns" in $$source)) {
             this["columns"] = [];
         }
+        if (!("new" in $$source)) {
+            this["new"] = (new ResourceNew());
+        }
+        if (!("links" in $$source)) {
+            this["links"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -961,6 +995,8 @@ export class ResourceDefinition {
         const $$createField9_0 = $$createType19;
         const $$createField10_0 = $$createType21;
         const $$createField12_0 = $$createType3;
+        const $$createField13_0 = $$createType22;
+        const $$createField14_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("key" in $$parsedSource) {
             $$parsedSource["key"] = $$createField5_0($$parsedSource["key"]);
@@ -982,6 +1018,12 @@ export class ResourceDefinition {
         }
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField12_0($$parsedSource["columns"]);
+        }
+        if ("new" in $$parsedSource) {
+            $$parsedSource["new"] = $$createField13_0($$parsedSource["new"]);
+        }
+        if ("links" in $$parsedSource) {
+            $$parsedSource["links"] = $$createField14_0($$parsedSource["links"]);
         }
         return new ResourceDefinition($$parsedSource as Partial<ResourceDefinition>);
     }
@@ -1049,6 +1091,102 @@ export class ResourceFilter {
 }
 
 /**
+ * ResourceLink is a page a row of a resource is shown or changed on: one of
+ * the context's website or API, which a row's link is the address of, or
+ * one of the app, which a row's link is the value of a filter of.
+ */
+export class ResourceLink {
+    /**
+     * Name is what it is offered as: "Edit article".
+     */
+    "name": string;
+
+    /**
+     * Kind is what it does: view, edit, list or public.
+     */
+    "kind": string;
+
+    /**
+     * Resource is, for a page of the app, the resource whose everybody's
+     * listing it opens, and Filter the filter that listing is narrowed by;
+     * both empty for a page of a site.
+     */
+    "resource": string;
+    "filter": string;
+
+    /**
+     * Audiences are the listings the session is offered it in: mine,
+     * everyone.
+     */
+    "audiences": string[];
+
+    /** Creates a new ResourceLink instance. */
+    constructor($$source: Partial<ResourceLink> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("resource" in $$source)) {
+            this["resource"] = "";
+        }
+        if (!("filter" in $$source)) {
+            this["filter"] = "";
+        }
+        if (!("audiences" in $$source)) {
+            this["audiences"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ResourceLink instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ResourceLink {
+        const $$createField4_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("audiences" in $$parsedSource) {
+            $$parsedSource["audiences"] = $$createField4_0($$parsedSource["audiences"]);
+        }
+        return new ResourceLink($$parsedSource as Partial<ResourceLink>);
+    }
+}
+
+/**
+ * ResourceNew is the page of the web dashboard one of a resource is made
+ * on.
+ */
+export class ResourceNew {
+    /**
+     * Name is what it is offered as: "New article".
+     */
+    "name": string;
+    "url": string;
+
+    /** Creates a new ResourceNew instance. */
+    constructor($$source: Partial<ResourceNew> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ResourceNew instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ResourceNew {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ResourceNew($$parsedSource as Partial<ResourceNew>);
+    }
+}
+
+/**
  * Routes say what the session may ask an audience of a resource: what is
  * served there that its permissions allow.
  */
@@ -1109,6 +1247,24 @@ export class Row {
      */
     "item": json$0.RawMessage;
 
+    /**
+     * Links are where its definition's links lead for it, by name: an
+     * address, or, for a page of the app, the value of its filter. A link
+     * it has none of is not offered for it.
+     */
+    "links": { [_ in string]?: string };
+
+    /**
+     * Actions are the names of its definition's actions of one thing that
+     * are offered for it.
+     */
+    "actions": string[];
+
+    /**
+     * Protected says it is not deleted: the default role.
+     */
+    "protected": boolean;
+
     /** Creates a new Row instance. */
     constructor($$source: Partial<Row> = {}) {
         if (!("key" in $$source)) {
@@ -1120,6 +1276,15 @@ export class Row {
         if (!("item" in $$source)) {
             this["item"] = null;
         }
+        if (!("links" in $$source)) {
+            this["links"] = {};
+        }
+        if (!("actions" in $$source)) {
+            this["actions"] = [];
+        }
+        if (!("protected" in $$source)) {
+            this["protected"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -1130,12 +1295,20 @@ export class Row {
     static createFrom($$source: any = {}): Row {
         const $$createField0_0 = $$createType3;
         const $$createField1_0 = $$createType3;
+        const $$createField3_0 = $$createType9;
+        const $$createField4_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("key" in $$parsedSource) {
             $$parsedSource["key"] = $$createField0_0($$parsedSource["key"]);
         }
         if ("cells" in $$parsedSource) {
             $$parsedSource["cells"] = $$createField1_0($$parsedSource["cells"]);
+        }
+        if ("links" in $$parsedSource) {
+            $$parsedSource["links"] = $$createField3_0($$parsedSource["links"]);
+        }
+        if ("actions" in $$parsedSource) {
+            $$parsedSource["actions"] = $$createField4_0($$parsedSource["actions"]);
         }
         return new Row($$parsedSource as Partial<Row>);
     }
@@ -1248,9 +1421,9 @@ export class Status {
      * Creates a new Status instance from a string or object.
      */
     static createFrom($$source: any = {}): Status {
-        const $$createField0_0 = $$createType22;
+        const $$createField0_0 = $$createType25;
         const $$createField5_0 = $$createType3;
-        const $$createField6_0 = $$createType24;
+        const $$createField6_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("context" in $$parsedSource) {
             $$parsedSource["context"] = $$createField0_0($$parsedSource["context"]);
@@ -1408,7 +1581,7 @@ export class TerminalRequest {
     static createFrom($$source: any = {}): TerminalRequest {
         const $$createField0_0 = $$createType8;
         const $$createField1_0 = $$createType3;
-        const $$createField2_0 = $$createType25;
+        const $$createField2_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target" in $$parsedSource) {
             $$parsedSource["target"] = $$createField0_0($$parsedSource["target"]);
@@ -1502,7 +1675,7 @@ export class Update {
      * Creates a new Update instance from a string or object.
      */
     static createFrom($$source: any = {}): Update {
-        const $$createField2_0 = $$createType26;
+        const $$createField2_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("latest" in $$parsedSource) {
             $$parsedSource["latest"] = $$createField2_0($$parsedSource["latest"]);
@@ -1838,8 +2011,11 @@ const $$createType18 = ResourceAction.createFrom;
 const $$createType19 = $Create.Array($$createType18);
 const $$createType20 = ResourceFilter.createFrom;
 const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = ContextInfo.createFrom;
-const $$createType23 = User.createFrom;
-const $$createType24 = $Create.Nullable($$createType23);
-const $$createType25 = TerminalSize.createFrom;
-const $$createType26 = Release.createFrom;
+const $$createType22 = ResourceNew.createFrom;
+const $$createType23 = ResourceLink.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = ContextInfo.createFrom;
+const $$createType26 = User.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = TerminalSize.createFrom;
+const $$createType29 = Release.createFrom;

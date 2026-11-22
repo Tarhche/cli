@@ -49,6 +49,24 @@ func newWorkspace(t *testing.T, handler http.Handler) (*desktop.Workspace, *comm
 	return desktop.NewWorkspace(testContext, opener(h)), h
 }
 
+// withWebsite is w, its context naming web as its website.
+func withWebsite(t *testing.T, w *desktop.Workspace, web string) *desktop.Workspace {
+	t.Helper()
+
+	require.NoError(t, w.Change(func(cfg *config.File, current string) (string, error) {
+		c, err := cfg.Context(current)
+		if err != nil {
+			return "", err
+		}
+
+		c.Web = web
+
+		return "", cfg.SetContext(c)
+	}))
+
+	return w
+}
+
 // newWorkspaceGranting is a workspace talking to the test context, whose API
 // is handler, signed in with a token whose roles allow permissions.
 func newWorkspaceGranting(t *testing.T, handler http.Handler, permissions ...string) *desktop.Workspace {

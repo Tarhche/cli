@@ -22,7 +22,7 @@ export type View =
   | {page: "create-vm"; snapshot?: string}
   | {page: "run-container"; vm?: string}
   | {page: "deploy-stack"; vm?: string}
-  | {page: "resource"; name: string};
+  | {page: "resource"; name: string; audience?: "mine" | "everyone"; filters?: Record<string, string>};
 
 /** The pages of the workload, in the order the navbar offers them. */
 export const WORKLOAD_PAGES: {page: WorkloadPage; label: string}[] = [
