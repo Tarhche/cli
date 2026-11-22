@@ -11,7 +11,7 @@ HOST_ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 
 PLATFORMS := darwin/amd64 darwin/arm64 linux/386 linux/amd64 linux/arm linux/arm64 windows/386 windows/amd64 windows/arm64
 
-.PHONY: image sh deps test cover lint generate frontend frontend-test build build-all desktop docker release-check snapshot clean
+.PHONY: image sh deps test cover lint generate icons frontend frontend-test build build-all desktop docker release-check snapshot clean
 
 image: ## builds the development image every target runs in
 	$(COMPOSE) build develop
@@ -33,6 +33,9 @@ lint: ## lints the Go code, as .golangci.yaml says
 
 generate: ## regenerates the frontend's bindings to the desktop services
 	$(RUN) sh -c 'CGO_ENABLED=0 wails3 generate bindings -f "-tags=$(TAGS)" -ts -d frontend/bindings -clean ./internal/desktop/...'
+
+icons: ## renders every icon the app ships from build/icon.svg, and the Windows resources
+	$(RUN) ./scripts/icons.sh
 
 frontend: ## builds the desktop UI into frontend/dist
 	$(RUN) sh -c 'cd frontend && npm ci && npm run build'
