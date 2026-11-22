@@ -96,18 +96,32 @@ Workloads have docker's commands and flags wherever docker has the command:
 tarhche vm ls
 tarhche ps                               # your containers, as docker ps
 tarhche run [OPTIONS] IMAGE [COMMAND]    # a container in one of your Docker VMs
-tarhche logs CONTAINER
+tarhche logs -f CONTAINER
 tarhche exec -it CONTAINER sh            # a command, with a terminal
 tarhche cp ./site CONTAINER:/srv         # files in, and out the other way round
-tarhche port-forward --help              # a workload's port on one of yours
+tarhche port-forward CONTAINER 8080:80   # localhost:8080 is the container's port 80
 ```
+
+A VM has the same, in its group: a terminal of its own, commands, files and ports:
+
+```sh
+tarhche vm create --docker --name builds
+tarhche vm attach builds                 # its shell
+tarhche vm exec builds uname -a
+tarhche vm cp builds:/var/log/syslog .
+tarhche vm port-forward builds 5432      # a port it publishes, or one inside a Docker VM
+```
+
+A port a VM publishes is forwarded through the ingress as it is; one it does not, in a Docker VM, is relayed from inside it, which reaches a container's ports too.
 
 Content has a group of commands per resource:
 
 ```sh
 tarhche article ls                       # your own articles
 tarhche article ls -A                    # everybody's, if you may see them
-tarhche article inspect ID
+tarhche article inspect CORRELATION_UUID/en   # an article is one of its languages
+tarhche user ls
+tarhche role create -f role.json
 ```
 
 Listings are tables by default. As with docker, `--format` takes `json` (one item per line), a Go template, or `table` followed by a template for a table with headers. `-q` prints only the IDs:
@@ -124,6 +138,10 @@ Open the desktop app:
 ```sh
 tarhche --desktop
 ```
+
+It signs in the same way (it shows its own sign-in when the current context has no session), and has a page for everything above: containers, VMs and the rest with their logs, terminals, files and forwarded ports, and every content resource the dashboard manages.
+
+Sessions are kept in the operating system's keychain, or in a file only you may read (`~/.tarhche/credentials.json`) where there is no keychain. An access token is renewed before it runs out; when a session is gone, a command run in a terminal signs in again in the browser by itself.
 
 ### In Docker
 

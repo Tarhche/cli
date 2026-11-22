@@ -9,7 +9,7 @@ Nothing but Docker is installed on the host: every tool (Go, Node, wails3, golan
 ```sh
 make image          # builds the development image (docker compose build develop)
 make sh             # a shell in it
-make test           # go test -race -cover -tags purego, every package but node_modules' (same as CI)
+make test           # go test -race -cover -tags purego ./... (same as CI; go.mod ignores frontend/node_modules)
 make cover          # coverage.out and the coverage of every function
 make lint           # golangci-lint
 make generate       # regenerates frontend/bindings from the desktop services (wails3 generate bindings)
@@ -19,11 +19,13 @@ make build          # bin/tarhche for this machine, built in the container (CGO_
 make build-all      # every released platform into dist/
 make desktop        # make build, then ./bin/tarhche --desktop on the host
 make docker         # the production image
+make release-check  # goreleaser check
+make snapshot       # what a release publishes but its images, into dist/, publishing nothing (needs a normal checkout: git)
 
 docker compose run --rm develop go test -tags purego ./internal/api -run TestClientDo -v   # a single test
 ```
 
-Go 1.27. **Every build is `CGO_ENABLED=0 -tags purego`**: the desktop app is Wails v3.1 with its purego backends, which load GTK4/WebKitGTK 6.0 (Linux) and AppKit/WebKit (macOS) at run time; Windows is pure Go. So one static binary per platform is cross-compiled from anywhere, and the CLI runs on a server with no GTK at all: only `--desktop` needs the libraries. Without the tag on Linux, Wails tries cgo and pkg-config.
+Go 1.27 (`toolchain go1.27.4`). **Every build is `CGO_ENABLED=0 -tags purego`**, and a binary is built `-tags purego,production` (`BUILD_TAGS`), which leaves Wails' dev tools out: the desktop app is Wails v3.1 with its purego backends, which load GTK4/WebKitGTK 6.0 (Linux) and AppKit/WebKit (macOS) at run time; Windows is pure Go. So one static binary per platform is cross-compiled from anywhere, and the CLI runs on a server with no GTK at all: only `--desktop` needs the libraries. Without the tag on Linux, Wails tries cgo and pkg-config.
 
 ## What it is
 
@@ -33,15 +35,16 @@ Go 1.27. **Every build is `CGO_ENABLED=0 -tags purego`**: the desktop app is Wai
 - `internal/command` — what every command is built on: `Cli` (streams, `Globals`, `Config()`, `Context()`, `Auth()`, `Tokens()`, `Client(ctx)`), `Exit(err)` (how errors are reported and which status a command exits with), `UsageError`/`StatusError`, the argument checks, `Alias`. `commandtest` runs a command against an API a test serves.
 - `internal/command/commands` — the console: global flags and every group. `system` (login, logout, version, info, context), `content` (a group per content resource, built from `internal/resource`), `workload` (vm, container, image, network, volume, stack, snapshot and docker's shortcuts: ps, run, rm, logs, ...), `remote` (attach, exec, cp, port-forward; registered by `workload` in the container and vm groups and at the top level).
 - `internal/api` — the API client: signs requests with a `TokenSource`, renews a refused token once, `*api.Error` for what is not a success (`code`/`message` failures, `errors` validation by field), `List`/`All` for the `{items, pagination}` listings.
-- `internal/auth` — signing in (browser: OAuth 2.1 authorization code + PKCE, answered on 127.0.0.1; or a password) and keeping a session fresh; `internal/credentials` keeps sessions (keychain, else a 0600 file); `internal/config` keeps contexts (`~/.tarhche/config.json`).
+- `internal/auth` — signing in (browser: OAuth 2.1 authorization code + PKCE, answered on 127.0.0.1 at the port of a client registered once per context and kept in its config, registered again when the port is taken or the estate forgot it; or a password) and keeping a session fresh: renewed 30 s before its access token runs out and once a token is refused, a password session at `/api/auth/token/refresh`, an OAuth one at the token endpoint by its own client; a session that is gone signs in again in the browser by itself when the Cli is interactive. `internal/credentials` keeps sessions (keychain over go-keyring, split across entries `<context>`, `<context>:1`, ... past what Windows keeps in one; else a 0600 `credentials.json`), with doubles in `credentials/mock`; `internal/browser` opens a page; `internal/config` keeps contexts (`~/.tarhche/config.json`).
 - `internal/resource` — every dashboard resource described once (routes, key, default table); the CLI's generic commands and the desktop app's generic pages are both built from it.
-- `internal/workload` — which VM or container a reference means; `internal/stream` the websocket streams of `docs/streams.md`.
+- `internal/workload` — a typed client of the workload's routes, both audiences, in the manifest shape (`inspect` writes what was answered, kept raw), and `NewResolver`: a VM by uuid, slug or name, a container by uuid, Docker id (or a unique prefix of 4+), or name, with its VM; `workloadtest` is a fake API with fixtures shaped like the backend's. `internal/units` reads and writes sizes (`512m`, `4g`: bytes end to end).
+- `internal/stream` — the client of `docs/streams.md`: `Dialer` (ingress + token as the bearer subprotocol, a 401 renewed once, refusals as `*stream.Error`, pings every 30 s), `Attach` (a terminal), `Exec` (the channel protocol: stdout, stderr, stdin and its end, resize, exit code), `Forward` (a `net.Conn`), `Relay` (a TCP connection through `nc` in a Docker VM), `Runner`; `streamtest` is a fake ingress speaking all three protocols. `internal/portforward` listens locally and pipes each connection to what a dial opens; `internal/transfer` is docker cp's semantics over a runner (tar in a VM, `docker cp` in a container's Docker VM), refusing archives that escape; `internal/reach` is how a workload's port is reached (a VM's published port through `forward`, else relayed by `nc` inside a Docker VM; a container's relayed to its address there) and the dialer of a context, shared by the remote commands and the desktop app.
 - `internal/formatter` — docker's `--format`: a table by default, `json`, or a Go template, with docker's template functions and `ago`, `bytes`, `default`.
-- `internal/desktop` — the Wails app: services bound to the frontend; `frontend/` — React + TypeScript + Vite + Mantine, built into `frontend/dist` and embedded by `frontend/embed.go`.
+- `internal/desktop` — the Wails app: `Run` (window, tray, a non-interactive auth manager that opens the browser through Wails), a `Workspace` holding the Cli of the context in use, and plain services bound to the frontend (Session, Resources, Workloads, Terminals, Forwards, Files; errors reach it as a `Failure`), testable without a window; `Streams` adapts `internal/stream`, `portforward`, `transfer` and `reach` to what Terminals, Forwards and Files need. `frontend/` — React 19 + TypeScript + Vite + Mantine 9 (+ xterm.js), built into `frontend/dist` (which keeps its `.gitkeep`) and embedded by `frontend/embed.go`; its bindings in `frontend/bindings` are generated (`make generate`) and committed; vitest for its tests.
 
 ## The API it talks to
 
-A context names an estate: its API (default `https://backend.tarhche.com`) and its workload ingress (default `https://workload.tarhche.com`), which streams are opened on (`docs/streams.md`). Listings answer `{"items": [...], "pagination": {"total_pages", "current_page"}}` and take `?page=`. A refusal is `400 {"errors": {"field": "message"}}`; a workload failure is `{"code", "message"}`. Workload resources are answered in their kind's manifest shape, `{kind, metadata, spec, status}`. One's own things are under `/api/dashboard/my/...`, anybody's (what an administrator manages) under `/api/dashboard/...`.
+A context names an estate: its API (default `https://backend.tarhche.com`) and its workload ingress (default `https://workload.tarhche.com`), which streams are opened on (`docs/streams.md`). The API answers in the language `X-Language-Code` names (`--language`; English unless told otherwise). Listings answer `{"items": [...], "pagination": {"total_pages", "current_page"}}` and take `?page=`. A refusal is `400 {"errors": {"field": "message"}}`; a workload failure is `{"code", "message"}`. Workload resources are answered in their kind's manifest shape, `{kind, metadata, spec, status}`. One's own things are under `/api/dashboard/my/...`, anybody's (what an administrator manages) under `/api/dashboard/...`.
 
 ## Conventions
 
@@ -49,4 +52,5 @@ A context names an estate: its API (default `https://backend.tarhche.com`) and i
 - Docker's names and flags wherever docker has the command: `ls` (with `ps` and `list` registered as `Alias`es where docker has them), `rm`, `inspect`, `-q/--quiet`, `-f/--force`, `--format`, `-a/--all`. One's own things are listed by default; `--all-users` (`-A`) lists anybody's, through the administrator's routes.
 - Tests: one `Test<Unit>` per unit, `t.Parallel()` first, its cases as `t.Run` subtests, also `t.Parallel()`; testify's `assert`/`require`; an API is an `httptest` server (`commandtest.New`). Test doubles live in a `mock` package beside what they stand in for. Every package's logic is covered.
 - Doc comments on every exported (and most unexported) type and function; no inline comments narrating what a block does: rename instead.
-- The desktop frontend uses `@mantine/core` components directly, no wrappers of its own for what Mantine ships; one layout adapts to every width.
+- The desktop frontend uses `@mantine/core` components directly, no wrappers of its own for what Mantine ships; one layout adapts to every width. To look at it without a window, build `-tags purego,server` and Wails serves it over HTTP (`WAILS_SERVER_PORT`; it answers only the Host it binds), which a headless browser can drive.
+- The repository is public: test fixtures name made-up people, never anybody real.

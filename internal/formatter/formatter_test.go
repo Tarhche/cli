@@ -265,6 +265,8 @@ func TestAgo(t *testing.T) {
 		{name: "months", value: moment.Add(-90 * 24 * time.Hour), said: "3 months ago"},
 		{name: "years", value: moment.Add(-3 * 365 * 24 * time.Hour), said: "3 years ago"},
 		{name: "the future", value: moment.Add(10 * time.Minute), said: "in 10 minutes"},
+		{name: "about an hour ahead", value: moment.Add(70 * time.Minute), said: "in about an hour"},
+		{name: "a moment ahead, as another clock says it", value: moment.Add(20 * time.Second), said: "Just now"},
 		{name: "a pointer", value: new(moment.Add(-10 * time.Minute)), said: "10 minutes ago"},
 		{name: "a nil pointer", value: (*time.Time)(nil), said: ""},
 		{name: "an rfc 3339 string", value: moment.Add(-5 * time.Hour).Format(time.RFC3339), said: "5 hours ago"},

@@ -92,6 +92,10 @@ func orDefault(fallback any, value any) any {
 	return value
 }
 
+// clockSkew is how far ahead of this machine's clock a moment may be and
+// still be taken for now: another machine's clock is seldom exactly ours.
+const clockSkew = time.Minute
+
 // Ago is how long ago a moment was, as docker says it: "3 hours ago". It
 // takes a time or an RFC 3339 string, and says nothing of what is neither.
 func Ago(value any) string {
@@ -105,8 +109,14 @@ func agoFrom(now time.Time, value any) string {
 	}
 
 	elapsed := now.Sub(moment)
-	if elapsed < 0 {
-		return "in " + humanDuration(-elapsed)
+
+	switch {
+	case elapsed < -clockSkew:
+		said := humanDuration(-elapsed)
+
+		return "in " + strings.ToLower(said[:1]) + said[1:]
+	case elapsed < 0:
+		return "Just now"
 	}
 
 	if elapsed < time.Second {
