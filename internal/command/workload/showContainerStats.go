@@ -112,10 +112,14 @@ type showContainerStatsCommand struct {
 
 	// every is how often the containers are sampled again.
 	every time.Duration
+
+	// isTerminal reports whether the output is a terminal, which is cleared
+	// before each sample is shown.
+	isTerminal func(stream any) bool
 }
 
 func newShowContainerStatsCommand(cli *command.Cli) *showContainerStatsCommand {
-	return &showContainerStatsCommand{cli: cli, every: statsEvery}
+	return &showContainerStatsCommand{cli: cli, every: statsEvery, isTerminal: command.IsTerminal}
 }
 
 func (c *showContainerStatsCommand) Name() string {
@@ -162,7 +166,7 @@ func (c *showContainerStatsCommand) run(ctx context.Context) error {
 			return err
 		}
 
-		if !c.once && command.IsTerminal(c.cli.Out) {
+		if !c.once && c.isTerminal(c.cli.Out) {
 			if _, err := fmt.Fprint(c.cli.Out, clearScreen); err != nil {
 				return err
 			}

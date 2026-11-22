@@ -492,3 +492,41 @@ func TestResolver(t *testing.T) {
 		assert.ErrorContains(t, err, "the vm of container nginx")
 	})
 }
+
+func TestMatch(t *testing.T) {
+	t.Parallel()
+
+	web := VMManifest{Metadata: Metadata{UUID: "v1", Name: "web"}}
+	box := VMManifest{Metadata: Metadata{UUID: "v2"}}
+
+	t.Run("what a name names twice is told apart by what makes each one", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := MatchNetwork([]Placed[NetworkManifest]{
+			{VM: web, Item: NetworkManifest{Metadata: Metadata{UUID: "n1"}, Spec: NetworkSpec{Name: "backend"}}},
+			{VM: box, Item: NetworkManifest{Metadata: Metadata{UUID: "n2"}, Spec: NetworkSpec{Name: "backend"}}},
+		}, "backend")
+		assert.EqualError(t, err, `"backend" names more than one network: backend (n1) in vm web (v1), backend (n2) in vm v2`)
+
+		_, err = MatchStack([]StackManifest{{Metadata: Metadata{UUID: "s1", Name: "blog"}}, {Metadata: Metadata{UUID: "s2", Name: "blog"}}}, "blog")
+		assert.EqualError(t, err, `"blog" names more than one stack: blog (s1), blog (s2)`)
+
+		_, err = MatchSnapshot([]SnapshotManifest{{Metadata: Metadata{UUID: "p1", Name: "x"}}, {Metadata: Metadata{UUID: "p2", Name: "x"}}}, "x")
+		assert.EqualError(t, err, `"x" names more than one snapshot: x (p1), x (p2)`)
+	})
+
+	t.Run("images docker has not pulled yet are told apart by their uuids", func(t *testing.T) {
+		t.Parallel()
+
+		pending := func(uuid string) Placed[ImageManifest] {
+			return Placed[ImageManifest]{VM: web, Item: ImageManifest{Metadata: Metadata{UUID: uuid}, Spec: ImageSpec{Reference: "redis"}}}
+		}
+
+		_, err := MatchImage([]Placed[ImageManifest]{pending("i1"), pending("i2")}, "redis:latest")
+		assert.EqualError(t, err, `"redis:latest" names more than one image: redis (i1) in vm web (v1), redis (i2) in vm web (v1)`)
+
+		found, err := MatchImage([]Placed[ImageManifest]{pending("i1")}, "redis")
+		require.NoError(t, err)
+		assert.Equal(t, "i1", found.Item.Metadata.UUID)
+	})
+}

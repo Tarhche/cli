@@ -1,6 +1,7 @@
 package units
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,7 +43,7 @@ func TestParseSize(t *testing.T) {
 		})
 	}
 
-	for _, given := range []string{"", "m", "-1m", "1x", "1.m", "1ib", "1 g b", "1e3", "99999999999999999999999p"} {
+	for _, given := range []string{"", "m", "-1m", "1x", "1.m", "1ib", "1 g b", "1e3", "99999999999999999999999p", strings.Repeat("9", 400)} {
 		t.Run("refuses "+given, func(t *testing.T) {
 			t.Parallel()
 
