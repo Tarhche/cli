@@ -26,7 +26,7 @@ func (c *restartStacksCommand) Name() string {
 }
 
 func (c *restartStacksCommand) Description() string {
-	return "restarts the containers of one or more stacks."
+	return "Restart the containers of one or more stacks"
 }
 
 func (c *restartStacksCommand) Usage() string {

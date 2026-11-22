@@ -27,7 +27,7 @@ func (c *startContainersCommand) Name() string {
 }
 
 func (c *startContainersCommand) Description() string {
-	return "starts one or more stopped containers."
+	return "Start one or more stopped containers"
 }
 
 func (c *startContainersCommand) Usage() string {

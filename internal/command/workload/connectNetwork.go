@@ -28,7 +28,7 @@ func (c *connectNetworkCommand) Name() string {
 }
 
 func (c *connectNetworkCommand) Description() string {
-	return "connects a container to a network of its VM."
+	return "Connect a container to a network of its VM"
 }
 
 func (c *connectNetworkCommand) Usage() string {

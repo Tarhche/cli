@@ -28,7 +28,7 @@ func (c *removeNetworksCommand) Name() string {
 }
 
 func (c *removeNetworksCommand) Description() string {
-	return "removes one or more networks."
+	return "Remove one or more networks"
 }
 
 func (c *removeNetworksCommand) Usage() string {

@@ -27,7 +27,7 @@ func (c *removeVMsCommand) Name() string {
 }
 
 func (c *removeVMsCommand) Description() string {
-	return "deletes one or more VMs."
+	return "Delete one or more VMs"
 }
 
 func (c *removeVMsCommand) Usage() string {

@@ -27,7 +27,7 @@ func (c *pullImageCommand) Name() string {
 }
 
 func (c *pullImageCommand) Description() string {
-	return "downloads an image from a registry into a Docker VM."
+	return "Download an image from a registry into a Docker VM"
 }
 
 func (c *pullImageCommand) Usage() string {

@@ -32,7 +32,7 @@ func (c *showVMLogsCommand) Name() string {
 }
 
 func (c *showVMLogsCommand) Description() string {
-	return "fetches the logs of a VM."
+	return "Fetch the logs of a VM"
 }
 
 func (c *showVMLogsCommand) Usage() string {

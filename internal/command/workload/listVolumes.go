@@ -29,7 +29,7 @@ func (c *listVolumesCommand) Name() string {
 }
 
 func (c *listVolumesCommand) Description() string {
-	return "lists volumes."
+	return "List volumes"
 }
 
 func (c *listVolumesCommand) Usage() string {

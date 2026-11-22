@@ -32,7 +32,7 @@ func (c *showContainerLogsCommand) Name() string {
 }
 
 func (c *showContainerLogsCommand) Description() string {
-	return "fetches the logs of a container."
+	return "Fetch the logs of a container"
 }
 
 func (c *showContainerLogsCommand) Usage() string {

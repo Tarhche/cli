@@ -27,7 +27,7 @@ func (c *removeStacksCommand) Name() string {
 }
 
 func (c *removeStacksCommand) Description() string {
-	return "removes one or more stacks, with their containers and networks."
+	return "Remove one or more stacks, with their containers and networks"
 }
 
 func (c *removeStacksCommand) Usage() string {

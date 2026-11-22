@@ -29,7 +29,7 @@ func (c *inspectVolumesCommand) Name() string {
 }
 
 func (c *inspectVolumesCommand) Description() string {
-	return "displays detailed information on one or more volumes."
+	return "Display detailed information on one or more volumes"
 }
 
 func (c *inspectVolumesCommand) Usage() string {

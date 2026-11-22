@@ -29,7 +29,7 @@ func (c *inspectContainersCommand) Name() string {
 }
 
 func (c *inspectContainersCommand) Description() string {
-	return "displays detailed information on one or more containers."
+	return "Display detailed information on one or more containers"
 }
 
 func (c *inspectContainersCommand) Usage() string {

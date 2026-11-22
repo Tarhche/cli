@@ -75,7 +75,8 @@ func TestRegister(t *testing.T) {
 
 				assert.Equal(t, console.ExitSuccess, status, group+" "+name)
 				assert.Contains(t, out, command.Name+" "+group+" "+name, group+" "+name)
-				assert.True(t, strings.HasSuffix(strings.SplitN(out, "\n", 2)[0], "."), "%s %s is described: %q", group, name, out)
+				described, _, _ := strings.Cut(out, "\n")
+				assert.Regexp(t, `^[A-Z].*[^.]$`, described, "%s %s is described as docker describes a command", group, name)
 			}
 		}
 	})

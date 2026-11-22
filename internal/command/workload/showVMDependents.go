@@ -29,7 +29,7 @@ func (c *showVMDependentsCommand) Name() string {
 }
 
 func (c *showVMDependentsCommand) Description() string {
-	return "lists the stacks and the containers that need a VM."
+	return "List the stacks and the containers that need a VM"
 }
 
 func (c *showVMDependentsCommand) Usage() string {

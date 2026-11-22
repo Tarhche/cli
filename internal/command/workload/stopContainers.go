@@ -27,7 +27,7 @@ func (c *stopContainersCommand) Name() string {
 }
 
 func (c *stopContainersCommand) Description() string {
-	return "stops one or more running containers."
+	return "Stop one or more running containers"
 }
 
 func (c *stopContainersCommand) Usage() string {

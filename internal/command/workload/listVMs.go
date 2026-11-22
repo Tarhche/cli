@@ -28,7 +28,7 @@ func (c *listVMsCommand) Name() string {
 }
 
 func (c *listVMsCommand) Description() string {
-	return "lists VMs."
+	return "List VMs"
 }
 
 func (c *listVMsCommand) Usage() string {

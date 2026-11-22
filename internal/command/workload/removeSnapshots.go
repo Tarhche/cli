@@ -26,7 +26,7 @@ func (c *removeSnapshotsCommand) Name() string {
 }
 
 func (c *removeSnapshotsCommand) Description() string {
-	return "removes one or more snapshots."
+	return "Remove one or more snapshots"
 }
 
 func (c *removeSnapshotsCommand) Usage() string {

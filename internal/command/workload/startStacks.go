@@ -26,7 +26,7 @@ func (c *startStacksCommand) Name() string {
 }
 
 func (c *startStacksCommand) Description() string {
-	return "starts the containers of one or more stacks."
+	return "Start the containers of one or more stacks"
 }
 
 func (c *startStacksCommand) Usage() string {

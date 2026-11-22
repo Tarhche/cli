@@ -26,7 +26,7 @@ func (c *stopVMsCommand) Name() string {
 }
 
 func (c *stopVMsCommand) Description() string {
-	return "stops one or more running VMs."
+	return "Stop one or more running VMs"
 }
 
 func (c *stopVMsCommand) Usage() string {

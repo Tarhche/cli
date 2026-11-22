@@ -32,7 +32,7 @@ func (c *createVolumeCommand) Name() string {
 }
 
 func (c *createVolumeCommand) Description() string {
-	return "creates a volume in a Docker VM."
+	return "Create a volume in a Docker VM"
 }
 
 func (c *createVolumeCommand) Usage() string {

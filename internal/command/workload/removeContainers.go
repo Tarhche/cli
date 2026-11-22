@@ -28,7 +28,7 @@ func (c *removeContainersCommand) Name() string {
 }
 
 func (c *removeContainersCommand) Description() string {
-	return "removes one or more containers."
+	return "Remove one or more containers"
 }
 
 func (c *removeContainersCommand) Usage() string {

@@ -40,7 +40,7 @@ func (c *updateVMCommand) Name() string {
 }
 
 func (c *updateVMCommand) Description() string {
-	return "changes a VM's name, lifetime, ports, network or resources."
+	return "Change a VM's name, lifetime, ports, network or resources"
 }
 
 func (c *updateVMCommand) Usage() string {

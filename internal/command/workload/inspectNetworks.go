@@ -29,7 +29,7 @@ func (c *inspectNetworksCommand) Name() string {
 }
 
 func (c *inspectNetworksCommand) Description() string {
-	return "displays detailed information on one or more networks."
+	return "Display detailed information on one or more networks"
 }
 
 func (c *inspectNetworksCommand) Usage() string {

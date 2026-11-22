@@ -26,7 +26,7 @@ func (c *stopStacksCommand) Name() string {
 }
 
 func (c *stopStacksCommand) Description() string {
-	return "stops the containers of one or more stacks."
+	return "Stop the containers of one or more stacks"
 }
 
 func (c *stopStacksCommand) Usage() string {

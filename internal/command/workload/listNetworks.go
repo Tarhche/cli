@@ -30,7 +30,7 @@ func (c *listNetworksCommand) Name() string {
 }
 
 func (c *listNetworksCommand) Description() string {
-	return "lists networks."
+	return "List networks"
 }
 
 func (c *listNetworksCommand) Usage() string {

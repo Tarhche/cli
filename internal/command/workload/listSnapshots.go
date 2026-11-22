@@ -29,7 +29,7 @@ func (c *listSnapshotsCommand) Name() string {
 }
 
 func (c *listSnapshotsCommand) Description() string {
-	return "lists snapshots."
+	return "List snapshots"
 }
 
 func (c *listSnapshotsCommand) Usage() string {

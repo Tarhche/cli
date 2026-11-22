@@ -58,7 +58,7 @@ func (c *runContainerCommand) Name() string {
 }
 
 func (c *runContainerCommand) Description() string {
-	return "creates and runs a new container from an image."
+	return "Create and run a new container from an image"
 }
 
 func (c *runContainerCommand) Usage() string {

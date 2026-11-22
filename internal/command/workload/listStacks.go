@@ -29,7 +29,7 @@ func (c *listStacksCommand) Name() string {
 }
 
 func (c *listStacksCommand) Description() string {
-	return "lists stacks."
+	return "List stacks"
 }
 
 func (c *listStacksCommand) Usage() string {

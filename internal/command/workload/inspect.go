@@ -38,7 +38,7 @@ func (c *inspectCommand) Name() string {
 }
 
 func (c *inspectCommand) Description() string {
-	return "displays detailed information on workloads of any kind."
+	return "Display detailed information on workloads of any kind"
 }
 
 func (c *inspectCommand) Usage() string {

@@ -27,7 +27,7 @@ func (c *restoreVMCommand) Name() string {
 }
 
 func (c *restoreVMCommand) Description() string {
-	return "replaces a VM's disk with a snapshot's."
+	return "Replace a VM's disk with a snapshot's"
 }
 
 func (c *restoreVMCommand) Usage() string {

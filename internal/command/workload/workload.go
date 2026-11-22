@@ -45,7 +45,7 @@ func Register(c *console.Console, cli *command.Cli) {
 }
 
 func containerGroup(cli *command.Cli) *console.Group {
-	return console.NewGroup("container", "manages containers, which live in Docker VMs.").
+	return console.NewGroup("container", "Manage containers, which live in Docker VMs").
 		Register(
 			newListContainersCommand(cli),
 			command.Alias(newListContainersCommand(cli), "ps", command.Name+" container ps [OPTIONS]"),
@@ -66,7 +66,7 @@ func containerGroup(cli *command.Cli) *console.Group {
 }
 
 func imageGroup(cli *command.Cli) *console.Group {
-	return console.NewGroup("image", "manages images, which Docker VMs hold.").
+	return console.NewGroup("image", "Manage images, which Docker VMs hold").
 		Register(
 			newListImagesCommand(cli),
 			command.Alias(newListImagesCommand(cli), "list", command.Name+" image list [OPTIONS]"),
@@ -77,7 +77,7 @@ func imageGroup(cli *command.Cli) *console.Group {
 }
 
 func networkGroup(cli *command.Cli) *console.Group {
-	return console.NewGroup("network", "manages networks, which live in Docker VMs.").
+	return console.NewGroup("network", "Manage networks, which live in Docker VMs").
 		Register(
 			newListNetworksCommand(cli),
 			command.Alias(newListNetworksCommand(cli), "list", command.Name+" network list [OPTIONS]"),
@@ -90,7 +90,7 @@ func networkGroup(cli *command.Cli) *console.Group {
 }
 
 func volumeGroup(cli *command.Cli) *console.Group {
-	return console.NewGroup("volume", "manages volumes, which live on the disks of Docker VMs.").
+	return console.NewGroup("volume", "Manage volumes, which live on the disks of Docker VMs").
 		Register(
 			newListVolumesCommand(cli),
 			command.Alias(newListVolumesCommand(cli), "list", command.Name+" volume list [OPTIONS]"),
@@ -101,7 +101,7 @@ func volumeGroup(cli *command.Cli) *console.Group {
 }
 
 func stackGroup(cli *command.Cli) *console.Group {
-	return console.NewGroup("stack", "manages stacks, services of a compose file deployed into a Docker VM.").
+	return console.NewGroup("stack", "Manage stacks, services of a compose file deployed into a Docker VM").
 		Register(
 			newDeployStackCommand(cli),
 			newListStacksCommand(cli),
@@ -116,7 +116,7 @@ func stackGroup(cli *command.Cli) *console.Group {
 }
 
 func vmGroup(cli *command.Cli) *console.Group {
-	return console.NewGroup("vm", "manages VMs: machines, and Docker VMs, which containers and stacks run in.").
+	return console.NewGroup("vm", "Manage VMs: machines, and Docker VMs, which containers and stacks run in").
 		Register(
 			newListVMsCommand(cli),
 			command.Alias(newListVMsCommand(cli), "list", command.Name+" vm list [OPTIONS]"),
@@ -136,7 +136,7 @@ func vmGroup(cli *command.Cli) *console.Group {
 }
 
 func snapshotGroup(cli *command.Cli) *console.Group {
-	return console.NewGroup("snapshot", "manages snapshots, VMs' disks kept to restore.").
+	return console.NewGroup("snapshot", "Manage snapshots, VMs' disks kept to restore").
 		Register(
 			newListSnapshotsCommand(cli),
 			command.Alias(newListSnapshotsCommand(cli), "list", command.Name+" snapshot list [OPTIONS]"),

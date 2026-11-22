@@ -28,7 +28,7 @@ func (c *inspectStacksCommand) Name() string {
 }
 
 func (c *inspectStacksCommand) Description() string {
-	return "displays detailed information on one or more stacks."
+	return "Display detailed information on one or more stacks"
 }
 
 func (c *inspectStacksCommand) Usage() string {

@@ -26,7 +26,7 @@ func (c *restartVMsCommand) Name() string {
 }
 
 func (c *restartVMsCommand) Description() string {
-	return "restarts one or more VMs."
+	return "Restart one or more VMs"
 }
 
 func (c *restartVMsCommand) Usage() string {

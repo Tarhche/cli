@@ -29,7 +29,7 @@ func (c *removeVolumesCommand) Name() string {
 }
 
 func (c *removeVolumesCommand) Description() string {
-	return "removes one or more volumes."
+	return "Remove one or more volumes"
 }
 
 func (c *removeVolumesCommand) Usage() string {

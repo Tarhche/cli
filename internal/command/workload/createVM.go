@@ -55,7 +55,7 @@ func (c *createVMCommand) Name() string {
 }
 
 func (c *createVMCommand) Description() string {
-	return "creates a VM: a machine booting an image, or a Docker VM."
+	return "Create a VM: a machine booting an image, or a Docker VM"
 }
 
 func (c *createVMCommand) Usage() string {

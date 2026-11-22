@@ -28,7 +28,7 @@ func (c *inspectVMsCommand) Name() string {
 }
 
 func (c *inspectVMsCommand) Description() string {
-	return "displays detailed information on one or more VMs."
+	return "Display detailed information on one or more VMs"
 }
 
 func (c *inspectVMsCommand) Usage() string {

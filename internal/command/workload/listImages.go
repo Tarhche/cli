@@ -30,7 +30,7 @@ func (c *listImagesCommand) Name() string {
 }
 
 func (c *listImagesCommand) Description() string {
-	return "lists images."
+	return "List images"
 }
 
 func (c *listImagesCommand) Usage() string {

@@ -29,7 +29,7 @@ func (c *showContainerPortsCommand) Name() string {
 }
 
 func (c *showContainerPortsCommand) Description() string {
-	return "lists the ports a container publishes on its VM, or what one of them is published as."
+	return "List the ports a container publishes on its VM, or what one of them is published as"
 }
 
 func (c *showContainerPortsCommand) Usage() string {

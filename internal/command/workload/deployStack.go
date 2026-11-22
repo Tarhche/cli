@@ -32,7 +32,7 @@ func (c *deployStackCommand) Name() string {
 }
 
 func (c *deployStackCommand) Description() string {
-	return "deploys a new stack from a compose file."
+	return "Deploy a new stack from a compose file"
 }
 
 func (c *deployStackCommand) Usage() string {

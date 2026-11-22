@@ -27,7 +27,7 @@ func (c *restartContainersCommand) Name() string {
 }
 
 func (c *restartContainersCommand) Description() string {
-	return "restarts one or more containers."
+	return "Restart one or more containers"
 }
 
 func (c *restartContainersCommand) Usage() string {

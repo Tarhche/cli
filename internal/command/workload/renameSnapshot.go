@@ -26,7 +26,7 @@ func (c *renameSnapshotCommand) Name() string {
 }
 
 func (c *renameSnapshotCommand) Description() string {
-	return "renames a snapshot."
+	return "Rename a snapshot"
 }
 
 func (c *renameSnapshotCommand) Usage() string {

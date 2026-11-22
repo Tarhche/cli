@@ -29,7 +29,7 @@ func (c *inspectImagesCommand) Name() string {
 }
 
 func (c *inspectImagesCommand) Description() string {
-	return "displays detailed information on one or more images."
+	return "Display detailed information on one or more images"
 }
 
 func (c *inspectImagesCommand) Usage() string {

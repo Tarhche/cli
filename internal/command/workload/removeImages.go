@@ -28,7 +28,7 @@ func (c *removeImagesCommand) Name() string {
 }
 
 func (c *removeImagesCommand) Description() string {
-	return "removes one or more images."
+	return "Remove one or more images"
 }
 
 func (c *removeImagesCommand) Usage() string {

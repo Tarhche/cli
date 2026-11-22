@@ -32,7 +32,7 @@ func (c *createNetworkCommand) Name() string {
 }
 
 func (c *createNetworkCommand) Description() string {
-	return "creates a network in a Docker VM."
+	return "Create a network in a Docker VM"
 }
 
 func (c *createNetworkCommand) Usage() string {

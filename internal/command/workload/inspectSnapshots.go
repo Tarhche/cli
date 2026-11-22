@@ -28,7 +28,7 @@ func (c *inspectSnapshotsCommand) Name() string {
 }
 
 func (c *inspectSnapshotsCommand) Description() string {
-	return "displays detailed information on one or more snapshots."
+	return "Display detailed information on one or more snapshots"
 }
 
 func (c *inspectSnapshotsCommand) Usage() string {

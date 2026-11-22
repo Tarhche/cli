@@ -30,7 +30,7 @@ func (c *createSnapshotCommand) Name() string {
 }
 
 func (c *createSnapshotCommand) Description() string {
-	return "takes a snapshot of a running or stopped VM's disk."
+	return "Take a snapshot of a running or stopped VM's disk"
 }
 
 func (c *createSnapshotCommand) Usage() string {

@@ -26,7 +26,7 @@ func (c *disconnectContainerCommand) Name() string {
 }
 
 func (c *disconnectContainerCommand) Description() string {
-	return "disconnects a container from a network of its VM."
+	return "Disconnect a container from a network of its VM"
 }
 
 func (c *disconnectContainerCommand) Usage() string {

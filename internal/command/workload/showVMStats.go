@@ -32,7 +32,7 @@ func (c *showVMStatsCommand) Name() string {
 }
 
 func (c *showVMStatsCommand) Description() string {
-	return "shows what a VM used, a step at a time."
+	return "Show what a VM used, a step at a time"
 }
 
 func (c *showVMStatsCommand) Usage() string {

@@ -127,7 +127,7 @@ func (c *showContainerStatsCommand) Name() string {
 }
 
 func (c *showContainerStatsCommand) Description() string {
-	return "displays a live stream of what containers use."
+	return "Display a live stream of what containers use"
 }
 
 func (c *showContainerStatsCommand) Usage() string {

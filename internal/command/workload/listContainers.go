@@ -33,7 +33,7 @@ func (c *listContainersCommand) Name() string {
 }
 
 func (c *listContainersCommand) Description() string {
-	return "lists containers."
+	return "List containers"
 }
 
 func (c *listContainersCommand) Usage() string {

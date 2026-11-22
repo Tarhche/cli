@@ -31,7 +31,7 @@ func (c *listStackContainersCommand) Name() string {
 }
 
 func (c *listStackContainersCommand) Description() string {
-	return "lists the containers of a stack."
+	return "List the containers of a stack"
 }
 
 func (c *listStackContainersCommand) Usage() string {
