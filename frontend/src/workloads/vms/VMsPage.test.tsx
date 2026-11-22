@@ -4,6 +4,8 @@ import {beforeEach, describe, expect, it, vi} from "vitest";
 import {Workloads} from "../../api/services";
 import {NavigationProvider} from "../../shell/NavigationProvider";
 import {render} from "../../test/render";
+import {abilities, access} from "../../test/access";
+import {WithAccess} from "../../test/WithAccess";
 import {VMsPage} from "./VMsPage";
 
 vi.mock("../../api/services", () => ({
@@ -26,9 +28,11 @@ describe("VMsPage", () => {
 
   it("lists one's VMs, their kind, state and size", async () => {
     render(
-      <NavigationProvider>
-        <VMsPage />
-      </NavigationProvider>,
+      <WithAccess>
+        <NavigationProvider>
+          <VMsPage />
+        </NavigationProvider>
+      </WithAccess>,
     );
 
     expect(await screen.findByText("box")).toBeInTheDocument();
@@ -42,9 +46,11 @@ describe("VMsPage", () => {
     vi.mocked(Workloads.StartVM).mockResolvedValue(undefined as never);
     vi.mocked(Workloads.StopVM).mockResolvedValue(undefined as never);
     render(
-      <NavigationProvider>
-        <VMsPage />
-      </NavigationProvider>,
+      <WithAccess>
+        <NavigationProvider>
+          <VMsPage />
+        </NavigationProvider>
+      </WithAccess>,
     );
     await screen.findByText("box");
 
@@ -55,12 +61,32 @@ describe("VMsPage", () => {
     expect(Workloads.StartVM).toHaveBeenCalledWith("v-1");
   });
 
+  it("offers only what the session may do with its VMs", async () => {
+    render(
+      <WithAccess access={access({abilities: abilities({vms: {list: true, stop: true}})})}>
+        <NavigationProvider>
+          <VMsPage />
+        </NavigationProvider>
+      </WithAccess>,
+    );
+    await screen.findByText("box");
+
+    expect(screen.queryByRole("button", {name: "Create VM"})).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", {name: "Start"})).not.toBeInTheDocument();
+    expect(screen.getByRole("button", {name: "Stop"})).toBeInTheDocument();
+    expect(screen.queryByRole("button", {name: "Restart"})).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", {name: "Delete"})).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", {name: "Inspect"})).toHaveLength(2);
+  });
+
   it("says when there are none", async () => {
     vi.mocked(Workloads.VMs).mockResolvedValue({items: null} as never);
     render(
-      <NavigationProvider>
-        <VMsPage />
-      </NavigationProvider>,
+      <WithAccess>
+        <NavigationProvider>
+          <VMsPage />
+        </NavigationProvider>
+      </WithAccess>,
     );
 
     expect(await screen.findByText("No VMs yet")).toBeInTheDocument();

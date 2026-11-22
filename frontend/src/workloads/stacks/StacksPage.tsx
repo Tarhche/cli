@@ -1,6 +1,7 @@
 import {Badge, Button, EmptyState, Group, Loader, Pagination, Table, Text, Tooltip} from "@mantine/core";
 import {IconLayersIntersect, IconPlus} from "@tabler/icons-react";
 import {useState} from "react";
+import {useAbilities} from "../../access/access";
 import {Workloads} from "../../api/services";
 import {useAct} from "../../api/useAct";
 import {useQuery} from "../../api/useQuery";
@@ -15,10 +16,11 @@ import {POLL} from "../listing";
 import type {Page, Stack} from "../types";
 import {WorkloadActions} from "../WorkloadActions";
 
-/** One's stacks: services of a compose file, run as containers of a Docker VM. */
+/** One's stacks: services of a compose file, run as containers of a Docker VM, and what the session may do with them. */
 export function StacksPage() {
   const {navigate} = useNavigation();
   const act = useAct();
+  const {stacks: may} = useAbilities();
   const [page, setPage] = useState(1);
   const [inspected, setInspected] = useState<Stack | null>(null);
   const [deleted, setDeleted] = useState<Stack | null>(null);
@@ -34,15 +36,17 @@ export function StacksPage() {
         title="Stacks"
         description="Services of a compose file, each a container of a Docker VM."
         actions={
-          <Button leftSection={<IconPlus size={16} />} onClick={() => navigate({page: "deploy-stack"})}>
-            Deploy stack
-          </Button>
+          may.create && (
+            <Button leftSection={<IconPlus size={16} />} onClick={() => navigate({page: "deploy-stack"})}>
+              Deploy stack
+            </Button>
+          )
         }
       />
       <FailureAlert failure={stacks.failure} title="Your stacks could not be read" />
       {stacks.loading && <Loader />}
       {!stacks.loading && items.length === 0 && !stacks.failure && (
-        <EmptyState icon={<IconLayersIntersect />} title="No stacks yet" description="Deploy one from a compose file." />
+        <EmptyState icon={<IconLayersIntersect />} title="No stacks yet" description={may.create ? "Deploy one from a compose file." : undefined} />
       )}
       {items.length > 0 && (
         <Table.ScrollContainer minWidth={720}>
@@ -95,11 +99,11 @@ export function StacksPage() {
                     <Table.Td>
                       <WorkloadActions
                         state={stack.status.state}
-                        onStart={() => command(`Starting ${name}`, () => Workloads.StartStack(uuid))}
-                        onStop={() => command(`Stopping ${name}`, () => Workloads.StopStack(uuid))}
-                        onRestart={() => command(`Restarting ${name}`, () => Workloads.RestartStack(uuid))}
+                        onStart={may.start ? () => command(`Starting ${name}`, () => Workloads.StartStack(uuid)) : undefined}
+                        onStop={may.stop ? () => command(`Stopping ${name}`, () => Workloads.StopStack(uuid)) : undefined}
+                        onRestart={may.restart ? () => command(`Restarting ${name}`, () => Workloads.RestartStack(uuid)) : undefined}
                         onInspect={() => setInspected(stack)}
-                        onDelete={() => setDeleted(stack)}
+                        onDelete={may.delete ? () => setDeleted(stack) : undefined}
                       />
                     </Table.Td>
                   </Table.Tr>

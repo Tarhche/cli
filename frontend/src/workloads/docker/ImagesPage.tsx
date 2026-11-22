@@ -1,6 +1,7 @@
 import {Badge, Button, EmptyState, Group, Loader, Paper, Table, Text, TextInput} from "@mantine/core";
 import {IconCloudDownload} from "@tabler/icons-react";
 import {type FormEvent, useState} from "react";
+import {useAbilities} from "../../access/access";
 import {formFailure} from "../../api/failure";
 import {Workloads} from "../../api/services";
 import {useQuery} from "../../api/useQuery";
@@ -16,8 +17,9 @@ import type {Image, Items} from "../types";
 import {WorkloadActions} from "../WorkloadActions";
 import {DockerVMSelect} from "./DockerVMSelect";
 
-/** The images of one of one's Docker VMs. */
+/** The images of one of one's Docker VMs, and what the session may do with them. */
 export function ImagesPage() {
+  const {images: may} = useAbilities();
   const [vm, setVM] = useState<string | null>(null);
   const [reference, setReference] = useState("");
   const [inspected, setInspected] = useState<Image | null>(null);
@@ -42,25 +44,27 @@ export function ImagesPage() {
       <DockerVMSelect value={vm} onChange={setVM} />
       {vm !== null && (
         <>
-          <Paper withBorder p="md" mb="md" component="form" onSubmit={pull}>
-            <Group align="flex-start">
-              <TextInput
-                placeholder="nginx:latest"
-                aria-label="Image to pull"
-                value={reference}
-                onChange={(event) => setReference(event.currentTarget.value)}
-                error={laidOut.fields.reference}
-                style={{flex: 1}}
-              />
-              <Button type="submit" leftSection={<IconCloudDownload size={16} />} loading={pulling.pending}>
-                Pull
-              </Button>
-            </Group>
-            <FailureAlert messages={laidOut.messages} failure={pulling.failure} title="The image could not be pulled" />
-          </Paper>
+          {may.create && (
+            <Paper withBorder p="md" mb="md" component="form" onSubmit={pull}>
+              <Group align="flex-start">
+                <TextInput
+                  placeholder="nginx:latest"
+                  aria-label="Image to pull"
+                  value={reference}
+                  onChange={(event) => setReference(event.currentTarget.value)}
+                  error={laidOut.fields.reference}
+                  style={{flex: 1}}
+                />
+                <Button type="submit" leftSection={<IconCloudDownload size={16} />} loading={pulling.pending}>
+                  Pull
+                </Button>
+              </Group>
+              <FailureAlert messages={laidOut.messages} failure={pulling.failure} title="The image could not be pulled" />
+            </Paper>
+          )}
           <FailureAlert failure={images.failure} title="Its images could not be read" />
           {images.loading && <Loader />}
-          {!images.loading && items.length === 0 && !images.failure && <EmptyState icon={<IconCloudDownload />} title="No images" description="Pull one, or run a container." />}
+          {!images.loading && items.length === 0 && !images.failure && <EmptyState icon={<IconCloudDownload />} title="No images" description={may.create ? "Pull one, or run a container." : undefined} />}
           {items.length > 0 && (
             <Table.ScrollContainer minWidth={640}>
               <Table verticalSpacing="sm">
@@ -101,7 +105,7 @@ export function ImagesPage() {
                         <Text size="sm">{ago(image.status.created_at)}</Text>
                       </Table.Td>
                       <Table.Td>
-                        <WorkloadActions onInspect={() => setInspected(image)} onDelete={() => setDeleted(image)} />
+                        <WorkloadActions onInspect={() => setInspected(image)} onDelete={may.delete ? () => setDeleted(image) : undefined} />
                       </Table.Td>
                     </Table.Tr>
                   ))}

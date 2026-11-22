@@ -4,6 +4,8 @@ import {beforeEach, describe, expect, it, vi} from "vitest";
 import {Workloads} from "../../api/services";
 import {NavigationProvider} from "../../shell/NavigationProvider";
 import {render} from "../../test/render";
+import {abilities, access} from "../../test/access";
+import {WithAccess} from "../../test/WithAccess";
 import {CreateVMPage} from "./CreateVMPage";
 
 vi.mock("../../api/services", () => ({
@@ -14,14 +16,17 @@ describe("CreateVMPage", () => {
   beforeEach(() => {
     vi.mocked(Workloads.Snapshots).mockResolvedValue({items: [], pagination: {total_pages: 0, current_page: 1}} as never);
     vi.mocked(Workloads.CreateVM).mockReset();
+    vi.mocked(Workloads.Snapshots).mockClear();
   });
 
   it("creates a machine as the form says, from where it starts", async () => {
     vi.mocked(Workloads.CreateVM).mockResolvedValue({metadata: {uuid: "v-1"}} as never);
     render(
-      <NavigationProvider>
-        <CreateVMPage />
-      </NavigationProvider>,
+      <WithAccess>
+        <NavigationProvider>
+          <CreateVMPage />
+        </NavigationProvider>
+      </WithAccess>,
     );
 
     await userEvent.type(screen.getByLabelText(/Name/), "box");
@@ -44,9 +49,11 @@ describe("CreateVMPage", () => {
   it("asks a Docker VM for what one starts with", async () => {
     vi.mocked(Workloads.CreateVM).mockResolvedValue(null as never);
     render(
-      <NavigationProvider>
-        <CreateVMPage />
-      </NavigationProvider>,
+      <WithAccess>
+        <NavigationProvider>
+          <CreateVMPage />
+        </NavigationProvider>
+      </WithAccess>,
     );
 
     await userEvent.click(screen.getByText("Docker VM"));
@@ -63,9 +70,11 @@ describe("CreateVMPage", () => {
     } as never);
     vi.mocked(Workloads.CreateVM).mockResolvedValue(null as never);
     render(
-      <NavigationProvider>
-        <CreateVMPage snapshot="s-1" />
-      </NavigationProvider>,
+      <WithAccess>
+        <NavigationProvider>
+          <CreateVMPage snapshot="s-1" />
+        </NavigationProvider>
+      </WithAccess>,
     );
 
     await screen.findByDisplayValue(/before/);
@@ -75,14 +84,30 @@ describe("CreateVMPage", () => {
     expect(vi.mocked(Workloads.CreateVM).mock.calls[0][0]).toMatchObject({kind: "docker", image: "", snapshot_uuid: "s-1"});
   });
 
+  it("offers no snapshot to make it from when the session may not list them", async () => {
+    render(
+      <WithAccess access={access({abilities: abilities({vms: {create: true}})})}>
+        <NavigationProvider>
+          <CreateVMPage />
+        </NavigationProvider>
+      </WithAccess>,
+    );
+
+    expect(screen.getByRole("button", {name: "Create"})).toBeInTheDocument();
+    expect(screen.queryByText("From a snapshot")).not.toBeInTheDocument();
+    expect(Workloads.Snapshots).not.toHaveBeenCalled();
+  });
+
   it("says what the API refused beside the fields it is of", async () => {
     vi.mocked(Workloads.CreateVM).mockRejectedValue(
       new Error("x", {cause: {message: "refused", status: 400, fields: {name: "the name is required", "resources.memory": "at least 128 MiB", odd: "something else"}}}),
     );
     render(
-      <NavigationProvider>
-        <CreateVMPage />
-      </NavigationProvider>,
+      <WithAccess>
+        <NavigationProvider>
+          <CreateVMPage />
+        </NavigationProvider>
+      </WithAccess>,
     );
 
     await userEvent.click(screen.getByRole("button", {name: "Create"}));

@@ -1,6 +1,7 @@
 import {Badge, Button, EmptyState, Group, Loader, Paper, Table, Text, TextInput} from "@mantine/core";
 import {IconDatabase, IconPlus} from "@tabler/icons-react";
 import {type FormEvent, useState} from "react";
+import {useAbilities} from "../../access/access";
 import {formFailure} from "../../api/failure";
 import {Workloads} from "../../api/services";
 import {useQuery} from "../../api/useQuery";
@@ -21,8 +22,9 @@ function nameOf(volume: Volume): string {
   return volume.spec.name || volume.status.name || volume.metadata.name || "";
 }
 
-/** The volumes of one of one's Docker VMs. */
+/** The volumes of one of one's Docker VMs, and what the session may do with them. */
 export function VolumesPage() {
+  const {volumes: may} = useAbilities();
   const [vm, setVM] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [inspected, setInspected] = useState<Volume | null>(null);
@@ -47,18 +49,22 @@ export function VolumesPage() {
       <DockerVMSelect value={vm} onChange={setVM} />
       {vm !== null && (
         <>
-          <Paper withBorder p="md" mb="md" component="form" onSubmit={create}>
-            <Group align="flex-start">
-              <TextInput placeholder="data" aria-label="Volume to create" value={name} onChange={(event) => setName(event.currentTarget.value)} error={laidOut.fields.name} style={{flex: 1}} />
-              <Button type="submit" leftSection={<IconPlus size={16} />} loading={creating.pending}>
-                Create
-              </Button>
-            </Group>
-            <FailureAlert messages={laidOut.messages} failure={creating.failure} title="The volume could not be created" />
-          </Paper>
+          {may.create && (
+            <Paper withBorder p="md" mb="md" component="form" onSubmit={create}>
+              <Group align="flex-start">
+                <TextInput placeholder="data" aria-label="Volume to create" value={name} onChange={(event) => setName(event.currentTarget.value)} error={laidOut.fields.name} style={{flex: 1}} />
+                <Button type="submit" leftSection={<IconPlus size={16} />} loading={creating.pending}>
+                  Create
+                </Button>
+              </Group>
+              <FailureAlert messages={laidOut.messages} failure={creating.failure} title="The volume could not be created" />
+            </Paper>
+          )}
           <FailureAlert failure={volumes.failure} title="Its volumes could not be read" />
           {volumes.loading && <Loader />}
-          {!volumes.loading && items.length === 0 && !volumes.failure && <EmptyState icon={<IconDatabase />} title="No volumes" description="Create one for a container to keep what it writes." />}
+          {!volumes.loading && items.length === 0 && !volumes.failure && (
+            <EmptyState icon={<IconDatabase />} title="No volumes" description={may.create ? "Create one for a container to keep what it writes." : undefined} />
+          )}
           {items.length > 0 && (
             <Table.ScrollContainer minWidth={560}>
               <Table verticalSpacing="sm">
@@ -96,7 +102,7 @@ export function VolumesPage() {
                         <Text size="sm">{ago(volume.status.created_at)}</Text>
                       </Table.Td>
                       <Table.Td>
-                        <WorkloadActions onInspect={() => setInspected(volume)} onDelete={() => setDeleted(volume)} />
+                        <WorkloadActions onInspect={() => setInspected(volume)} onDelete={may.delete ? () => setDeleted(volume) : undefined} />
                       </Table.Td>
                     </Table.Tr>
                   ))}

@@ -7,7 +7,21 @@ export type Failure = {
   status?: number;
   code?: string;
   fields?: Record<string, string>;
+
+  /** The session is gone, or one the estate no longer takes: the login answers it. */
   logged_out?: boolean;
+
+  /** The session ran out, or was signed out of, and its estate would not renew it. */
+  ended?: boolean;
+
+  /** The estate refuses the account itself, blocked or gone, for reason when it said why. */
+  blocked?: boolean;
+  reason?: string;
+
+  /** The session's roles do not allow what was asked, which needs permission, when that is known. */
+  denied?: boolean;
+  permission?: string;
+
   unavailable?: boolean;
 };
 

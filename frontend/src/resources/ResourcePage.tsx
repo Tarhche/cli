@@ -11,7 +11,7 @@ import {JsonDrawer} from "../components/JsonDrawer";
 import {PageHeader} from "../components/PageHeader";
 import {ResourceEditor} from "./ResourceEditor";
 import {ResourceFilters} from "./ResourceFilters";
-import {actionsFor, type Audience, AUDIENCE_LABELS, audiencesOf, filtersFor, nameOf, routesFor, said} from "./resource";
+import {actionsFor, type Audience, AUDIENCE_LABELS, audienceShown, audiencesOf, filtersFor, nameOf, routesFor, said} from "./resource";
 
 /** What is being edited: something new, or a row. */
 type Editing = {row: Row | null};
@@ -20,14 +20,16 @@ type Editing = {row: Row | null};
 type Shown = {title: string; value: unknown};
 
 /**
- * A resource the dashboard manages, as its definition describes it: its
- * listing, laid out as its table, of one's own things or everybody's, and
- * what each of its rows can be asked.
+ * A resource the dashboard manages, as its definition describes it for the
+ * session: its listing, laid out as its table, of one's own things or
+ * everybody's, as far as the session may list them, and what it may ask of
+ * each of its rows.
  */
 export function ResourcePage({definition}: {definition: ResourceDefinition}) {
   const act = useAct();
   const audiences = audiencesOf(definition);
-  const [audience, setAudience] = useState<Audience>(audiences[0] ?? "everyone");
+  const [chosen, setAudience] = useState<Audience>(audiences[0] ?? "everyone");
+  const audience = audienceShown(audiences, chosen);
   const [page, setPage] = useState(1);
   const [cursors, setCursors] = useState<string[]>([""]);
   const [filters, setFilters] = useState<Record<string, string>>({});

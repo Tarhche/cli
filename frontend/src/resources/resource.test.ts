@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest";
 import type {ResourceDefinition} from "../api/services";
-import {actionsFor, audiencesOf, filtersFor, nameOf, pretty, routesFor, said} from "./resource";
+import {actionsFor, audienceShown, audiencesOf, filtersFor, nameOf, pretty, routesFor, said} from "./resource";
 
 const definition = {
   name: "audit-log",
@@ -8,10 +8,11 @@ const definition = {
   mine: {list: true, get: false, create: false, update: false, delete: false},
   everyone: {list: true, get: true, create: false, update: false, delete: true},
   actions: [
-    {name: "activity", description: "everybody's activity", mine: false, keyed: false},
-    {name: "activity", description: "one's own activity", mine: true, keyed: false},
-    {name: "finish", description: "", mine: true, keyed: true},
-    {name: "read", description: "", mine: false, keyed: true},
+    {name: "activity", description: "everybody's activity", mine: false, keyed: false, allowed: true},
+    {name: "activity", description: "one's own activity", mine: true, keyed: false, allowed: true},
+    {name: "finish", description: "", mine: true, keyed: true, allowed: true},
+    {name: "read", description: "", mine: false, keyed: true, allowed: true},
+    {name: "archive", description: "", mine: false, keyed: true, allowed: false},
   ],
   filters: [
     {name: "kind", description: "", values: ["read"], moment: false, audiences: []},
@@ -35,6 +36,26 @@ describe("resources", () => {
     expect(actionsFor(definition, "everyone", false).map((a) => a.description)).toEqual(["everybody's activity"]);
     expect(actionsFor(definition, "everyone", true).map((a) => a.name)).toEqual(["finish", "read"]);
     expect(actionsFor({...definition, actions: null} as unknown as ResourceDefinition, "mine", true)).toEqual([]);
+  });
+
+  it("offers no action the session may not ask, though the other audience's of its name it may", () => {
+    const disallowed = {
+      ...definition,
+      actions: [
+        {name: "activity", description: "everybody's activity", mine: false, keyed: false, allowed: true},
+        {name: "activity", description: "one's own activity", mine: true, keyed: false, allowed: false},
+      ],
+    } as unknown as ResourceDefinition;
+
+    expect(actionsFor(disallowed, "mine", false)).toEqual([]);
+    expect(actionsFor(disallowed, "everyone", false).map((a) => a.description)).toEqual(["everybody's activity"]);
+    expect(actionsFor(definition, "everyone", true).map((a) => a.name)).not.toContain("archive");
+  });
+
+  it("shows the audience chosen while it may still be listed, else the first that may", () => {
+    expect(audienceShown(["mine", "everyone"], "everyone")).toBe("everyone");
+    expect(audienceShown(["mine"], "everyone")).toBe("mine");
+    expect(audienceShown([], "everyone")).toBe("everyone");
   });
 
   it("offers the filters an audience's listing takes", () => {

@@ -21,8 +21,9 @@ export function routesFor(definition: ResourceDefinition, audience: Audience): R
 
 /**
  * The actions an audience of a resource is offered, one of each name: the
- * audience's own, or the other's when only it has one of that name; those
- * asked of one thing when keyed, those asked of the resource otherwise.
+ * audience's own, or the other's when only it has one of that name, when
+ * the session may ask it; those asked of one thing when keyed, those asked
+ * of the resource otherwise.
  */
 export function actionsFor(definition: ResourceDefinition, audience: Audience, keyed: boolean): ResourceAction[] {
   const mine = audience === "mine";
@@ -35,7 +36,12 @@ export function actionsFor(definition: ResourceDefinition, audience: Audience, k
     }
   }
 
-  return [...chosen.values()].filter((action) => action.keyed === keyed);
+  return [...chosen.values()].filter((action) => action.keyed === keyed && action.allowed);
+}
+
+/** The audience a page shows: the one chosen while it may still be listed, else the first that may. */
+export function audienceShown(audiences: Audience[], chosen: Audience): Audience {
+  return audiences.includes(chosen) ? chosen : (audiences[0] ?? chosen);
 }
 
 /** The filters the listing of an audience of a resource takes. */

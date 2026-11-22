@@ -34,6 +34,7 @@ describe("useQuery", () => {
 
     await waitFor(() => expect(result.current.failure).toEqual({message: "not logged in", logged_out: true}));
     expect(signedOut).toHaveBeenCalledOnce();
+    expect(signedOut).toHaveBeenCalledWith({message: "not logged in", logged_out: true});
     expect(result.current.loading).toBe(false);
   });
 

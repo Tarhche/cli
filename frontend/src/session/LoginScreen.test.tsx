@@ -86,6 +86,50 @@ describe("LoginScreen", () => {
     expect(cancel).toHaveBeenCalled();
   });
 
+  it("says the session expired, when it did", () => {
+    render(
+      <WithSession state={session({ended: {context: "local", blocked: false, reason: ""}})}>
+        <LoginScreen />
+      </WithSession>,
+    );
+
+    expect(screen.getByText("Your session has expired")).toBeInTheDocument();
+    expect(screen.queryByText("Your account is blocked")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", {name: "Sign in with browser"})).toBeInTheDocument();
+  });
+
+  it("says the account is blocked, for the reason the estate gave", () => {
+    render(
+      <WithSession state={session({ended: {context: "local", blocked: true, reason: "The user is banned."}})}>
+        <LoginScreen />
+      </WithSession>,
+    );
+
+    expect(screen.getByText("Your account is blocked")).toBeInTheDocument();
+    expect(screen.getByText(/The user is banned\./)).toBeInTheDocument();
+    expect(screen.queryByText("Your session has expired")).not.toBeInTheDocument();
+  });
+
+  it("says the account is blocked when the estate gave no reason", () => {
+    render(
+      <WithSession state={session({ended: {context: "local", blocked: true, reason: ""}})}>
+        <LoginScreen />
+      </WithSession>,
+    );
+
+    expect(screen.getByText(/The estate refuses every request of yours/)).toBeInTheDocument();
+  });
+
+  it("says nothing of how another context's session ended", () => {
+    render(
+      <WithSession state={session({ended: {context: "default", blocked: true, reason: "The user is banned."}})}>
+        <LoginScreen />
+      </WithSession>,
+    );
+
+    expect(screen.queryByText("Your account is blocked")).not.toBeInTheDocument();
+  });
+
   it("says why the session could not be read", () => {
     render(
       <WithSession state={session({failure: {message: "the keychain is locked"}})}>

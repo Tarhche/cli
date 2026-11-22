@@ -1,6 +1,7 @@
 import {ActionIcon, Button, Group, NumberInput, Paper, Select, SimpleGrid, Stack, Text, Textarea, TextInput} from "@mantine/core";
 import {IconPlus, IconTrash} from "@tabler/icons-react";
 import {type FormEvent, useState} from "react";
+import {useAbilities} from "../../access/access";
 import {formFailure} from "../../api/failure";
 import {Workloads} from "../../api/services";
 import {useRun} from "../../api/useRun";
@@ -14,6 +15,7 @@ import {type ContainerForm, containerFieldOf, containerRequestOf, defaultContain
 /** A container to run, in a Docker VM of one's own or a new one. */
 export function RunContainerPage({vm}: {vm?: string}) {
   const {navigate, back} = useNavigation();
+  const {containers: may} = useAbilities();
   const [form, setForm] = useState<ContainerForm>(() => defaultContainerForm(vm ?? null));
   const running = useRun(() => Workloads.RunContainer(containerRequestOf(form)) as Promise<RunContainerAnswer | null>);
   const laidOut = formFailure(running.failure, containerFieldOf);
@@ -31,7 +33,7 @@ export function RunContainerPage({vm}: {vm?: string}) {
     const answer = outcome.value;
     const id = answer?.container?.metadata.uuid;
     const where = answer?.vm?.uuid;
-    navigate(id && where ? {page: "container", vm: where, id} : {page: "containers"});
+    navigate(id && where && may.show ? {page: "container", vm: where, id} : {page: "containers"});
   };
 
   return (

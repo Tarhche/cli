@@ -21,7 +21,11 @@ const articles = {
   audiences: ["mine", "everyone"],
   mine: {...routes, create: false},
   everyone: routes,
-  actions: [{name: "publish", description: "Publish it", mine: false, keyed: true}],
+  actions: [
+    {name: "publish", description: "Publish it", mine: false, keyed: true, allowed: true},
+    {name: "archive", description: "Archive it", mine: false, keyed: true, allowed: false},
+    {name: "export", description: "Export them", mine: false, keyed: false, allowed: false},
+  ],
   filters: [{name: "language_code", description: "only a language", values: ["en", "fa"], moment: false, audiences: []}],
   cursor: false,
   columns: ["ID", "LANGUAGE", "TITLE"],
@@ -94,6 +98,38 @@ describe("ResourcePage", () => {
 
     await waitFor(() => expect(Resources.Action).toHaveBeenCalledWith("article", "publish", false, ["c-1", "en"]));
     expect(await screen.findByText(/"published": true/)).toBeInTheDocument();
+  });
+
+  it("offers no action the session may not ask, nor what its routes do not allow", async () => {
+    render(<ResourcePage definition={{...articles, mine: {list: true, get: false, create: false, update: false, delete: false}} as unknown as ResourceDefinition} />);
+    await screen.findByText("Hello");
+
+    expect(screen.queryByRole("button", {name: "Export them"})).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", {name: "What to do with c-1/en"}));
+
+    expect(await screen.findByRole("menuitem", {name: "Inspect"})).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", {name: "Publish it"})).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", {name: "Archive it"})).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", {name: "Edit"})).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", {name: "Delete"})).not.toBeInTheDocument();
+  });
+
+  it("offers no choice of whose when the session may list one audience alone", async () => {
+    render(<ResourcePage definition={{...articles, audiences: ["mine"]} as unknown as ResourceDefinition} />);
+    await screen.findByText("Hello");
+
+    expect(screen.queryByText("Everybody's")).not.toBeInTheDocument();
+  });
+
+  it("lists the audience it may still list once the one shown may not be listed any more", async () => {
+    const {rerender} = render(<ResourcePage definition={articles} />);
+    await screen.findByText("Hello");
+    await userEvent.click(screen.getByText("Everybody's"));
+    await waitFor(() => expect(Resources.List).toHaveBeenLastCalledWith("article", true, {page: 1, cursor: "", filters: {}}));
+
+    rerender(<ResourcePage definition={{...articles, audiences: ["mine"]} as unknown as ResourceDefinition} />);
+
+    await waitFor(() => expect(Resources.List).toHaveBeenLastCalledWith("article", false, {page: 1, cursor: "", filters: {}}));
   });
 
   it("creates one from the JSON written", async () => {

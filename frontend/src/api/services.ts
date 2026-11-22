@@ -12,11 +12,13 @@ export {
 } from "../../bindings/github.com/Tarhche/cli/internal/desktop";
 
 export type {
+  Abilities,
   ContainerRequest,
   ContextInfo,
   Forward,
   ForwardRequest,
   ForwardStopped,
+  KindAbilities,
   Listing,
   ListQuery,
   LogsQuery,

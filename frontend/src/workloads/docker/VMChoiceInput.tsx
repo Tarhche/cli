@@ -1,4 +1,5 @@
 import {InputWrapper, SegmentedControl, Select, Stack, TextInput} from "@mantine/core";
+import {useAbilities} from "../../access/access";
 import {useQuery} from "../../api/useQuery";
 import type {VMChoice} from "../containers/containerForm";
 import {dockerVMs} from "../listing";
@@ -9,9 +10,25 @@ type Props = {
   error?: string;
 };
 
-/** Where a container or a stack runs: a Docker VM of one's own, or a new one. */
+/**
+ * Where a container or a stack runs: a Docker VM of one's own, when the
+ * session may list them to choose among, or a new one.
+ */
 export function VMChoiceInput({value, onChange, error}: Props) {
-  const vms = useQuery("docker-vms", dockerVMs);
+  const {vms: may} = useAbilities();
+  const vms = useQuery("docker-vms", dockerVMs, {enabled: may.list});
+
+  if (!may.list) {
+    return (
+      <TextInput
+        label="Runs in a new Docker VM"
+        placeholder="Its name, which the workload picks when it is left empty"
+        value={value.name}
+        onChange={(event) => onChange({...value, fresh: true, name: event.currentTarget.value})}
+        error={error}
+      />
+    );
+  }
 
   return (
     <InputWrapper label="Runs in" error={error}>

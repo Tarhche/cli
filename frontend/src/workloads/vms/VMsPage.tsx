@@ -1,6 +1,7 @@
 import {Badge, Button, EmptyState, Group, Loader, Pagination, Table, Text} from "@mantine/core";
 import {IconPlus, IconServer2} from "@tabler/icons-react";
 import {useState} from "react";
+import {useAbilities} from "../../access/access";
 import {Workloads} from "../../api/services";
 import {useAct} from "../../api/useAct";
 import {useQuery} from "../../api/useQuery";
@@ -15,10 +16,11 @@ import {POLL} from "../listing";
 import type {Page, VM} from "../types";
 import {WorkloadActions} from "../WorkloadActions";
 
-/** One's VMs: machines and Docker VMs. */
+/** One's VMs: machines and Docker VMs, and what the session may do with them. */
 export function VMsPage() {
   const {navigate} = useNavigation();
   const act = useAct();
+  const {vms: may} = useAbilities();
   const [page, setPage] = useState(1);
   const [inspected, setInspected] = useState<VM | null>(null);
   const [deleted, setDeleted] = useState<VM | null>(null);
@@ -34,15 +36,17 @@ export function VMsPage() {
         title="VMs"
         description="Machines a terminal is opened in, and Docker VMs containers and stacks run in."
         actions={
-          <Button leftSection={<IconPlus size={16} />} onClick={() => navigate({page: "create-vm"})}>
-            Create VM
-          </Button>
+          may.create && (
+            <Button leftSection={<IconPlus size={16} />} onClick={() => navigate({page: "create-vm"})}>
+              Create VM
+            </Button>
+          )
         }
       />
       <FailureAlert failure={vms.failure} title="Your VMs could not be read" />
       {vms.loading && <Loader />}
       {!vms.loading && items.length === 0 && !vms.failure && (
-        <EmptyState icon={<IconServer2 />} title="No VMs yet" description="Create one to run something, or to run containers in." />
+        <EmptyState icon={<IconServer2 />} title="No VMs yet" description={may.create ? "Create one to run something, or to run containers in." : undefined} />
       )}
       {items.length > 0 && (
         <Table.ScrollContainer minWidth={720}>
@@ -63,7 +67,7 @@ export function VMsPage() {
                 const uuid = vm.metadata.uuid ?? "";
 
                 return (
-                  <Table.Tr key={uuid} style={{cursor: "pointer"}} onClick={() => navigate({page: "vm", uuid})}>
+                  <Table.Tr key={uuid} style={may.show ? {cursor: "pointer"} : undefined} onClick={may.show ? () => navigate({page: "vm", uuid}) : undefined}>
                     <Table.Td>
                       <Text size="sm" fw={500}>
                         {vm.metadata.name}
@@ -94,11 +98,11 @@ export function VMsPage() {
                     <Table.Td>
                       <WorkloadActions
                         state={vm.status.state}
-                        onStart={() => command(`Starting ${vm.metadata.name}`, () => Workloads.StartVM(uuid))}
-                        onStop={() => command(`Stopping ${vm.metadata.name}`, () => Workloads.StopVM(uuid))}
-                        onRestart={() => command(`Restarting ${vm.metadata.name}`, () => Workloads.RestartVM(uuid))}
+                        onStart={may.start ? () => command(`Starting ${vm.metadata.name}`, () => Workloads.StartVM(uuid)) : undefined}
+                        onStop={may.stop ? () => command(`Stopping ${vm.metadata.name}`, () => Workloads.StopVM(uuid)) : undefined}
+                        onRestart={may.restart ? () => command(`Restarting ${vm.metadata.name}`, () => Workloads.RestartVM(uuid)) : undefined}
                         onInspect={() => setInspected(vm)}
-                        onDelete={() => setDeleted(vm)}
+                        onDelete={may.delete ? () => setDeleted(vm) : undefined}
                       />
                     </Table.Td>
                   </Table.Tr>

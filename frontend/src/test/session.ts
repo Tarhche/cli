@@ -11,6 +11,7 @@ export function session(state: Partial<SessionState> = {}): SessionState {
     status: {context: testContext, logged_in: false, expires_at: ""} as Status,
     failure: null,
     contexts: [testContext, {...testContext, name: "default", api: "https://backend.tarhche.com", current: false}],
+    ended: null,
     refresh: vi.fn(() => Promise.resolve()),
     use: vi.fn(() => Promise.resolve()),
     ...state,

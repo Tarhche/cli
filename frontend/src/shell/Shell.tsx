@@ -1,8 +1,7 @@
-import {AppShell, Burger, Group, Text, ThemeIcon} from "@mantine/core";
+import {AppShell, Burger, Button, EmptyState, Group, Text, ThemeIcon} from "@mantine/core";
 import {useDisclosure} from "@mantine/hooks";
-import {IconBox} from "@tabler/icons-react";
-import {Resources} from "../api/services";
-import {useQuery} from "../api/useQuery";
+import {IconBox, IconLock} from "@tabler/icons-react";
+import {type Access, useAccess} from "../access/access";
 import {ResourcePage} from "../resources/ResourcePage";
 import {ContextMenu} from "../session/ContextMenu";
 import {UserMenu} from "../session/UserMenu";
@@ -20,14 +19,17 @@ import {CreateVMPage} from "../workloads/vms/CreateVMPage";
 import {VMPage} from "../workloads/vms/VMPage";
 import {VMsPage} from "../workloads/vms/VMsPage";
 import type {View} from "./navigation";
-import {useNavigation} from "./navigation";
+import {allows, homeOf, useNavigation} from "./navigation";
 import {Navbar} from "./Navbar";
 
-/** The app once it is signed in: its navbar, its header and the page it is on. */
+/**
+ * The app once it is signed in: its navbar, its header and the page it is
+ * on, as far as the session may see them.
+ */
 export function Shell() {
   const navigation = useNavigation();
+  const access = useAccess();
   const [opened, {toggle, close}] = useDisclosure();
-  const definitions = useQuery("definitions", () => Resources.Definitions());
 
   const navigate = (view: View) => {
     close();
@@ -54,17 +56,21 @@ export function Shell() {
         </Group>
       </AppShell.Header>
       <AppShell.Navbar p="xs">
-        <Navbar view={navigation.view} definitions={definitions.data ?? []} navigate={navigate} />
+        <Navbar view={navigation.view} access={access} navigate={navigate} />
       </AppShell.Navbar>
       <AppShell.Main>
-        <Page view={navigation.view} definitions={definitions.data ?? []} />
+        <Page view={navigation.view} access={access} navigate={navigate} />
       </AppShell.Main>
     </AppShell>
   );
 }
 
-/** The page a view is. */
-function Page({view, definitions}: {view: View; definitions: Awaited<ReturnType<typeof Resources.Definitions>>}) {
+/** The page a view is, when the session may see it. */
+function Page({view, access, navigate}: {view: View; access: Access; navigate: (view: View) => void}) {
+  if (!allows(access, view)) {
+    return <NotAllowed home={homeOf(access)} navigate={navigate} />;
+  }
+
   switch (view.page) {
     case "containers":
       return <ContainersPage />;
@@ -93,9 +99,32 @@ function Page({view, definitions}: {view: View; definitions: Awaited<ReturnType<
     case "forwards":
       return <ForwardsPage />;
     case "resource": {
-      const definition = definitions.find((d) => d.name === view.name);
+      const definition = access.definitions.find((d) => d.name === view.name);
 
       return definition ? <ResourcePage key={definition.name} definition={definition} /> : null;
     }
   }
+}
+
+/**
+ * Where the session may not go, or may go no more since its roles changed:
+ * what they allow is in the navbar, and the first of it a click away.
+ */
+function NotAllowed({home, navigate}: {home: View | null; navigate: (view: View) => void}) {
+  return (
+    <EmptyState
+      mt="xl"
+      icon={<IconLock />}
+      title={home ? "Your roles do not let you see this" : "Your roles let you see nothing here yet"}
+      description={home ? "What they allow is in the navigation." : "Ask an administrator for a role, and what it allows appears here as your session is renewed."}
+    >
+      {home && (
+        <EmptyState.Actions>
+          <Button variant="light" onClick={() => navigate(home)}>
+            Go to what you may see
+          </Button>
+        </EmptyState.Actions>
+      )}
+    </EmptyState>
+  );
 }

@@ -8,7 +8,8 @@ export type Act = (title: string, action: () => Promise<unknown>) => Promise<boo
 
 /**
  * Something to do from a list or a menu, where there is no form to say a
- * failure on: it is said in a notification, and answers whether it was done.
+ * failure on: it is said in a notification, a permission denied naming the
+ * permission, and answers whether it was done.
  */
 export function useAct(): Act {
   const signedOut = useSignedOut();
@@ -26,10 +27,10 @@ export function useAct(): Act {
 
         const failure = failureOf(error);
         if (failure.logged_out) {
-          signedOut();
+          signedOut(failure);
         }
 
-        notifications.show({color: "red", title, message: failure.message});
+        notifications.show({color: failure.denied ? "orange" : "red", title, message: failure.message});
 
         return false;
       }

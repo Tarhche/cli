@@ -1,6 +1,7 @@
 import {ActionIcon, Badge, EmptyState, Group, Loader, Pagination, Table, Text, Tooltip} from "@mantine/core";
 import {IconCamera, IconPencil, IconServer2} from "@tabler/icons-react";
 import {useState} from "react";
+import {useAbilities} from "../../access/access";
 import {Workloads} from "../../api/services";
 import {useQuery} from "../../api/useQuery";
 import {DeleteModal} from "../../components/DeleteModal";
@@ -15,9 +16,12 @@ import type {Page, Snapshot} from "../types";
 import {WorkloadActions} from "../WorkloadActions";
 import {RenameModal} from "./RenameModal";
 
-/** One's snapshots: VMs' disks, kept to make a VM from or to restore one to. */
+/** One's snapshots: VMs' disks, kept to make a VM from or to restore one to, and what the session may do with them. */
 export function SnapshotsPage() {
   const {navigate} = useNavigation();
+  const abilities = useAbilities();
+  const may = abilities.snapshots;
+  const takes = may.create && abilities.vms.show;
   const [page, setPage] = useState(1);
   const [inspected, setInspected] = useState<Snapshot | null>(null);
   const [renamed, setRenamed] = useState<Snapshot | null>(null);
@@ -28,10 +32,10 @@ export function SnapshotsPage() {
 
   return (
     <>
-      <PageHeader title="Snapshots" description="VMs' disks as they were, to make a VM from or restore one to. A snapshot is taken on its VM's page." />
+      <PageHeader title="Snapshots" description={`VMs' disks as they were, to make a VM from or restore one to.${takes ? " A snapshot is taken on its VM's page." : ""}`} />
       <FailureAlert failure={snapshots.failure} title="Your snapshots could not be read" />
       {snapshots.loading && <Loader />}
-      {!snapshots.loading && items.length === 0 && !snapshots.failure && <EmptyState icon={<IconCamera />} title="No snapshots yet" description="Take one on a VM's page." />}
+      {!snapshots.loading && items.length === 0 && !snapshots.failure && <EmptyState icon={<IconCamera />} title="No snapshots yet" description={takes ? "Take one on a VM's page." : undefined} />}
       {items.length > 0 && (
         <Table.ScrollContainer minWidth={720}>
           <Table verticalSpacing="sm">
@@ -76,17 +80,21 @@ export function SnapshotsPage() {
                     </Table.Td>
                     <Table.Td>
                       <Group gap={4} justify="flex-end" wrap="nowrap">
-                        <Tooltip label="Make a VM from it">
-                          <ActionIcon variant="subtle" aria-label="Make a VM from it" disabled={!ready} onClick={() => navigate({page: "create-vm", snapshot: uuid})}>
-                            <IconServer2 size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Rename">
-                          <ActionIcon variant="subtle" color="gray" aria-label="Rename" onClick={() => setRenamed(snapshot)}>
-                            <IconPencil size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <WorkloadActions onInspect={() => setInspected(snapshot)} onDelete={() => setDeleted(snapshot)} />
+                        {abilities.vms.create && (
+                          <Tooltip label="Make a VM from it">
+                            <ActionIcon variant="subtle" aria-label="Make a VM from it" disabled={!ready} onClick={() => navigate({page: "create-vm", snapshot: uuid})}>
+                              <IconServer2 size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                        {may.update && (
+                          <Tooltip label="Rename">
+                            <ActionIcon variant="subtle" color="gray" aria-label="Rename" onClick={() => setRenamed(snapshot)}>
+                              <IconPencil size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                        <WorkloadActions onInspect={() => setInspected(snapshot)} onDelete={may.delete ? () => setDeleted(snapshot) : undefined} />
                       </Group>
                     </Table.Td>
                   </Table.Tr>

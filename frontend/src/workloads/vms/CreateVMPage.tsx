@@ -1,5 +1,6 @@
 import {Autocomplete, Button, Group, InputWrapper, NumberInput, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, TagsInput, TextInput} from "@mantine/core";
 import {type FormEvent, useState} from "react";
+import {useAbilities} from "../../access/access";
 import {formFailure} from "../../api/failure";
 import {Workloads} from "../../api/services";
 import {useQuery} from "../../api/useQuery";
@@ -15,9 +16,12 @@ import {defaultVMForm, IMAGES, isPort, LIFETIMES, switchKind, type VMForm, type 
 /** A VM to create: a machine, or a Docker VM, from scratch or a snapshot. */
 export function CreateVMPage({snapshot = null}: {snapshot?: string | null}) {
   const {navigate, back} = useNavigation();
+  const abilities = useAbilities();
   const [form, setForm] = useState<VMForm>(() => defaultVMForm(snapshot));
-  const snapshots = useQuery("snapshots:ready", async () =>
-    (await allPages<Snapshot>((page) => Workloads.Snapshots(page, "") as Promise<Page<Snapshot>>)).filter((s) => s.status.state === "ready"),
+  const snapshots = useQuery(
+    "snapshots:ready",
+    async () => (await allPages<Snapshot>((page) => Workloads.Snapshots(page, "") as Promise<Page<Snapshot>>)).filter((s) => s.status.state === "ready"),
+    {enabled: abilities.snapshots.list},
   );
   const chosen = snapshots.data?.find((s) => s.metadata.uuid === form.snapshot);
   const asked = chosen ? switchKind(form, chosen.docker ? "docker" : "machine") : form;
@@ -31,7 +35,7 @@ export function CreateVMPage({snapshot = null}: {snapshot?: string | null}) {
     const outcome = await creation.run();
     if (outcome.done) {
       const uuid = outcome.value?.metadata.uuid;
-      navigate(uuid ? {page: "vm", uuid} : {page: "vms"});
+      navigate(uuid && abilities.vms.show ? {page: "vm", uuid} : {page: "vms"});
     }
   };
 
@@ -43,22 +47,24 @@ export function CreateVMPage({snapshot = null}: {snapshot?: string | null}) {
         <Paper withBorder p="md">
           <Stack>
             <TextInput label="Name" required value={form.name} onChange={(e) => update({name: e.currentTarget.value})} error={laidOut.fields.name} />
-            <Select
-              label="From a snapshot"
-              description="Its kind and image are the snapshot's, and its disk at least as large."
-              placeholder="None"
-              clearable
-              data={(snapshots.data ?? []).map((s) => ({
-                value: s.metadata.uuid ?? "",
-                label: `${s.metadata.name} (${s.docker ? "docker" : "machine"}${s.status.disk ? `, ${bytes(s.status.disk)}` : ""})`,
-              }))}
-              value={form.snapshot}
-              onChange={(value) => {
-                const picked = snapshots.data?.find((s) => s.metadata.uuid === value);
-                setForm((current) => ({...(picked ? switchKind(current, picked.docker ? "docker" : "machine") : current), snapshot: value}));
-              }}
-              error={laidOut.fields.snapshot}
-            />
+            {abilities.snapshots.list && (
+              <Select
+                label="From a snapshot"
+                description="Its kind and image are the snapshot's, and its disk at least as large."
+                placeholder="None"
+                clearable
+                data={(snapshots.data ?? []).map((s) => ({
+                  value: s.metadata.uuid ?? "",
+                  label: `${s.metadata.name} (${s.docker ? "docker" : "machine"}${s.status.disk ? `, ${bytes(s.status.disk)}` : ""})`,
+                }))}
+                value={form.snapshot}
+                onChange={(value) => {
+                  const picked = snapshots.data?.find((s) => s.metadata.uuid === value);
+                  setForm((current) => ({...(picked ? switchKind(current, picked.docker ? "docker" : "machine") : current), snapshot: value}));
+                }}
+                error={laidOut.fields.snapshot}
+              />
+            )}
             <InputWrapper label="Kind" error={laidOut.fields.kind}>
               <SegmentedControl
                 fullWidth

@@ -65,7 +65,7 @@ export function useQuery<T>(key: string, load: () => Promise<T>, options: QueryO
 
         const failure = failureOf(error);
         if (failure.logged_out) {
-          signedOut();
+          signedOut(failure);
         }
 
         setRead((previous) => ({key, data: previous.key === key ? previous.data : undefined, failure, loading: false}));

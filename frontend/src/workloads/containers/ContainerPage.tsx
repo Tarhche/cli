@@ -1,6 +1,7 @@
-import {ActionIcon, Button, Group, Loader, Menu, Tabs} from "@mantine/core";
+import {ActionIcon, Button, Group, Loader, Menu, Tabs, Tooltip} from "@mantine/core";
 import {IconBraces, IconDots, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTrash} from "@tabler/icons-react";
 import {useState} from "react";
+import {useAbilities} from "../../access/access";
 import {Workloads} from "../../api/services";
 import {useAct} from "../../api/useAct";
 import {useQuery} from "../../api/useQuery";
@@ -22,10 +23,15 @@ import {ContainerOverview} from "./ContainerOverview";
 
 type Tab = "overview" | "logs" | "terminal" | "stats" | "files" | "ports";
 
-/** One of one's containers, in its Docker VM: what it is, its log, a shell in it, what it uses, its files and its ports. */
+/**
+ * One of one's containers, in its Docker VM: what it is, its log, a shell in
+ * it, what it uses, its files and its ports, each as far as the session
+ * may, and what it may do with it.
+ */
 export function ContainerPage({vm, id}: {vm: string; id: string}) {
   const {back} = useNavigation();
   const act = useAct();
+  const {containers: may} = useAbilities();
   const container = useQuery(`container:${vm}/${id}`, () => Workloads.Container(vm, id) as Promise<Container>, {interval: POLL});
   const [tab, setTab] = useState<Tab>("overview");
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>(["overview"]));
@@ -44,6 +50,8 @@ export function ContainerPage({vm, id}: {vm: string; id: string}) {
   const name = shown.status.name || shown.spec.name || id;
   const state = shown.status.state;
   const target = {vm, container: id};
+  const offered: Record<Tab, boolean> = {overview: true, logs: may.logs, terminal: may.exec, stats: may.usage, files: may.exec, ports: may.exec};
+  const current = offered[tab] ? tab : "overview";
   const command = (title: string, run: () => Promise<unknown>) => void act(title, run).then(container.reload);
   const open = (next: string | null) => {
     const chosen = (next ?? "overview") as Tab;
@@ -60,67 +68,77 @@ export function ContainerPage({vm, id}: {vm: string; id: string}) {
         actions={
           <Group gap="xs">
             <StateBadge state={state} reason={shown.status.failure?.message ?? shown.status.reason} />
-            {canStart(state) && (
+            {may.start && canStart(state) && (
               <Button size="xs" variant="light" color="green" leftSection={<IconPlayerPlay size={14} />} onClick={() => command(`Starting ${name}`, () => Workloads.StartContainer(vm, id))}>
                 Start
               </Button>
             )}
-            {canStop(state) && (
-              <>
-                <Button size="xs" variant="light" color="orange" leftSection={<IconPlayerStop size={14} />} onClick={() => command(`Stopping ${name}`, () => Workloads.StopContainer(vm, id))}>
-                  Stop
-                </Button>
-                <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={() => command(`Restarting ${name}`, () => Workloads.RestartContainer(vm, id))}>
-                  Restart
-                </Button>
-              </>
+            {may.stop && canStop(state) && (
+              <Button size="xs" variant="light" color="orange" leftSection={<IconPlayerStop size={14} />} onClick={() => command(`Stopping ${name}`, () => Workloads.StopContainer(vm, id))}>
+                Stop
+              </Button>
             )}
-            <Menu position="bottom-end" withinPortal>
-              <Menu.Target>
-                <ActionIcon variant="default" size="md" aria-label="More">
-                  <IconDots size={16} />
+            {may.restart && canStop(state) && (
+              <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={() => command(`Restarting ${name}`, () => Workloads.RestartContainer(vm, id))}>
+                Restart
+              </Button>
+            )}
+            {may.delete ? (
+              <Menu position="bottom-end" withinPortal>
+                <Menu.Target>
+                  <ActionIcon variant="default" size="md" aria-label="More">
+                    <IconDots size={16} />
+                  </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item leftSection={<IconBraces size={14} />} onClick={() => setDialog("inspect")}>
+                    Inspect
+                  </Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => setDialog("delete")}>
+                    Delete
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            ) : (
+              <Tooltip label="Inspect">
+                <ActionIcon variant="default" size="md" aria-label="Inspect" onClick={() => setDialog("inspect")}>
+                  <IconBraces size={16} />
                 </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item leftSection={<IconBraces size={14} />} onClick={() => setDialog("inspect")}>
-                  Inspect
-                </Menu.Item>
-                <Menu.Divider />
-                <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => setDialog("delete")}>
-                  Delete
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
+              </Tooltip>
+            )}
           </Group>
         }
       />
       <FailureAlert failure={container.failure} title="The container could not be read again" />
-      <Tabs value={tab} onChange={open}>
+      <Tabs value={current} onChange={open}>
         <Tabs.List>
           <Tabs.Tab value="overview">Overview</Tabs.Tab>
-          <Tabs.Tab value="logs">Logs</Tabs.Tab>
-          <Tabs.Tab value="terminal">Terminal</Tabs.Tab>
-          <Tabs.Tab value="stats">Stats</Tabs.Tab>
-          <Tabs.Tab value="files">Files</Tabs.Tab>
-          <Tabs.Tab value="ports">Ports</Tabs.Tab>
+          {offered.logs && <Tabs.Tab value="logs">Logs</Tabs.Tab>}
+          {offered.terminal && <Tabs.Tab value="terminal">Terminal</Tabs.Tab>}
+          {offered.stats && <Tabs.Tab value="stats">Stats</Tabs.Tab>}
+          {offered.files && <Tabs.Tab value="files">Files</Tabs.Tab>}
+          {offered.ports && <Tabs.Tab value="ports">Ports</Tabs.Tab>}
         </Tabs.List>
         <Tabs.Panel value="overview" pt="md">
           <ContainerOverview container={shown} />
         </Tabs.Panel>
         <Tabs.Panel value="logs" pt="md">
-          {visited.has("logs") && <LogsPanel id={`container:${vm}/${id}`} read={(query) => Workloads.ContainerLogs(vm, id, query) as Promise<Logs>} active={tab === "logs"} />}
+          {offered.logs && visited.has("logs") && (
+            <LogsPanel id={`container:${vm}/${id}`} read={(query) => Workloads.ContainerLogs(vm, id, query) as Promise<Logs>} active={current === "logs"} />
+          )}
         </Tabs.Panel>
         <Tabs.Panel value="terminal" pt="md">
-          {visited.has("terminal") && <TerminalPanel target={target} />}
+          {offered.terminal && visited.has("terminal") && <TerminalPanel target={target} />}
         </Tabs.Panel>
         <Tabs.Panel value="stats" pt="md">
-          {visited.has("stats") && <ContainerStatsPanel vm={vm} id={id} active={tab === "stats"} />}
+          {offered.stats && visited.has("stats") && <ContainerStatsPanel vm={vm} id={id} active={current === "stats"} />}
         </Tabs.Panel>
         <Tabs.Panel value="files" pt="md">
-          {visited.has("files") && <FilesPanel target={target} />}
+          {offered.files && visited.has("files") && <FilesPanel target={target} />}
         </Tabs.Panel>
         <Tabs.Panel value="ports" pt="md">
-          {visited.has("ports") && (
+          {offered.ports && visited.has("ports") && (
             <PortsPanel target={target} ports={(shown.spec.ports ?? []).map((p) => p.container_port)} hint="A container's port is reached through its Docker VM, published or not." />
           )}
         </Tabs.Panel>

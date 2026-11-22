@@ -1,6 +1,7 @@
 import {Button, EmptyState, Group, Loader, Paper, Switch, Table, Text, TextInput} from "@mantine/core";
 import {IconNetwork, IconPlus} from "@tabler/icons-react";
 import {type FormEvent, useState} from "react";
+import {useAbilities} from "../../access/access";
 import {formFailure} from "../../api/failure";
 import {Workloads} from "../../api/services";
 import {useQuery} from "../../api/useQuery";
@@ -21,8 +22,9 @@ function idOf(network: DockerNetwork): string {
   return network.metadata.uuid || network.status.id || network.spec.name;
 }
 
-/** The docker networks of one of one's Docker VMs. */
+/** The docker networks of one of one's Docker VMs, and what the session may do with them. */
 export function NetworksPage() {
+  const {networks: may} = useAbilities();
   const [vm, setVM] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [internal, setInternal] = useState(false);
@@ -48,19 +50,23 @@ export function NetworksPage() {
       <DockerVMSelect value={vm} onChange={setVM} />
       {vm !== null && (
         <>
-          <Paper withBorder p="md" mb="md" component="form" onSubmit={create}>
-            <Group align="center">
-              <TextInput placeholder="backend" aria-label="Network to create" value={name} onChange={(event) => setName(event.currentTarget.value)} error={laidOut.fields.name} style={{flex: 1}} />
-              <Switch label="Internal" checked={internal} onChange={(event) => setInternal(event.currentTarget.checked)} />
-              <Button type="submit" leftSection={<IconPlus size={16} />} loading={creating.pending}>
-                Create
-              </Button>
-            </Group>
-            <FailureAlert messages={laidOut.messages} failure={creating.failure} title="The network could not be created" />
-          </Paper>
+          {may.create && (
+            <Paper withBorder p="md" mb="md" component="form" onSubmit={create}>
+              <Group align="center">
+                <TextInput placeholder="backend" aria-label="Network to create" value={name} onChange={(event) => setName(event.currentTarget.value)} error={laidOut.fields.name} style={{flex: 1}} />
+                <Switch label="Internal" checked={internal} onChange={(event) => setInternal(event.currentTarget.checked)} />
+                <Button type="submit" leftSection={<IconPlus size={16} />} loading={creating.pending}>
+                  Create
+                </Button>
+              </Group>
+              <FailureAlert messages={laidOut.messages} failure={creating.failure} title="The network could not be created" />
+            </Paper>
+          )}
           <FailureAlert failure={networks.failure} title="Its networks could not be read" />
           {networks.loading && <Loader />}
-          {!networks.loading && items.length === 0 && !networks.failure && <EmptyState icon={<IconNetwork />} title="No networks" description="Create one for containers to reach one another on." />}
+          {!networks.loading && items.length === 0 && !networks.failure && (
+            <EmptyState icon={<IconNetwork />} title="No networks" description={may.create ? "Create one for containers to reach one another on." : undefined} />
+          )}
           {items.length > 0 && (
             <Table.ScrollContainer minWidth={640}>
               <Table verticalSpacing="sm">
@@ -98,7 +104,7 @@ export function NetworksPage() {
                         <Text size="sm">{ago(network.status.created_at)}</Text>
                       </Table.Td>
                       <Table.Td>
-                        <WorkloadActions onInspect={() => setInspected(network)} onDelete={() => setDeleted(network)} />
+                        <WorkloadActions onInspect={() => setInspected(network)} onDelete={may.delete ? () => setDeleted(network) : undefined} />
                       </Table.Td>
                     </Table.Tr>
                   ))}

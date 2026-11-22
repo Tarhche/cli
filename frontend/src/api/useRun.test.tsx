@@ -33,6 +33,7 @@ describe("useRun", () => {
     expect(outcome).toEqual({done: false});
     expect(result.current.failure).toEqual({message: "gone", logged_out: true});
     expect(signedOut).toHaveBeenCalledOnce();
+    expect(signedOut).toHaveBeenCalledWith({message: "gone", logged_out: true});
 
     act(() => result.current.reset());
     expect(result.current.failure).toBeNull();

@@ -1,12 +1,12 @@
-import {Button, Center, Divider, Group, Loader, Paper, PasswordInput, Stack, Text, TextInput, Title} from "@mantine/core";
-import {IconBrowser} from "@tabler/icons-react";
+import {Alert, Button, Center, Divider, Group, Loader, Paper, PasswordInput, Stack, Text, TextInput, Title} from "@mantine/core";
+import {IconBrowser, IconClockX, IconLock} from "@tabler/icons-react";
 import {type FormEvent, useRef, useState} from "react";
 import {formFailure} from "../api/failure";
 import {Session} from "../api/services";
 import {useRun} from "../api/useRun";
 import {FailureAlert} from "../components/FailureAlert";
 import {ContextMenu} from "./ContextMenu";
-import {useSession} from "./session";
+import {endOfContext, type SessionEnd, useSession} from "./session";
 
 /** The fields a password login has, which what is refused is said beside. */
 const LOGIN_FIELDS = ["identity", "password"];
@@ -17,7 +17,8 @@ type Cancellable = Promise<void> & {cancel?: () => void};
 /**
  * Signs in to the context the app talks to: in a browser, through the
  * estate's authorization server, or with an identity and a password. It is
- * what the app shows whenever that context has no session.
+ * what the app shows whenever that context has no session, saying why the
+ * last one ended when it was told: it ran out, or the account is blocked.
  */
 export function LoginScreen() {
   const session = useSession();
@@ -45,6 +46,7 @@ export function LoginScreen() {
 
   const laidOut = formFailure(passwordLogin.failure, (field) => (LOGIN_FIELDS.includes(field) ? field : undefined));
   const context = session.status?.context;
+  const ended = endOfContext(session.ended, context?.name);
 
   const signIn = (event: FormEvent) => {
     event.preventDefault();
@@ -66,6 +68,7 @@ export function LoginScreen() {
             <ContextMenu />
           </Group>
 
+          {ended && <Ended ended={ended} />}
           <FailureAlert failure={session.failure} title="The session could not be read" />
           <FailureAlert failure={browser.failure} title="Signing in in the browser failed" />
 
@@ -117,5 +120,22 @@ export function LoginScreen() {
         </Stack>
       </Paper>
     </Center>
+  );
+}
+
+/** Why the last session ended: the account is blocked, for the estate's reason, or it ran out. */
+function Ended({ended}: {ended: SessionEnd}) {
+  if (ended.blocked) {
+    return (
+      <Alert color="red" icon={<IconLock />} title="Your account is blocked" role="alert">
+        {ended.reason || "The estate refuses every request of yours, so you were signed out."} Signing in again is refused until an administrator lets you in.
+      </Alert>
+    );
+  }
+
+  return (
+    <Alert color="yellow" icon={<IconClockX />} title="Your session has expired" role="alert">
+      It ran out, or was signed out of elsewhere. Sign in again to go on.
+    </Alert>
   );
 }

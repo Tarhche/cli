@@ -1,6 +1,7 @@
 import {Button, EmptyState, Loader, Table, Text} from "@mantine/core";
 import {IconBox, IconPlus} from "@tabler/icons-react";
 import {useState} from "react";
+import {useAbilities} from "../../access/access";
 import {Workloads} from "../../api/services";
 import {useAct} from "../../api/useAct";
 import {useQuery} from "../../api/useQuery";
@@ -20,10 +21,11 @@ function idOf(container: Container): string {
   return container.metadata.uuid || container.status.id || container.status.name || "";
 }
 
-/** One's containers, across one's Docker VMs. */
+/** One's containers, across one's Docker VMs, and what the session may do with them. */
 export function ContainersPage() {
   const {navigate} = useNavigation();
   const act = useAct();
+  const {containers: may} = useAbilities();
   const [inspected, setInspected] = useState<Container | null>(null);
   const [deleted, setDeleted] = useState<Container | null>(null);
   const containers = useQuery("containers", () => Workloads.Containers("") as Promise<Items<Container>>, {interval: POLL});
@@ -37,15 +39,17 @@ export function ContainersPage() {
         title="Containers"
         description="What runs in your Docker VMs."
         actions={
-          <Button leftSection={<IconPlus size={16} />} onClick={() => navigate({page: "run-container"})}>
-            Run container
-          </Button>
+          may.create && (
+            <Button leftSection={<IconPlus size={16} />} onClick={() => navigate({page: "run-container"})}>
+              Run container
+            </Button>
+          )
         }
       />
       <FailureAlert failure={containers.failure} title="Your containers could not be read" />
       {containers.loading && <Loader />}
       {!containers.loading && items.length === 0 && !containers.failure && (
-        <EmptyState icon={<IconBox />} title="No containers yet" description="Run one, in a Docker VM of yours or a new one." />
+        <EmptyState icon={<IconBox />} title="No containers yet" description={may.create ? "Run one, in a Docker VM of yours or a new one." : undefined} />
       )}
       {items.length > 0 && (
         <Table.ScrollContainer minWidth={760}>
@@ -68,7 +72,7 @@ export function ContainersPage() {
                 const name = container.status.name || container.spec.name || container.metadata.name || id;
 
                 return (
-                  <Table.Tr key={`${vm}/${id}`} style={{cursor: "pointer"}} onClick={() => navigate({page: "container", vm, id})}>
+                  <Table.Tr key={`${vm}/${id}`} style={may.show ? {cursor: "pointer"} : undefined} onClick={may.show ? () => navigate({page: "container", vm, id}) : undefined}>
                     <Table.Td>
                       <Text size="sm" fw={500}>
                         {name}
@@ -97,11 +101,11 @@ export function ContainersPage() {
                     <Table.Td>
                       <WorkloadActions
                         state={container.status.state}
-                        onStart={() => command(`Starting ${name}`, () => Workloads.StartContainer(vm, id))}
-                        onStop={() => command(`Stopping ${name}`, () => Workloads.StopContainer(vm, id))}
-                        onRestart={() => command(`Restarting ${name}`, () => Workloads.RestartContainer(vm, id))}
+                        onStart={may.start ? () => command(`Starting ${name}`, () => Workloads.StartContainer(vm, id)) : undefined}
+                        onStop={may.stop ? () => command(`Stopping ${name}`, () => Workloads.StopContainer(vm, id)) : undefined}
+                        onRestart={may.restart ? () => command(`Restarting ${name}`, () => Workloads.RestartContainer(vm, id)) : undefined}
                         onInspect={() => setInspected(container)}
-                        onDelete={() => setDeleted(container)}
+                        onDelete={may.delete ? () => setDeleted(container) : undefined}
                       />
                     </Table.Td>
                   </Table.Tr>

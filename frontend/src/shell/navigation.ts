@@ -1,5 +1,7 @@
 import {createContext, useContext} from "react";
-import type {ResourceDefinition} from "../api/services";
+import type {Access} from "../access/access";
+import type {Abilities, KindAbilities, ResourceDefinition} from "../api/services";
+import {forwardKindsOf} from "../workloads/forwards/forwarding";
 
 /** A page of the workload, which the navbar offers. */
 export type WorkloadPage =
@@ -34,8 +36,58 @@ export const WORKLOAD_PAGES: {page: WorkloadPage; label: string}[] = [
   {page: "forwards", label: "Port forwards"},
 ];
 
-/** Where the app starts. */
+/** Where the app starts, when the session may see it. */
 export const HOME: View = {page: "containers"};
+
+/** Whether the session may see a page of the workload: its listing, or something to forward a port of. */
+function workloadPageAllowed(page: WorkloadPage, abilities: Abilities): boolean {
+  if (page === "forwards") {
+    return forwardKindsOf(abilities).length > 0;
+  }
+
+  const kinds: Record<Exclude<WorkloadPage, "forwards">, KindAbilities> = abilities;
+
+  return kinds[page].list;
+}
+
+/** The pages of the workload the session may see, in the order the navbar offers them. */
+export function workloadPagesOf(abilities: Abilities): {page: WorkloadPage; label: string}[] {
+  return WORKLOAD_PAGES.filter(({page}) => workloadPageAllowed(page, abilities));
+}
+
+/** Whether the session may see a view: a page it may list, one it may read, or a form it may send. */
+export function allows(access: Access, view: View): boolean {
+  const {abilities, definitions} = access;
+
+  switch (view.page) {
+    case "vm":
+      return abilities.vms.show;
+    case "create-vm":
+      return abilities.vms.create;
+    case "container":
+      return abilities.containers.show;
+    case "run-container":
+      return abilities.containers.create;
+    case "deploy-stack":
+      return abilities.stacks.create;
+    case "resource":
+      return definitions.some((definition) => definition.name === view.name && (definition.audiences ?? []).length > 0);
+    default:
+      return workloadPageAllowed(view.page, abilities);
+  }
+}
+
+/** Where the app starts for a session: the first page the navbar offers it, nowhere when it offers none. */
+export function homeOf(access: Access): View | null {
+  const workload = workloadPagesOf(access.abilities)[0];
+  if (workload !== undefined) {
+    return {page: workload.page};
+  }
+
+  const resource = sectionsOf(access.definitions)[0]?.definitions[0];
+
+  return resource === undefined ? null : {page: "resource", name: resource.name};
+}
 
 /** A section of the navbar, and the resources it lists. */
 export type Section = {
@@ -91,6 +143,9 @@ export function pageOf(view: View): string {
 export type Navigation = {
   view: View;
 
+  /** Where it starts, and goes back to when there is nothing before. */
+  home: View;
+
   /** Goes to a view, which back comes back from. */
   navigate: (view: View) => void;
 
@@ -124,9 +179,9 @@ export function pushed(history: History, view: View): History {
 }
 
 /** The history once back is asked for: home once there is nothing before. */
-export function popped(history: History): History {
+export function popped(history: History, home: View = HOME): History {
   if (history.length <= 1) {
-    return [HOME];
+    return [home];
   }
 
   return history.slice(0, -1);

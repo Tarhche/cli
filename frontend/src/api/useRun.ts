@@ -33,7 +33,7 @@ export function useRun<A extends unknown[], T>(action: (...args: A) => Promise<T
         if (!isCancelled(error)) {
           const failed = failureOf(error);
           if (failed.logged_out) {
-            signedOut();
+            signedOut(failed);
           }
 
           setFailure(failed);

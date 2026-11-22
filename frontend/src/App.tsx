@@ -1,9 +1,13 @@
 import {Center, Loader, MantineProvider} from "@mantine/core";
 import {ModalsProvider} from "@mantine/modals";
 import {Notifications} from "@mantine/notifications";
+import {useMemo} from "react";
+import {useAccess} from "./access/access";
+import {AccessProvider} from "./access/AccessProvider";
 import {LoginScreen} from "./session/LoginScreen";
 import {useSession} from "./session/session";
 import {SessionProvider} from "./session/SessionProvider";
+import {HOME, homeOf} from "./shell/navigation";
 import {NavigationProvider} from "./shell/NavigationProvider";
 import {Shell} from "./shell/Shell";
 import {theme} from "./theme";
@@ -24,7 +28,8 @@ export function App() {
 
 /**
  * The login whenever the context the app talks to has no session, and the
- * app once it has one: a new context or session starts it afresh.
+ * app once it has one, as its permissions allow: a new context or session
+ * starts it afresh.
  */
 export function Gate() {
   const session = useSession();
@@ -42,7 +47,19 @@ export function Gate() {
   }
 
   return (
-    <NavigationProvider key={`${session.status.context.name}/${session.status.subject ?? ""}`}>
+    <AccessProvider key={`${session.status.context.name}/${session.status.subject ?? ""}`}>
+      <SignedIn />
+    </AccessProvider>
+  );
+}
+
+/** The app for a session, starting at the first page it may see. */
+function SignedIn() {
+  const access = useAccess();
+  const home = useMemo(() => homeOf(access) ?? HOME, [access]);
+
+  return (
+    <NavigationProvider home={home}>
       <Shell />
     </NavigationProvider>
   );
