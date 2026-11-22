@@ -5,13 +5,7 @@ import (
 
 	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/stream"
-)
-
-// The streams into a VM, by the action the ingress opens each on.
-const (
-	streamAttach  = "attach"
-	streamExec    = "exec"
-	streamForward = "forward"
+	"github.com/Tarhche/cli/internal/workload"
 )
 
 // Abilities say which of the workload's pages and actions the session's
@@ -94,7 +88,7 @@ func abilitiesOf(granted access.Granted) Abilities {
 	}
 
 	streams := func(action string) bool {
-		return granted.Has(ownStreamPermission(stream.KindVMs, action)) || granted.Has(anybodysStreamPermission(stream.KindVMs, action))
+		return granted.AllowsStream(action, workload.Mine)
 	}
 
 	return Abilities{
@@ -109,9 +103,9 @@ func abilitiesOf(granted access.Granted) Abilities {
 			Delete:  may(deleteVMRoute, vmDependentsRoute),
 			Logs:    may(vmLogsRoute),
 			Usage:   may(vmUsageRoute),
-			Attach:  streams(streamAttach),
-			Exec:    streams(streamExec),
-			Forward: streams(streamForward),
+			Attach:  streams(stream.ActionAttach),
+			Exec:    streams(stream.ActionExec),
+			Forward: streams(stream.ActionForward),
 		},
 		Containers: KindAbilities{
 			List:    may(containersRoute),
@@ -123,7 +117,7 @@ func abilitiesOf(granted access.Granted) Abilities {
 			Delete:  may(deleteContainerRoute),
 			Logs:    may(containerLogsRoute),
 			Usage:   may(containerStatsRoute, containerUsageRoute),
-			Exec:    streams(streamExec),
+			Exec:    streams(stream.ActionExec),
 		},
 		Images: KindAbilities{
 			List:   may(vmsRoute, imagesRoute),
@@ -157,16 +151,4 @@ func abilitiesOf(granted access.Granted) Abilities {
 			Delete: may(deleteSnapshotRoute),
 		},
 	}
-}
-
-// ownStreamPermission is the permission a node opens a stream of action
-// into one's own workload of kind under: self.workload.vms.exec, say.
-func ownStreamPermission(kind, action string) string {
-	return "self.workload." + kind + "." + action
-}
-
-// anybodysStreamPermission is the permission a node opens a stream of action
-// into anybody's workload of kind under, one's own among them.
-func anybodysStreamPermission(kind, action string) string {
-	return "workload." + kind + "." + action
 }

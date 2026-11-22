@@ -15,9 +15,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/command"
 	"github.com/Tarhche/cli/internal/command/commandtest"
 	"github.com/Tarhche/cli/internal/desktop"
+	"github.com/Tarhche/cli/internal/stream"
 	"github.com/Tarhche/cli/internal/stream/streamtest"
 	"github.com/Tarhche/cli/internal/workload/workloadtest"
 )
@@ -100,11 +102,14 @@ func forbidding() *streamtest.Ingress {
 func requireDenied(t *testing.T, err error, permission string) {
 	t.Helper()
 
-	var denied *desktop.StreamDeniedError
+	var denied *access.DeniedError
 	require.ErrorAs(t, err, &denied)
 	assert.Equal(t, permission, denied.Permission)
-	assert.Equal(t, http.StatusForbidden, denied.Refused.StatusCode)
-	assert.Equal(t, desktop.Failure{Message: `permission denied: this needs the "` + permission + `" permission, which none of your roles gives you`, Denied: true, Permission: permission}, desktop.FailureOf(err))
+	assert.True(t, stream.IsForbidden(denied.Refused))
+	failure := desktop.FailureOf(err)
+	assert.True(t, failure.Denied)
+	assert.Equal(t, permission, failure.Permission)
+	assert.Contains(t, failure.Message, `permission denied: this needs the "`+permission+`" permission, which none of your roles gives you`)
 }
 
 func TestStreamsOpen(t *testing.T) {

@@ -84,7 +84,7 @@ func TestFailureOf(t *testing.T) {
 		},
 		{
 			name: "a stream a node refuses for the session's permissions is denied, naming the permission it needs",
-			err:  &desktop.StreamDeniedError{Permission: "self.workload.vms.exec", Refused: &stream.Error{Stream: "vms/v-1/exec", StatusCode: http.StatusForbidden}},
+			err:  &access.DeniedError{Permission: "self.workload.vms.exec", Refused: &stream.Error{Stream: "vms/v-1/exec", StatusCode: http.StatusForbidden}},
 			want: desktop.Failure{Message: `permission denied: this needs the "self.workload.vms.exec" permission, which none of your roles gives you`, Denied: true, Permission: "self.workload.vms.exec"},
 		},
 		{

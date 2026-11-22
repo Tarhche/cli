@@ -118,9 +118,5 @@ func deniedPermission(err error) (string, bool) {
 		return denied.Permission, true
 	}
 
-	if denied, isDenied := errors.AsType[*StreamDeniedError](err); isDenied {
-		return denied.Permission, true
-	}
-
 	return "", false
 }
