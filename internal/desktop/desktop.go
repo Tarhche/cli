@@ -101,7 +101,8 @@ func Run(ctx context.Context, cli *command.Cli) error {
 
 	manager := auth.New(cfg, store, auth.WithInteractive(false), auth.WithPrompt(io.Discard), auth.WithBrowser(app.Browser.OpenURL))
 	workspace := NewWorkspace(contextName, NewOpener(cli, cfg, manager, contextName))
-	reach := Reach{Terminals: Unavailable{}, Forwards: Unavailable{}, Files: Unavailable{}}
+	streams := NewStreams()
+	reach := Reach{Terminals: streams, Forwards: streams, Files: streams}
 
 	for _, service := range Services(ctx, workspace, manager, reach, app.Event, dialogs{manager: app.Dialog}) {
 		app.RegisterService(service)

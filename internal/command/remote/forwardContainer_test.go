@@ -12,7 +12,7 @@ import (
 func TestForwardContainerCommand(t *testing.T) {
 	t.Parallel()
 
-	inspect := []string{"docker", "inspect", "--format", containerAddresses, "abc123"}
+	inspect := []string{"docker", "inspect", "--format", "{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}", "abc123"}
 
 	setup := func(t *testing.T, addresses string, inspectStatus int, relay string) *harnessed {
 		t.Helper()

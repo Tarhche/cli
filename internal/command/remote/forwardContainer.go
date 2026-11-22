@@ -1,21 +1,14 @@
 package remote
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"io"
-	"strings"
 
 	"github.com/danceable/console"
 
 	"github.com/Tarhche/cli/internal/command"
 	"github.com/Tarhche/cli/internal/portforward"
+	"github.com/Tarhche/cli/internal/reach"
 )
-
-// containerAddresses is the template docker inspect says a container's
-// addresses with, one on each of its networks.
-const containerAddresses = "{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}"
 
 // forwardContainerCommand forwards local ports to a container's, relayed by
 // nc in its Docker VM to the container's address there.
@@ -81,21 +74,12 @@ func (c *forwardContainerCommand) run(ctx context.Context) error {
 		return err
 	}
 
-	var inspected bytes.Buffer
-
-	inspect := []string{"docker", "inspect", "--format", containerAddresses, container.DockerID}
-	if err := dialer.Runner(container.VM.UUID).Run(ctx, inspect, nil, &inspected); err != nil {
-		return fmt.Errorf("finding the address of container %s: %w", reference, err)
-	}
-
-	found := strings.Fields(inspected.String())
-	if len(found) == 0 {
-		return fmt.Errorf("container %s has no address to forward to: is it running?", reference)
+	address, err := reach.ContainerAddress(ctx, dialer, container, reference)
+	if err != nil {
+		return err
 	}
 
 	return c.remote.forward(ctx, addresses, ports, func(remote uint) portforward.Dial {
-		return func(ctx context.Context) (io.ReadWriteCloser, error) {
-			return dialer.Relay(ctx, container.VM.UUID, found[0], remote)
-		}
+		return reach.ContainerPort(dialer, container, address, remote)
 	})
 }

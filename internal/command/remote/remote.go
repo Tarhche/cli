@@ -8,15 +8,14 @@ package remote
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/danceable/console"
 
 	"github.com/Tarhche/cli/internal/command"
 	"github.com/Tarhche/cli/internal/portforward"
+	"github.com/Tarhche/cli/internal/reach"
 	"github.com/Tarhche/cli/internal/stream"
-	"github.com/Tarhche/cli/internal/version"
 	"github.com/Tarhche/cli/internal/workload"
 )
 
@@ -112,19 +111,5 @@ func (r *remote) container(ctx context.Context, reference string) (workload.Cont
 
 // dialer opens streams on the current context's ingress, signed in.
 func (r *remote) dialer() (*stream.Dialer, error) {
-	current, err := r.cli.Context()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(current.Ingress) == 0 {
-		return nil, fmt.Errorf("the context %q names no workload ingress: give it one, or name one with --ingress", current.Name)
-	}
-
-	tokens, err := r.cli.Tokens()
-	if err != nil {
-		return nil, err
-	}
-
-	return stream.NewDialer(current.Ingress, tokens, stream.WithUserAgent(version.UserAgent()))
+	return reach.Dialer(r.cli)
 }
