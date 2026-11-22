@@ -1,4 +1,4 @@
-import {screen} from "@testing-library/react";
+import {screen, waitFor} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 import {Workloads} from "../../api/services";
@@ -47,6 +47,19 @@ describe("ContainerPage", () => {
 
     expect(await screen.findByRole("menuitem", {name: "Delete"})).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", {name: "Inspect"})).not.toBeInTheDocument();
+  });
+
+  it("shows everything Docker says of it once asked, and folds it again", async () => {
+    renderPage({containers: {show: true}});
+    await screen.findByRole("heading", {name: "web"});
+    const show = screen.getByRole("button", {name: "Show everything Docker says about it"});
+    expect(show).toHaveAttribute("aria-expanded", "false");
+
+    await userEvent.click(show);
+
+    await waitFor(() => expect(screen.getByText(/"id": "abc123"/)).toBeVisible());
+    await userEvent.click(screen.getByRole("button", {name: "Hide the details"}));
+    expect(screen.getByRole("button", {name: "Show everything Docker says about it"})).toHaveAttribute("aria-expanded", "false");
   });
 
   it("offers nothing the session may not do with it", async () => {
