@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/api"
 	"github.com/Tarhche/cli/internal/auth"
 	"github.com/Tarhche/cli/internal/config"
@@ -251,6 +252,39 @@ func TestCliClient(t *testing.T) {
 		assert.Same(t, client, again)
 	})
 
+	t.Run("a refusal is explained: a permission the roles do not give, or a blocked account", func(t *testing.T) {
+		t.Parallel()
+
+		for name, profile := range map[string]int{"denied": http.StatusOK, "blocked": http.StatusForbidden} {
+			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == access.ProbePath {
+					rw.WriteHeader(profile)
+
+					return
+				}
+
+				rw.WriteHeader(http.StatusForbidden)
+			}))
+			t.Cleanup(server.Close)
+
+			cfg := configIn(t, config.Context{Name: "test", API: server.URL})
+			require.NoError(t, cfg.Use("test"))
+
+			client, err := NewCli(nil, nil, nil, WithConfig(cfg), WithTokens(staticTokens("t"))).Client(context.Background())
+			require.NoError(t, err)
+
+			err = client.Get(context.Background(), "/api/dashboard/users", nil, nil)
+
+			if name == "blocked" {
+				assert.ErrorIs(t, err, access.ErrBlocked, name)
+			} else {
+				var denied *access.DeniedError
+				require.ErrorAs(t, err, &denied, name)
+				assert.Equal(t, "users.index", denied.Permission, name)
+			}
+		}
+	})
+
 	t.Run("a context that does not exist is an error", func(t *testing.T) {
 		t.Parallel()
 
@@ -329,6 +363,10 @@ func TestCliExit(t *testing.T) {
 		{name: "a status with a message", err: StatusError{Code: 4, Message: "it failed"}, status: 4, said: "it failed\n"},
 		{name: "anything else", err: errors.New("it broke"), status: console.ExitFailure, said: "Error: it broke\n"},
 		{name: "not logged in", err: auth.ErrNotLoggedIn, status: console.ExitFailure, said: "Error: not logged in to \"test\" (https://backend.example): run 'tarhche login' first\n"},
+		{name: "a session that ended", err: auth.ErrSessionEnded, status: console.ExitFailure, said: "Error: your session of \"test\" (https://backend.example) has expired or ended: run 'tarhche login' to log in again\n"},
+		{name: "an account refused", err: &auth.AccountRefusedError{Reason: "your account has been blocked"}, status: console.ExitFailure, said: "Error: your account may not sign in: your account has been blocked\n"},
+		{name: "a blocked account", err: &access.BlockedError{Refused: &api.Error{StatusCode: 403}}, status: console.ExitFailure, said: "Error: your account is blocked: the estate refuses every request of yours\n"},
+		{name: "a permission denied", err: &access.DeniedError{Permission: "users.index", Refused: &api.Error{StatusCode: 403}}, status: console.ExitFailure, said: "Error: permission denied: this needs the \"users.index\" permission, which none of your roles gives you\n"},
 	}
 
 	for _, c := range cases {

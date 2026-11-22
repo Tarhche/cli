@@ -361,6 +361,10 @@ func (e *estate) login(rw http.ResponseWriter, r *http.Request) {
 	writeJSON(rw, http.StatusOK, e.answer(e.issue(identity, fmt.Sprintf("session-%d", e.sessions), "", e.accessLifetime)))
 }
 
+// blockedRefreshToken is the refresh token of a session whose account is
+// blocked, which the estate refuses to renew for the account.
+const blockedRefreshToken = "blocked"
+
 func (e *estate) refresh(rw http.ResponseWriter, r *http.Request) {
 	var asked struct {
 		Token string `json:"token"`
@@ -374,6 +378,12 @@ func (e *estate) refresh(rw http.ResponseWriter, r *http.Request) {
 
 	e.lock.Lock()
 	defer e.lock.Unlock()
+
+	if asked.Token == blockedRefreshToken {
+		writeJSON(rw, http.StatusBadRequest, map[string]any{"errors": map[string]string{"identity": "your account has been blocked, you can reach us through the contact form"}})
+
+		return
+	}
 
 	kept, found := e.refreshes[asked.Token]
 	if !found || len(kept.clientID) > 0 {

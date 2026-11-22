@@ -87,6 +87,10 @@ func (c *Cli) notLoggedIn(err error) string {
 		login = Name + " --context " + current.Name + " login"
 	}
 
+	if errors.Is(err, auth.ErrSessionEnded) {
+		return fmt.Sprintf("your session of %q (%s) has expired or ended: run '%s' to log in again", current.Name, current.API, login)
+	}
+
 	return fmt.Sprintf("%s to %q (%s): run '%s' first", strings.TrimSuffix(err.Error(), "."), current.Name, current.API, login)
 }
 

@@ -15,6 +15,10 @@ type claims struct {
 	Subject   string  `json:"sub"`
 	Session   string  `json:"sid"`
 	ExpiresAt float64 `json:"exp"`
+
+	// Permissions are every action its roles allow somewhere: a hint, as
+	// the API decides every request by the roles as they are.
+	Permissions []string `json:"permissions"`
 }
 
 // claimsOf reads the claims of a JWT, and is none for what is not one.
@@ -35,6 +39,12 @@ func claimsOf(token string) claims {
 	}
 
 	return c
+}
+
+// PermissionsOf are the permissions an access token says its roles allow,
+// read without verifying it: none for what is no token.
+func PermissionsOf(token string) []string {
+	return claimsOf(token).Permissions
 }
 
 // expiry is when the token runs out, and the zero time when it does not

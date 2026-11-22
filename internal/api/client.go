@@ -31,11 +31,28 @@ type TokenSource interface {
 	Renew(ctx context.Context, rejected string) (string, error)
 }
 
+// Explainer says why the API refused a request (403): the error Send
+// returns instead of the refusal.
+type Explainer interface {
+	Explain(ctx context.Context, refused *Error) error
+}
+
+// unexplained marks a context whose refusals are returned as they are.
+type unexplained struct{}
+
+// Unexplained is ctx, whose requests' refusals are not explained: an
+// explainer asks the API with it, so that its own questions are answered as
+// they are.
+func Unexplained(ctx context.Context) context.Context {
+	return context.WithValue(ctx, unexplained{}, true)
+}
+
 // Client sends requests to the API.
 type Client struct {
 	base      *url.URL
 	http      *http.Client
 	tokens    TokenSource
+	explainer Explainer
 	userAgent string
 	language  string
 }
@@ -52,6 +69,11 @@ func WithHTTPClient(h *http.Client) Option {
 // sends them anonymously.
 func WithTokens(source TokenSource) Option {
 	return func(c *Client) { c.tokens = source }
+}
+
+// WithExplainer says why the API refused a request through explainer.
+func WithExplainer(explainer Explainer) Option {
+	return func(c *Client) { c.explainer = explainer }
 }
 
 // WithUserAgent introduces the client as userAgent.
@@ -257,7 +279,14 @@ func (c *Client) Send(request *http.Request) (*http.Response, error) {
 	if response.StatusCode >= http.StatusBadRequest {
 		defer response.Body.Close()
 
-		return nil, readError(request, response)
+		err := readError(request, response)
+
+		var refused *Error
+		if response.StatusCode == http.StatusForbidden && c.explainer != nil && request.Context().Value(unexplained{}) == nil && errors.As(err, &refused) {
+			return nil, c.explainer.Explain(request.Context(), refused)
+		}
+
+		return nil, err
 	}
 
 	return response, nil

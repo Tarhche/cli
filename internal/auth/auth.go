@@ -27,6 +27,30 @@ import (
 // gone, when signing in again is not something to do by itself.
 var ErrNotLoggedIn = errors.New("not logged in")
 
+// ErrSessionEnded is a session its estate would not renew: it ran out, or was
+// signed out of. It is ErrNotLoggedIn as well.
+var ErrSessionEnded = fmt.Errorf("the session has expired or ended: %w", ErrNotLoggedIn)
+
+// ErrAccountRefused is an account its estate refuses a session to, blocked
+// or gone: signing in again would be refused too.
+var ErrAccountRefused = errors.New("the account is refused")
+
+// AccountRefusedError is a session's renewal refused for its account, with
+// why, as the estate says it.
+type AccountRefusedError struct {
+	Reason string
+}
+
+func (e *AccountRefusedError) Error() string {
+	return "your account may not sign in: " + e.Reason
+}
+
+// Is reports whether target is ErrAccountRefused, which every refusal of an
+// account is.
+func (e *AccountRefusedError) Is(target error) bool {
+	return target == ErrAccountRefused
+}
+
 // errNotRenewed is a token refused where it is not renewed.
 var errNotRenewed = errors.New("the token was refused")
 
@@ -52,6 +76,10 @@ type Status struct {
 	// ExpiresAt is when the access token runs out; the session is renewed
 	// before it does.
 	ExpiresAt time.Time `json:"expires_at,omitzero"`
+
+	// Permissions are every action the session's roles allow somewhere, as
+	// its access token says: a hint of what to offer.
+	Permissions []string `json:"permissions,omitempty"`
 }
 
 // Manager signs the CLI in and out of contexts, and keeps their sessions
@@ -167,7 +195,7 @@ func (m *Manager) Status(ctx context.Context, contextName string) (Status, error
 
 	claims := claimsOf(kept.AccessToken)
 
-	return Status{LoggedIn: true, Method: kept.Method, Subject: claims.Subject, ExpiresAt: claims.expiry()}, nil
+	return Status{LoggedIn: true, Method: kept.Method, Subject: claims.Subject, ExpiresAt: claims.expiry(), Permissions: claims.Permissions}, nil
 }
 
 // hold waits until nothing else signs in to, out of or renews the session of

@@ -24,6 +24,9 @@ type tokenSource struct {
 
 var _ api.TokenSource = &tokenSource{}
 
+// identityField is the field a renewal refused for the account names.
+const identityField = "identity"
+
 // TokenSource is the source of the access tokens of a context's session.
 // Its tokens are renewed before they run out and once the API refuses one;
 // a context with no session, or whose session is over, is signed in to
@@ -95,6 +98,10 @@ func (m *Manager) token(ctx context.Context, contextName string, usable func(cre
 
 		m.forget(contextName)
 
+		if reason, refusedAccount := accountRefusal(err); refusedAccount {
+			return "", &AccountRefusedError{Reason: reason}
+		}
+
 		return m.loginAgain(ctx, contextName, true)
 	} else if err != nil {
 		return "", fmt.Errorf("renewing the session of %q: %w", contextName, err)
@@ -115,7 +122,7 @@ func (m *Manager) token(ctx context.Context, contextName string, usable func(cre
 func (m *Manager) loginAgain(ctx context.Context, contextName string, ended bool) (string, error) {
 	if !m.interactive {
 		if ended {
-			return "", fmt.Errorf("the session has ended: %w", ErrNotLoggedIn)
+			return "", ErrSessionEnded
 		}
 
 		return "", ErrNotLoggedIn
@@ -194,6 +201,20 @@ func refused(err error) bool {
 	default:
 		return false
 	}
+}
+
+// accountRefusal is why the estate refused to renew a session for its
+// account rather than for the session itself, as a password session's
+// renewal names it: a blocked account, or one that is gone.
+func accountRefusal(err error) (string, bool) {
+	var apiRefusal *api.Error
+	if !errors.As(err, &apiRefusal) {
+		return "", false
+	}
+
+	reason, found := apiRefusal.Fields[identityField]
+
+	return reason, found && len(reason) > 0
 }
 
 // refusal reports whether status is one a session's renewal is refused

@@ -20,6 +20,16 @@ func TestClaimsOf(t *testing.T) {
 		assert.True(t, time.Unix(1700000000, 0).Equal(got.expiry()))
 	})
 
+	t.Run("a token says what its roles allow", func(t *testing.T) {
+		t.Parallel()
+
+		allowed := token(map[string]any{"sub": "user-1", "permissions": []string{"articles.index", "self.workload.vms.index"}})
+
+		assert.Equal(t, []string{"articles.index", "self.workload.vms.index"}, claimsOf(allowed).Permissions)
+		assert.Equal(t, []string{"articles.index", "self.workload.vms.index"}, PermissionsOf(allowed))
+		assert.Empty(t, PermissionsOf("not a token"))
+	})
+
 	t.Run("a payload with its padding is read too", func(t *testing.T) {
 		t.Parallel()
 

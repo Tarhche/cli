@@ -208,7 +208,7 @@ func TestManagerStatus(t *testing.T) {
 		t.Parallel()
 
 		expires := time.Now().Add(time.Minute).Truncate(time.Second)
-		kept := credentials.Credentials{Method: credentials.MethodOAuth, AccessToken: token(map[string]any{"sub": "user-1", "exp": expires.Unix()})}
+		kept := credentials.Credentials{Method: credentials.MethodOAuth, AccessToken: token(map[string]any{"sub": "user-1", "exp": expires.Unix(), "permissions": []string{"articles.index"}})}
 
 		status, err := newHarness(t, newEstate(t), mock.NewStore(map[string]credentials.Credentials{"test": kept})).Status(context.Background(), "test")
 
@@ -217,6 +217,7 @@ func TestManagerStatus(t *testing.T) {
 		assert.Equal(t, credentials.MethodOAuth, status.Method)
 		assert.Equal(t, "user-1", status.Subject)
 		assert.True(t, expires.Equal(status.ExpiresAt))
+		assert.Equal(t, []string{"articles.index"}, status.Permissions)
 	})
 
 	t.Run("a store that fails is an error", func(t *testing.T) {

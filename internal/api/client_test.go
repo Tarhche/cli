@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -434,5 +435,65 @@ func TestClientSend(t *testing.T) {
 		content, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
 		assert.Equal(t, "file content", string(content))
+	})
+}
+
+type explainer struct {
+	lock      sync.Mutex
+	explained []*Error
+	client    **Client
+	probed    error
+}
+
+func (e *explainer) Explain(ctx context.Context, refused *Error) error {
+	e.lock.Lock()
+	e.explained = append(e.explained, refused)
+	e.lock.Unlock()
+
+	e.probed = (*e.client).Get(Unexplained(ctx), "/probe", nil, nil)
+
+	return fmt.Errorf("explained: %w", refused)
+}
+
+func TestClientExplain(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a refusal is explained, and what the explainer asks is answered as it is", func(t *testing.T) {
+		t.Parallel()
+
+		server := serve(t, func(rw http.ResponseWriter, r *http.Request) {
+			rw.WriteHeader(http.StatusForbidden)
+		})
+
+		var client *Client
+		explaining := &explainer{client: &client}
+
+		client, err := New(server.URL, WithExplainer(explaining))
+		require.NoError(t, err)
+
+		err = client.Get(context.Background(), "/things", nil, nil)
+
+		assert.EqualError(t, err, "explained: forbidden")
+		assert.True(t, IsForbidden(err), "an explained refusal is still a refusal")
+		require.Len(t, explaining.explained, 1)
+		assert.Equal(t, "/things", explaining.explained[0].Path)
+		assert.True(t, IsForbidden(explaining.probed), "the probe's refusal was not explained again")
+	})
+
+	t.Run("what is not a refusal is not explained", func(t *testing.T) {
+		t.Parallel()
+
+		server := serve(t, func(rw http.ResponseWriter, r *http.Request) {
+			rw.WriteHeader(http.StatusNotFound)
+		})
+
+		var client *Client
+		explaining := &explainer{client: &client}
+
+		client, err := New(server.URL, WithExplainer(explaining))
+		require.NoError(t, err)
+
+		assert.True(t, IsNotFound(client.Get(context.Background(), "/things", nil, nil)))
+		assert.Empty(t, explaining.explained)
 	})
 }

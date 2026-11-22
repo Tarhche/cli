@@ -297,6 +297,24 @@ func TestTokenSource(t *testing.T) {
 		assert.Contains(t, h.prompt.String(), `Not logged in to "test" (`+e.URL+`): logging in.`)
 	})
 
+	t.Run("a session whose account is refused is forgotten, and not logged in to again", func(t *testing.T) {
+		t.Parallel()
+
+		e := newEstate(t)
+		store := mock.NewStore(map[string]credentials.Credentials{"test": {Method: credentials.MethodPassword, AccessToken: expiring("gone", 0), RefreshToken: blockedRefreshToken}})
+		h := newHarness(t, e, store, WithInteractive(true))
+
+		_, err := h.TokenSource("test").Token(context.Background())
+
+		assert.ErrorIs(t, err, ErrAccountRefused)
+		assert.NotErrorIs(t, err, ErrNotLoggedIn, "signing in again would be refused too")
+		assert.EqualError(t, err, "your account may not sign in: your account has been blocked, you can reach us through the contact form")
+		assert.NotContains(t, h.prompt.String(), "logging in")
+
+		_, err = store.Get("test")
+		assert.ErrorIs(t, err, credentials.ErrNotFound)
+	})
+
 	t.Run("a session the estate will not renew is forgotten, and not logged in when nobody is there to log in", func(t *testing.T) {
 		t.Parallel()
 
@@ -321,7 +339,8 @@ func TestTokenSource(t *testing.T) {
 			_, err := h.TokenSource("test").Token(context.Background())
 
 			assert.ErrorIs(t, err, ErrNotLoggedIn, name)
-			assert.EqualError(t, err, "the session has ended: not logged in", name)
+			assert.ErrorIs(t, err, ErrSessionEnded, name)
+			assert.EqualError(t, err, "the session has expired or ended: not logged in", name)
 
 			_, err = store.Get("test")
 			assert.ErrorIs(t, err, credentials.ErrNotFound, name)

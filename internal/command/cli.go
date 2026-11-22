@@ -11,6 +11,7 @@ import (
 	"github.com/danceable/console"
 	"golang.org/x/term"
 
+	"github.com/Tarhche/cli/internal/access"
 	"github.com/Tarhche/cli/internal/api"
 	"github.com/Tarhche/cli/internal/auth"
 	"github.com/Tarhche/cli/internal/config"
@@ -215,10 +216,13 @@ func (c *Cli) Client(ctx context.Context) (*api.Client, error) {
 		return nil, err
 	}
 
-	options := []api.Option{api.WithTokens(tokens), api.WithUserAgent(version.UserAgent())}
-	options = append(options, api.WithLanguage(c.Language()))
+	var client *api.Client
 
-	client, err := api.New(current.API, options...)
+	explainer := access.NewExplainer(tokens, func(ctx context.Context) error {
+		return client.Get(ctx, access.ProbePath, nil, nil)
+	})
+
+	client, err = api.New(current.API, api.WithTokens(tokens), api.WithExplainer(explainer), api.WithUserAgent(version.UserAgent()), api.WithLanguage(c.Language()))
 	if err != nil {
 		return nil, err
 	}
