@@ -31,7 +31,7 @@ lint: ## lints the Go code, as .golangci.yaml says
 	$(RUN) golangci-lint run ./...
 
 generate: ## regenerates the frontend's bindings to the desktop services
-	$(RUN) sh -c 'wails3 generate bindings -ts -d frontend/bindings -clean ./internal/desktop/...'
+	$(RUN) sh -c 'CGO_ENABLED=0 wails3 generate bindings -f "-tags=$(TAGS)" -ts -d frontend/bindings -clean ./internal/desktop/...'
 
 frontend: ## builds the desktop UI into frontend/dist
 	$(RUN) sh -c 'cd frontend && npm ci && npm run build'
