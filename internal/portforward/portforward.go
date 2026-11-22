@@ -104,6 +104,11 @@ func WithEvents(handle func(Event)) Option {
 	return func(f *Forwarder) { f.events = handle }
 }
 
+// WithListener listens through listen instead of a net.ListenConfig.
+func WithListener(listen func(ctx context.Context, network, address string) (net.Listener, error)) Option {
+	return func(f *Forwarder) { f.listen = listen }
+}
+
 // New is a forwarder that runs no forward yet.
 func New(options ...Option) *Forwarder {
 	f := &Forwarder{

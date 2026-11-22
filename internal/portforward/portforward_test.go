@@ -415,8 +415,7 @@ func TestForward(t *testing.T) {
 		acceptErr := errors.New("too many open files")
 		listener := &brokenListener{accepted: make(chan struct{}), err: acceptErr}
 
-		f := New()
-		f.listen = func(context.Context, string, string) (net.Listener, error) { return listener, nil }
+		f := New(WithListener(func(context.Context, string, string) (net.Listener, error) { return listener, nil }))
 
 		fw, err := f.Start(Spec{Dial: dialTCP("127.0.0.1:1")})
 		require.NoError(t, err)
