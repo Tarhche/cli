@@ -235,6 +235,27 @@ func TestFuncs(t *testing.T) {
 			assert.Equal(t, said, Bytes(value), "%T %v", value, value)
 		}
 	})
+
+	t.Run("duration", func(t *testing.T) {
+		t.Parallel()
+
+		cases := map[any]string{
+			45:                     "45 seconds",
+			json.Number("259200"):  "3 days",
+			uint64(31536000):       "12 months",
+			"3600":                 "About an hour",
+			0:                      "",
+			-5:                     "",
+			"x":                    "",
+			json.Number("forever"): "",
+		}
+
+		for value, said := range cases {
+			assert.Equal(t, said, Duration(value), "%T %v", value, value)
+		}
+
+		assert.Equal(t, "Forever\n", render(t, `{{default "Forever" (duration .validity_seconds)}}`, map[string]any{}))
+	})
 }
 
 func TestAgo(t *testing.T) {

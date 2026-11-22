@@ -12,7 +12,8 @@ import (
 )
 
 // Funcs are the functions a template may call: docker's (json, join, lower,
-// upper, title, split, truncate, pad) and the CLI's own (ago, bytes, default).
+// upper, title, split, truncate, pad) and the CLI's own (ago, bytes,
+// default, duration).
 func Funcs() template.FuncMap {
 	return template.FuncMap{
 		"json":     toJSON,
@@ -26,6 +27,7 @@ func Funcs() template.FuncMap {
 		"ago":      Ago,
 		"bytes":    Bytes,
 		"default":  orDefault,
+		"duration": Duration,
 	}
 }
 
@@ -174,6 +176,17 @@ func humanDuration(d time.Duration) string {
 	default:
 		return fmt.Sprintf("%d years", hours/24/365)
 	}
+}
+
+// Duration is a number of seconds as ago says how long it was: "3 days".
+// It says nothing of what is no number, or no more than none.
+func Duration(value any) string {
+	seconds, ok := numberOf(value)
+	if !ok || seconds <= 0 {
+		return ""
+	}
+
+	return humanDuration(time.Duration(seconds * float64(time.Second)))
 }
 
 // Bytes is a size in bytes as binary units say it: "1.5GiB". It takes any
