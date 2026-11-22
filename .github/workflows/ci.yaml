@@ -1,0 +1,278 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  lint:
+    name: Go lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # The Dockerfile names the linter make lint runs, so that CI runs the
+      # same one, and a bump of it is tested where it is made.
+      - name: Read the linter's version from the Dockerfile
+        id: tools
+        run: |
+          version=$(sed -n 's|^FROM golangci/golangci-lint:\(v[0-9.]*\).*|\1|p' Dockerfile)
+          echo "golangci-lint=${version:?the Dockerfile names no golangci/golangci-lint image}" >> "$GITHUB_OUTPUT"
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: ${{ steps.tools.outputs.golangci-lint }}
+
+      - name: go vet
+        run: |
+          mapfile -t packages < <(go list -tags purego ./... | grep -v /node_modules/)
+          go vet -tags purego "${packages[@]}"
+
+  test:
+    name: Go test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: go test
+        run: |
+          mapfile -t packages < <(go list -tags purego ./... | grep -v /node_modules/)
+          go test -race -cover -tags purego -coverprofile=coverage.out "${packages[@]}"
+
+      - name: Coverage summary
+        run: |
+          {
+            echo "## Coverage: $(go tool cover -func=coverage.out | awk 'END { print $NF }')"
+            echo
+            echo '| Package | Statements | Covered |'
+            echo '| :--- | ---: | ---: |'
+            awk -v module="$(go list -m)/" '
+              NR > 1 {
+                statements[$1] = $2
+                if ($3 > 0) covered[$1] = 1
+              }
+              END {
+                for (block in statements) {
+                  package = block
+                  sub(/\/[^\/]*:[^:]*$/, "", package)
+                  sub("^" module, "", package)
+                  total[package] += statements[block]
+                  if (block in covered) hit[package] += statements[block]
+                }
+                for (package in total) {
+                  percent = total[package] ? sprintf("%.1f%%", 100 * hit[package] / total[package]) : "-"
+                  printf "| `%s` | %d | %s |\n", package, total[package], percent
+                }
+              }
+            ' coverage.out | LC_ALL=C sort -t '`' -k 2,2
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage.out
+          if-no-files-found: error
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      # The UI the binaries embed, which the build jobs download.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: frontend
+          path: frontend/dist
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  build:
+    name: Build (${{ matrix.platform }})
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - darwin/amd64
+          - darwin/arm64
+          - linux/386
+          - linux/amd64
+          - linux/arm
+          - linux/arm64
+          - windows/386
+          - windows/amd64
+          - windows/arm64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: frontend
+          path: frontend/dist
+
+      - name: go build
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          export CGO_ENABLED=0 GOOS="${PLATFORM%/*}" GOARCH="${PLATFORM#*/}" GOARM=7
+          go build -trimpath -tags purego \
+            -ldflags "-s -w -X github.com/Tarhche/cli/internal/version.Version=${GITHUB_SHA::7}" \
+            -o "dist/tarhche_${GOOS}_${GOARCH}$(go env GOEXE)" ./cmd/tarhche
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Version
+        id: version
+        run: echo "version=$(git describe --tags --always | sed 's/^v//')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to the GitHub Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v6
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+        with:
+          images: ghcr.io/tarhche/cli
+          tags: type=ref,event=branch
+
+      # Built on every change and published, as ghcr.io/tarhche/cli:main,
+      # from main alone.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: production
+          platforms: linux/amd64,linux/arm64,linux/386,linux/arm/v7
+          build-args: VERSION=${{ steps.version.outputs.version }}
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  goreleaser:
+    name: GoReleaser
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Read GoReleaser's version from the Dockerfile
+        id: tools
+        run: |
+          version=$(sed -n 's|^FROM goreleaser/goreleaser:\(v[0-9.]*\).*|\1|p' Dockerfile)
+          echo "goreleaser=${version:?the Dockerfile names no goreleaser/goreleaser image}" >> "$GITHUB_OUTPUT"
+
+      - name: goreleaser check
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          version: ${{ steps.tools.outputs.goreleaser }}
+          args: check
+
+      # Everything a tag would release, the images among it (one per
+      # platform, loaded rather than pushed), and nothing published.
+      - name: goreleaser release --snapshot
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          version: ${{ steps.tools.outputs.goreleaser }}
+          args: release --snapshot --clean
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: snapshot
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*_checksums.txt
+          if-no-files-found: error
+          retention-days: 7
