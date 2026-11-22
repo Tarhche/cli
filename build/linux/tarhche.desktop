@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Tarhche
+Comment=Manage Tarhche: its content and your workloads
+Exec=tarhche --desktop
+Icon=tarhche
+Terminal=false
+Categories=Development;Network;
+StartupWMClass=tarhche

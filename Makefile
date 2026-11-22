@@ -11,7 +11,7 @@ HOST_ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 
 PLATFORMS := darwin/amd64 darwin/arm64 linux/386 linux/amd64 linux/arm linux/arm64 windows/386 windows/amd64 windows/arm64
 
-.PHONY: image sh deps test cover lint generate icons frontend frontend-test build build-all desktop docker release-check snapshot clean
+.PHONY: image sh deps test cover lint generate icons frontend frontend-test build build-all app desktop docker release-check snapshot clean
 
 image: ## builds the development image every target runs in
 	$(COMPOSE) build develop
@@ -52,6 +52,10 @@ build-all: frontend ## builds every released platform into dist/
 		echo "building $$os/$$arch"; \
 		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch GOARM=7 go build -trimpath -tags $(BUILD_TAGS) -ldflags "$(LDFLAGS)" -o dist/tarhche_$${os}_$${arch}$$ext ./cmd/tarhche || exit 1; \
 	done'
+
+app: frontend ## builds bin/Tarhche.app, the desktop app for a Mac of this architecture, and its zip
+	$(RUN) sh -c 'CGO_ENABLED=0 GOOS=darwin GOARCH=$(HOST_ARCH) go build -trimpath -tags $(BUILD_TAGS) -ldflags "$(LDFLAGS)" -o bin/darwin/tarhche ./cmd/tarhche \
+		&& ./scripts/app.sh bin/darwin/tarhche $(VERSION) bin'
 
 desktop: build ## builds bin/tarhche and opens the desktop UI on this machine
 	./bin/tarhche --desktop
