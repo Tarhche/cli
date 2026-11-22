@@ -2,6 +2,7 @@ import {AppShell, Burger, Button, EmptyState, Group, Text, ThemeIcon} from "@man
 import {useDisclosure} from "@mantine/hooks";
 import {IconBox, IconLock} from "@tabler/icons-react";
 import {type Access, useAccess} from "../access/access";
+import {SessionsPage} from "../account/SessionsPage";
 import {ResourcePage} from "../resources/ResourcePage";
 import {ContextMenu} from "../session/ContextMenu";
 import {UserMenu} from "../session/UserMenu";
@@ -99,6 +100,10 @@ function Page({view, access, navigate}: {view: View; access: Access; navigate: (
     case "forwards":
       return <ForwardsPage />;
     case "resource": {
+      if (view.name === "session") {
+        return <SessionsPage />;
+      }
+
       const definition = access.definitions.find((d) => d.name === view.name);
 
       return definition ? <ResourcePage key={JSON.stringify(view)} definition={definition} audience={view.audience} filters={view.filters} /> : null;
